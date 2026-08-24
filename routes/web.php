@@ -38,6 +38,8 @@ use App\Livewire\Dashboard\Deposits;
 use App\Livewire\Dashboard\WebhookSettings;
 use App\Livewire\Dashboard\TransactionHistory;
 use App\Livewire\Dashboard\UserDashboard;
+use App\Livewire\Dashboard\WithdrawalSettings;
+use App\Livewire\Dashboard\Withdraw;
 use App\Livewire\Demo\EmailInbox;
 use App\Livewire\Support\SupportCenter;
 use App\Livewire\Support\TicketCreate;
@@ -135,6 +137,10 @@ Route::middleware(['auth', 'owner'])->group(function (): void {
     Route::get('/transactions', TransactionHistory::class)->name('transactions');
     Route::get('/api-keys', ApiKeys::class)->name('api-keys');
     Route::get('/webhook-settings', WebhookSettings::class)->name('webhook-settings');
+    Route::get('/withdrawal-settings', WithdrawalSettings::class)->name('withdrawal-settings');
+    Route::get('/withdraw/{network}', Withdraw::class)
+        ->name('withdraw')
+        ->whereIn('network', ['bitcoin', 'usdt-trc20', 'usdt-erc20']);
 });
 
 Route::middleware(['auth'])->group(function (): void {
