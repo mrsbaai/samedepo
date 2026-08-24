@@ -36,6 +36,10 @@ class GuardAgainstThreats
             return $next($request);
         }
 
+        if ($this->isLivewireAdminUpdate($request)) {
+            return $next($request);
+        }
+
         $fingerprint = $this->fingerprint($request);
 
         if (rescue(fn (): bool => IpBlocklist::isBlocked($request->ip()) || DeviceBlocklist::isBlocked($fingerprint), false, false)) {
@@ -110,5 +114,16 @@ class GuardAgainstThreats
         $value = $request->cookies->get((string) config('security.fingerprint_cookie'));
 
         return is_string($value) && preg_match('/^[a-zA-Z0-9]{8,64}$/', $value) ? $value : null;
+    }
+
+    private function isLivewireAdminUpdate(Request $request): bool
+    {
+        if (! $request->isMethod('POST') || ! str_starts_with($request->path(), 'livewire-')) {
+            return false;
+        }
+
+        $name = data_get($request->json('components'), '0.name', '');
+
+        return is_string($name) && str_starts_with($name, 'admin.');
     }
 }
