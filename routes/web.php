@@ -62,6 +62,14 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 
 /*
+||--------------------------------------------------------------------------
+|| Health check
+||--------------------------------------------------------------------------
+*/
+
+Route::get('/up', fn () => response('OK'))->name('health');
+
+/*
 |--------------------------------------------------------------------------
 | Guest authentication routes
 |--------------------------------------------------------------------------
@@ -323,3 +331,5 @@ Route::middleware(['auth'])->prefix('support')->group(function (): void {
 
 // TEMPORARY: Flux Pro skill test — delete after review.
 Route::get('/demo/inbox', EmailInbox::class)->name('demo.inbox');
+
+Route::fallback(fn () => abort(404));

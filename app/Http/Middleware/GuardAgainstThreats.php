@@ -11,6 +11,7 @@ use App\Security\Models\ThreatEvent;
 use App\Security\ThreatDetector;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -28,6 +29,10 @@ class GuardAgainstThreats
     public function handle(Request $request, Closure $next): Response
     {
         if (! config('security.enabled')) {
+            return $next($request);
+        }
+
+        if (Auth::check() && Auth::user()?->is_admin) {
             return $next($request);
         }
 
