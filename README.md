@@ -10,6 +10,15 @@ Samedepo replaces invoice-based and expiring-link crypto payment flows with perm
 
 Website owners who want customers to repeatedly top up a crypto balance.
 
+## Features
+
+- **Owner dashboard** — real-time balances, recent activity, deposits, transaction history, and customer management.
+- **Customer deposit addresses** — permanent Bitcoin, USDT TRC20, and USDT ERC20 addresses per customer with copy-to-clipboard.
+- **API keys** — generate, name, revoke, and replace owner-scoped API keys; only the hash is stored.
+- **Webhook settings** — configure an HTTPS endpoint and toggle credited-deposit / withdrawal-status events.
+- **Withdrawals** — set per-network withdrawal addresses, review eligibility, request full-balance withdrawals, and cancel pending withdrawals.
+- **Admin console** — platform settings, withdrawal queue, owner management, and treasury overview (in progress).
+
 ## Getting started
 
 1. `cp .env.example .env`
