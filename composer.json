@@ -17,6 +17,7 @@
         "php": "^8.2",
         "laravel/fortify": "^1.37",
         "laravel/framework": "^11.0",
+        "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.29",
         "laravel/tinker": "^2.9",
         "livewire/flux": "^2.15|dev-main",
