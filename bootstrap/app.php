@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureUserIsOwner;
 use App\Http\Middleware\GuardAgainstThreats;
 use App\Http\Middleware\IdentifyDevice;
 use App\Http\Middleware\SetUserAppearance;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['device_fp']);
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
+            'owner' => EnsureUserIsOwner::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

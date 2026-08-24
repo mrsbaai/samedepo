@@ -47,8 +47,8 @@ test('guest can sign in', function () {
             ->type('input[name="email"]', $user->email)
             ->type('input[name="password"]', 'password')
             ->press('Sign in')
-            ->waitForLocation('/user')
-            ->assertPathIs('/user')
+            ->waitForLocation('/dashboard')
+            ->assertPathIs('/dashboard')
             ->assertSee('Welcome back');
     });
 });
@@ -112,8 +112,8 @@ test('user can change password', function () {
             ->type('input[name="password"]', 'password')
             ->waitFor('button[type="submit"]:enabled')
             ->press('Sign in')
-            ->waitForLocation('/user')
-            ->assertPathIs('/user');
+            ->waitForLocation('/dashboard')
+            ->assertPathIs('/dashboard');
 
         $browser->visit('/security/change-password')
             ->waitFor('input[name="currentPassword"]')
@@ -161,8 +161,8 @@ test('guest with two factor can log in after challenge', function () {
 
         $browser->waitFor('button[type="submit"]:enabled')
             ->press('Verify your identity')
-            ->waitForLocation('/user')
-            ->assertPathIs('/user');
+            ->waitForLocation('/dashboard')
+            ->assertPathIs('/dashboard');
     });
 });
 
@@ -180,8 +180,8 @@ test('user can request account deletion', function () {
             ->type('input[name="password"]', 'password')
             ->waitFor('button[type="submit"]:enabled')
             ->press('Sign in')
-            ->waitForLocation('/user')
-            ->assertPathIs('/user');
+            ->waitForLocation('/dashboard')
+            ->assertPathIs('/dashboard');
 
         $browser->visit('/security/delete')
             ->waitFor('input[name="currentPassword"]')
@@ -217,8 +217,8 @@ test('user can change email', function () {
             ->type('input[name="password"]', 'password')
             ->waitFor('button[type="submit"]:enabled')
             ->press('Sign in')
-            ->waitForLocation('/user')
-            ->assertPathIs('/user');
+            ->waitForLocation('/dashboard')
+            ->assertPathIs('/dashboard');
 
         $browser->visit('/security/change-email')
             ->waitFor('input[name="currentPassword"]')

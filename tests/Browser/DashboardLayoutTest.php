@@ -17,8 +17,8 @@ test('mobile dashboard shows a hamburger toggle and reachable navigation', funct
             ->type('input[name="password"]', 'password')
             ->waitFor('button[type="submit"]:enabled')
             ->press('Sign in')
-            ->waitForLocation('/user', 10)
-            ->assertPathIs('/user');
+            ->waitForLocation('/dashboard', 10)
+            ->assertPathIs('/dashboard');
 
         $browser->assertVisible('[data-flux-sidebar-toggle]');
 
@@ -42,12 +42,12 @@ test('desktop dashboard shows the sidebar and hides the mobile hamburger toggle'
             ->type('input[name="password"]', 'password')
             ->waitFor('button[type="submit"]:enabled')
             ->press('Sign in')
-            ->waitForLocation('/user', 10)
-            ->assertPathIs('/user');
+            ->waitForLocation('/dashboard', 10)
+            ->assertPathIs('/dashboard');
 
         $browser->assertMissing('[data-flux-sidebar-toggle]')
             ->assertVisible('[data-flux-sidebar]')
-            ->assertSee('Home')
+            ->assertSee('Dashboard Home')
             ->assertSee('Security');
     });
 });

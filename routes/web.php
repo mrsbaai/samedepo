@@ -118,7 +118,7 @@ Route::get('/social/{provider}/callback', [SocialiteController::class, 'callback
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth'])->prefix('user')->group(function (): void {
+Route::middleware(['auth', 'owner'])->prefix('dashboard')->group(function (): void {
     Route::get('/', UserDashboard::class)->name('dashboard');
 });
 

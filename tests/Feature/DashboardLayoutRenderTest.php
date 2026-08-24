@@ -2,16 +2,24 @@
 
 use App\Models\User;
 
-test('user dashboard renders shared layout with user navigation', function () {
-    $user = User::factory()->create();
+test('owner dashboard renders shared layout with owner navigation', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
 
-    $this->actingAs($user)
+    $this->actingAs($owner)
         ->get(route('dashboard'))
         ->assertOk()
         ->assertSee('data-flux-sidebar-toggle', false)
         ->assertSee('data-flux-navbar', false)
-        ->assertSee('Home', false)
+        ->assertSee('data-flux-sidebar', false)
+        ->assertSee('Dashboard Home', false)
+        ->assertSee('Customers', false)
+        ->assertSee('Deposits', false)
+        ->assertSee('Transaction History', false)
+        ->assertSee('API Keys', false)
+        ->assertSee('Webhook Settings', false)
+        ->assertSee('Withdrawal Settings', false)
         ->assertSee('Signed in as', false)
+        ->assertSee($owner->email, false)
         ->assertSee('Security', false)
         ->assertSee('Sign out', false);
 });

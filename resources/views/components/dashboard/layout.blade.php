@@ -12,6 +12,10 @@
     $openTicket = $userTickets->firstWhere('status', \App\Models\SupportTicket::STATUS_OPEN);
     $unreadSupportCount = $userTickets->sum(fn ($ticket) => $ticket->unreadCountFor($user));
     $supportHref = $openTicket ? route('support', ['tab' => 'tickets']) : route('support');
+
+    $ownerNav = config('fluxos-nav.owner', ['main' => [], 'settings' => []]);
+    $ownerNavHref = fn (array $item) => \Illuminate\Support\Facades\Route::has($item['route']) ? route($item['route']) : url($item['path']);
+    $ownerNavCurrent = fn (array $item) => request()->is(ltrim($item['path'] . '*', '/'));
 @endphp
 
 <!DOCTYPE html>
@@ -29,9 +33,13 @@
     <flux:header sticky container class="dark border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 flex items-center">
         <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" aria-label="{{ __('Toggle navigation') }}" />
 
-        <flux:brand href="{{ $homeRoute }}" name="{{ config('app.name') }}" class="max-lg:hidden" wire:navigate>
+        <flux:brand href="{{ $homeRoute }}" name="{{ config('app.name') }}" class="font-logo max-lg:hidden" wire:navigate>
             <x-slot name="logo">
-                <x-lucide-box class="h-5 w-5 text-zinc-800 dark:text-white" />
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-(--color-accent)">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                    <path d="m3.3 7 8.7 5 8.7-5"/>
+                    <path d="M12 22V12"/>
+                </svg>
             </x-slot>
         </flux:brand>
 
@@ -79,9 +87,11 @@
                     </flux:navmenu>
                 </flux:dropdown>
             @else
-                <flux:navbar.item href="{{ route('dashboard') }}" :current="request()->routeIs('dashboard')">
-                    Home
-                </flux:navbar.item>
+                @foreach ($ownerNav['main'] as $item)
+                    <flux:navbar.item href="{{ $ownerNavHref($item) }}" :current="$ownerNavCurrent($item)" wire:navigate>
+                        {{ $item['label'] }}
+                    </flux:navbar.item>
+                @endforeach
             @endif
         </flux:navbar>
 
@@ -128,9 +138,13 @@
 
     <flux:sidebar collapsible="mobile" sticky class="dark lg:hidden border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
         <flux:sidebar.header>
-            <flux:brand href="{{ $homeRoute }}" name="{{ config('app.name') }}" wire:navigate>
+            <flux:brand href="{{ $homeRoute }}" name="{{ config('app.name') }}" class="font-logo" wire:navigate>
                 <x-slot name="logo">
-                    <x-lucide-box class="h-5 w-5 text-zinc-800 dark:text-white" />
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-(--color-accent)">
+                        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                        <path d="m3.3 7 8.7 5 8.7-5"/>
+                        <path d="M12 22V12"/>
+                    </svg>
                 </x-slot>
             </flux:brand>
 
@@ -169,9 +183,21 @@
                     <flux:navlist.item href="{{ route('admin.security.fraud') }}" :current="request()->routeIs('admin.security.fraud')" wire:navigate>Fraud</flux:navlist.item>
                 </flux:navlist.group>
             @else
-                <flux:navlist.item icon="home" href="{{ route('dashboard') }}" :current="request()->routeIs('dashboard')" wire:navigate>
-                    Home
-                </flux:navlist.item>
+                @foreach ($ownerNav['main'] as $item)
+                    <flux:navlist.item icon="{{ $item['icon'] }}" href="{{ $ownerNavHref($item) }}" :current="$ownerNavCurrent($item)" wire:navigate>
+                        {{ $item['label'] }}
+                    </flux:navlist.item>
+                @endforeach
+
+                @if (! empty($ownerNav['settings']))
+                    <flux:navlist.group heading="Settings" expandable>
+                        @foreach ($ownerNav['settings'] as $item)
+                            <flux:navlist.item icon="{{ $item['icon'] }}" href="{{ $ownerNavHref($item) }}" :current="$ownerNavCurrent($item)" wire:navigate>
+                                {{ $item['label'] }}
+                            </flux:navlist.item>
+                        @endforeach
+                    </flux:navlist.group>
+                @endif
             @endif
         </flux:navlist>
     </flux:sidebar>
