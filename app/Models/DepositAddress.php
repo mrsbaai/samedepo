@@ -29,6 +29,7 @@ class DepositAddress extends Model
         'customer_id',
         'network',
         'address',
+        'derivation_index',
     ];
 
     public function customer(): BelongsTo

@@ -6,6 +6,7 @@ namespace App\Livewire\Authentication;
 
 use App\Actions\Authentication\ResolvePostSigninRedirect;
 use App\Actions\Authentication\SigninUser;
+use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -46,7 +47,7 @@ class Signin extends Component
             return;
         }
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $this->redirect(ResolvePostSigninRedirect::for($user), navigate: true);

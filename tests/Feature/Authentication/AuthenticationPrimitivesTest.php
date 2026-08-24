@@ -15,4 +15,3 @@ BLADE);
         ->toContain('dark:bg-zinc-900')
         ->toContain(config('app.name'));
 });
-

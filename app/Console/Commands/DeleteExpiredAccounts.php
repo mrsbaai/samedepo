@@ -7,7 +7,6 @@ namespace App\Console\Commands;
 use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Notifications\Authentication\SecurityAlertNotification;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;

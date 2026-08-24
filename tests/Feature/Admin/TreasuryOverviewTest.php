@@ -1,8 +1,9 @@
 <?php
 
+use App\Livewire\Admin\TreasuryOverview;
 use App\Models\TreasuryWallet;
-use App\Models\User;
 use App\Models\UsdValuation;
+use App\Models\User;
 
 test('an admin can view treasury wallet balances', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
@@ -63,7 +64,7 @@ test('error state renders a callout and retry resets to normal', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
 
     Livewire::actingAs($admin)
-        ->test(\App\Livewire\Admin\TreasuryOverview::class)
+        ->test(TreasuryOverview::class)
         ->set('uiState', 'error')
         ->assertSee("Couldn't load treasury data")
         ->call('retry')

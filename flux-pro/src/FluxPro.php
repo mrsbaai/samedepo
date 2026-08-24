@@ -3,9 +3,10 @@
 namespace FluxPro;
 
 use Illuminate\Support\Facades\Facade;
+use Livewire\FluxManager;
 
 /**
- * @see \Livewire\FluxManager
+ * @see FluxManager
  */
 class FluxPro extends Facade
 {

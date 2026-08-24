@@ -2,8 +2,10 @@
 
 namespace FluxPro;
 
-use Illuminate\Support\ServiceProvider;
+use Flux\FluxPro;
+use Illuminate\Foundation\AliasLoader;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\ServiceProvider;
 
 class FluxProServiceProvider extends ServiceProvider
 {
@@ -13,8 +15,8 @@ class FluxProServiceProvider extends ServiceProvider
 
         $this->app->singleton(FluxProManager::class);
 
-        $loader = \Illuminate\Foundation\AliasLoader::getInstance();
-        $loader->alias('FluxPro', \Flux\FluxPro::class);
+        $loader = AliasLoader::getInstance();
+        $loader->alias('FluxPro', FluxPro::class);
     }
 
     public function boot(): void

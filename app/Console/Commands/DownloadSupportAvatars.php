@@ -44,6 +44,7 @@ class DownloadSupportAvatars extends Command
 
             if ($disk->exists($path)) {
                 $this->info("Skipped {$filename} (already exists).");
+
                 continue;
             }
 

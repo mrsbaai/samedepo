@@ -6,7 +6,6 @@ namespace App\Livewire\Admin;
 
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;

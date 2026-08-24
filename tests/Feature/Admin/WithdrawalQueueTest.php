@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Admin\WithdrawalQueue;
 use App\Models\User;
 use App\Models\Withdrawal;
 
@@ -74,7 +75,7 @@ test('error state renders a callout and retry resets to normal', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
 
     Livewire::actingAs($admin)
-        ->test(\App\Livewire\Admin\WithdrawalQueue::class)
+        ->test(WithdrawalQueue::class)
         ->set('uiState', 'error')
         ->assertSee("Couldn't load withdrawal queue")
         ->call('retry')

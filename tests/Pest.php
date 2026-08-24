@@ -1,7 +1,11 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\DuskTestCase;
+use Tests\TestCase;
+
 uses(
-    Tests\DuskTestCase::class,
+    DuskTestCase::class,
     // Illuminate\Foundation\Testing\DatabaseMigrations::class,
 )->in('Browser');
 
@@ -12,11 +16,11 @@ uses(
 // to touch this file; if it (or any generator) proposes a second Dusk/Browser mapping,
 // remove the duplicate instead of keeping both.
 
-uses(\Tests\TestCase::class, Illuminate\Foundation\Testing\RefreshDatabase::class)
+uses(TestCase::class, RefreshDatabase::class)
     ->in('Feature', 'Integration');
 
-uses(\Tests\TestCase::class)
+uses(TestCase::class)
     ->in('Unit');
 
-uses(\Tests\DuskTestCase::class)
+uses(DuskTestCase::class)
     ->in('Browser');

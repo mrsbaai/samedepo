@@ -23,7 +23,8 @@
         "livewire/flux": "^2.15|dev-main",
         "livewire/flux-pro": "dev-main",
         "livewire/livewire": "^3.7.4|^4.0",
-        "mallardduck/blade-lucide-icons": "^1.26"
+        "mallardduck/blade-lucide-icons": "^1.26",
+        "nimiq/xpub": "^1.4"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications\Authentication;
 
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -36,7 +37,7 @@ class SecurityAlertNotification extends Notification implements ShouldQueue
             ->line($this->message())
             ->line('If you did not make this change, secure your account immediately.');
 
-        if ($this->eventType === 'account_deleted' && $notifiable instanceof \App\Models\User) {
+        if ($this->eventType === 'account_deleted' && $notifiable instanceof User) {
             $message->action(
                 'Cancel account deletion',
                 URL::signedRoute(

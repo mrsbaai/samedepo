@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ViewErrorBag;
 
 beforeEach(function () {
-    view()->share('errors', new ViewErrorBag());
+    view()->share('errors', new ViewErrorBag);
 });
 
 test('flux pro components render without errors', function () {

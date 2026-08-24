@@ -2,6 +2,7 @@
 
 use App\Models\Faq;
 use App\Models\PublicContentPage;
+use App\Models\User;
 
 test('guests can view the privacy page', function () {
     $this->get(route('privacy'))
@@ -23,7 +24,7 @@ test('authenticated users can view the support page with ordered FAQs', function
     Faq::create(['question' => 'Second question', 'answer' => 'Second answer', 'position' => 2]);
     Faq::create(['question' => 'First question', 'answer' => 'First answer', 'position' => 1]);
 
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
 
     $response = $this->actingAs($user)
         ->get(route('support'))

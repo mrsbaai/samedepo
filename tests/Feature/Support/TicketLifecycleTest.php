@@ -4,6 +4,7 @@ use App\Livewire\Admin\TicketManager;
 use App\Livewire\Support\SupportCenter;
 use App\Livewire\Support\TicketCreate;
 use App\Livewire\Support\TicketThread;
+use App\Models\SupportIdentity;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Notifications\Support\NewTicketMessageNotification;
@@ -122,7 +123,7 @@ test('a user cannot view another user\'s ticket', function () {
 
 test('admin can reply to a ticket using the configured agent name, which notifies the ticket owner', function () {
     Notification::fake();
-    \App\Models\SupportIdentity::forRole('support')->update(['name' => 'Alex']);
+    SupportIdentity::forRole('support')->update(['name' => 'Alex']);
 
     $user = User::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);
@@ -147,7 +148,7 @@ test('admin can reply to a ticket using the configured agent name, which notifie
 });
 
 test('changing the agent name does not rename messages already sent', function () {
-    \App\Models\SupportIdentity::forRole('support')->update(['name' => 'Alex']);
+    SupportIdentity::forRole('support')->update(['name' => 'Alex']);
 
     $user = User::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);
@@ -158,7 +159,7 @@ test('changing the agent name does not rename messages already sent', function (
         ->set('body', 'First reply.')
         ->call('reply');
 
-    \App\Models\SupportIdentity::forRole('support')->update(['name' => 'Jordan']);
+    SupportIdentity::forRole('support')->update(['name' => 'Jordan']);
 
     $firstReply = $ticket->messages()->reorder('id', 'desc')->first();
 
@@ -166,7 +167,7 @@ test('changing the agent name does not rename messages already sent', function (
 });
 
 test('the agent name is displayed as "{name} from Support"', function () {
-    \App\Models\SupportIdentity::forRole('support')->update(['name' => 'Robert']);
+    SupportIdentity::forRole('support')->update(['name' => 'Robert']);
 
     $user = User::factory()->create();
     $admin = User::factory()->create(['is_admin' => true, 'email' => 'admin-secret@example.test']);
@@ -181,7 +182,7 @@ test('the agent name is displayed as "{name} from Support"', function () {
 });
 
 test('an unset agent name falls back to just "Support"', function () {
-    \App\Models\SupportIdentity::forRole('support')->update(['name' => null]);
+    SupportIdentity::forRole('support')->update(['name' => null]);
 
     $user = User::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);

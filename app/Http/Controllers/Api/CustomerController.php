@@ -8,9 +8,9 @@ use App\Http\Requests\Api\StoreCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\DepositAddress;
+use App\Services\Blockchain\AddressGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class CustomerController
 {
@@ -60,10 +60,16 @@ class CustomerController
 
     private function generateDepositAddresses(Customer $customer): void
     {
+        $generator = app(AddressGenerator::class);
+        $nextIndex = (DepositAddress::max('derivation_index') ?? 0) + 1;
+
         foreach (self::NETWORKS as $network) {
-            DepositAddress::query()->updateOrCreate(
+            DepositAddress::query()->firstOrCreate(
                 ['customer_id' => $customer->id, 'network' => $network],
-                ['address' => Str::uuid().'-'.$network]
+                [
+                    'address' => $generator->generate($network, $nextIndex),
+                    'derivation_index' => $nextIndex,
+                ]
             );
         }
     }

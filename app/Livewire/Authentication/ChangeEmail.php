@@ -6,7 +6,6 @@ namespace App\Livewire\Authentication;
 
 use App\Actions\Authentication\RequestEmailChange;
 use App\Events\Authentication\AuthenticationEvent;
-use App\Models\EmailChangeRequest;
 use App\Models\User;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
