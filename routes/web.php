@@ -13,6 +13,7 @@ use App\Livewire\Admin\FaqManager;
 use App\Livewire\Admin\FraudIntelligence;
 use App\Livewire\Admin\LegalPageEditor;
 use App\Livewire\Admin\LogViewer;
+use App\Livewire\Admin\PlatformSettings;
 use App\Livewire\Admin\SupportSettings;
 use App\Livewire\Admin\ThreatProtection;
 use App\Livewire\Admin\TicketManager;
@@ -173,6 +174,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function (): void {
     Route::get('/announcement', AnnouncementEditor::class)->name('admin.announcement');
     Route::get('/security/threats', ThreatProtection::class)->name('admin.security.threats');
     Route::get('/security/fraud', FraudIntelligence::class)->name('admin.security.fraud');
+    Route::get('/platform-settings', PlatformSettings::class)->name('admin.platform-settings');
 });
 
 /*
