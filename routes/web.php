@@ -293,9 +293,9 @@ Route::get('/security/delete/recover', function (Request $request): mixed {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::view('/', 'public.landing')->name('public.landing');
+
+Route::view('/api-docs', 'public.api-docs')->name('public.api-docs');
 
 Route::get('/privacy', function () {
     return view('pages.privacy', ['page' => LegalPage::where('slug', 'privacy')->firstOrFail()]);
