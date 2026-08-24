@@ -8,7 +8,10 @@
         </div>
 
         @if ($ticket->isOpen())
-            <flux:button variant="filled" size="sm" icon="lock-closed" wire:click="toggleStatus">Close ticket</flux:button>
+            <flux:button variant="filled" size="sm" icon="lock-closed" wire:click="toggleStatus"
+                wire:confirm="This ends the conversation. Reopen by asking the website owner to create a new ticket.">
+                Close ticket
+            </flux:button>
         @elseif (auth()->user()->is_admin)
             <flux:button variant="filled" size="sm" icon="lock-open" wire:click="toggleStatus">Reopen ticket</flux:button>
         @endif

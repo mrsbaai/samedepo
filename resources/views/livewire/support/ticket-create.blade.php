@@ -1,7 +1,17 @@
 <div class="mx-auto max-w-2xl">
     <flux:heading size="xl" level="1">New ticket</flux:heading>
     <flux:subheading class="mt-2">What can we help you with?</flux:subheading>
-    <flux:callout icon="information-circle" variant="secondary" class="mt-4">
+
+    <flux:heading size="lg" level="2" class="mt-8">Common questions</flux:heading>
+    <flux:text class="mt-1 text-zinc-500 dark:text-zinc-400">Check these before opening a ticket — you might find the answer instantly.</flux:text>
+
+    <div class="mt-4">
+        @include('livewire.support.partials.faq-accordion')
+    </div>
+
+    <flux:separator class="mt-8 mb-6" />
+
+    <flux:callout icon="information-circle" variant="secondary" class="mt-0">
         <flux:callout.text>Please include as much detail as you can. Screenshots are always helpful. We’ll do our best to reply within 24 hours.</flux:callout.text>
     </flux:callout>
 

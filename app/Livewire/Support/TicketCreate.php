@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Support;
 
 use App\Livewire\Support\Concerns\SendsTicketMessages;
+use App\Models\Faq;
 use App\Models\SupportTicket;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Validate;
@@ -58,6 +59,8 @@ class TicketCreate extends Component
 
     public function render(): mixed
     {
-        return view('livewire.support.ticket-create');
+        return view('livewire.support.ticket-create', [
+            'faqs' => Faq::orderBy('position')->orderBy('id')->get(),
+        ]);
     }
 }

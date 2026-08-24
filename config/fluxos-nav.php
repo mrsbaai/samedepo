@@ -63,6 +63,12 @@ return [
                 'path' => '/withdrawal-settings',
                 'label' => 'Withdrawal Settings',
             ],
+            [
+                'icon' => 'lifebuoy',
+                'route' => 'support',
+                'path' => '/support',
+                'label' => 'Support',
+            ],
         ],
         'settings' => [],
     ],
