@@ -35,6 +35,7 @@ use App\Livewire\Dashboard\ApiKeys;
 use App\Livewire\Dashboard\CustomerDetail;
 use App\Livewire\Dashboard\Customers;
 use App\Livewire\Dashboard\Deposits;
+use App\Livewire\Dashboard\WebhookSettings;
 use App\Livewire\Dashboard\TransactionHistory;
 use App\Livewire\Dashboard\UserDashboard;
 use App\Livewire\Demo\EmailInbox;
@@ -133,6 +134,7 @@ Route::middleware(['auth', 'owner'])->group(function (): void {
     Route::get('/deposits', Deposits::class)->name('deposits');
     Route::get('/transactions', TransactionHistory::class)->name('transactions');
     Route::get('/api-keys', ApiKeys::class)->name('api-keys');
+    Route::get('/webhook-settings', WebhookSettings::class)->name('webhook-settings');
 });
 
 Route::middleware(['auth'])->group(function (): void {
