@@ -21,6 +21,8 @@ use App\Livewire\Admin\TicketManager;
 use App\Livewire\Admin\UserSearch;
 use App\Livewire\Admin\WebsiteOwnerDetail;
 use App\Livewire\Admin\WebsiteOwners;
+use App\Livewire\Admin\WithdrawalQueue;
+use App\Livewire\Admin\WithdrawalReview;
 use App\Livewire\Authentication\ChangeEmail;
 use App\Livewire\Authentication\ChangePassword;
 use App\Livewire\Authentication\DeleteAccount;
@@ -181,6 +183,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function (): void {
     Route::get('/withdrawal-settings', AdminWithdrawalSettings::class)->name('admin.withdrawal-settings');
     Route::get('/owners', WebsiteOwners::class)->name('admin.owners');
     Route::get('/owners/{owner}', WebsiteOwnerDetail::class)->name('admin.owners.show')->whereNumber('owner');
+    Route::get('/withdrawals', WithdrawalQueue::class)->name('admin.withdrawals');
+    Route::get('/withdrawals/{withdrawal}', WithdrawalReview::class)->name('admin.withdrawals.show')->whereNumber('withdrawal');
 });
 
 /*
