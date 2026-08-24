@@ -31,6 +31,8 @@ use App\Livewire\Authentication\TwoFactorSecurity;
 use App\Livewire\Authentication\VerifyEmailNotice;
 use App\Livewire\Authentication\VerifyOtp;
 use App\Livewire\Dashboard\AdminDashboard;
+use App\Livewire\Dashboard\CustomerDetail;
+use App\Livewire\Dashboard\Customers;
 use App\Livewire\Dashboard\UserDashboard;
 use App\Livewire\Demo\EmailInbox;
 use App\Livewire\Support\SupportCenter;
@@ -120,6 +122,11 @@ Route::get('/social/{provider}/callback', [SocialiteController::class, 'callback
 
 Route::middleware(['auth', 'owner'])->prefix('dashboard')->group(function (): void {
     Route::get('/', UserDashboard::class)->name('dashboard');
+});
+
+Route::middleware(['auth', 'owner'])->group(function (): void {
+    Route::get('/customers', Customers::class)->name('customers');
+    Route::get('/customers/{customer}', CustomerDetail::class)->name('customers.show');
 });
 
 Route::middleware(['auth'])->group(function (): void {
