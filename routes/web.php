@@ -34,6 +34,7 @@ use App\Livewire\Dashboard\AdminDashboard;
 use App\Livewire\Dashboard\CustomerDetail;
 use App\Livewire\Dashboard\Customers;
 use App\Livewire\Dashboard\Deposits;
+use App\Livewire\Dashboard\TransactionHistory;
 use App\Livewire\Dashboard\UserDashboard;
 use App\Livewire\Demo\EmailInbox;
 use App\Livewire\Support\SupportCenter;
@@ -129,6 +130,7 @@ Route::middleware(['auth', 'owner'])->group(function (): void {
     Route::get('/customers', Customers::class)->name('customers');
     Route::get('/customers/{customer}', CustomerDetail::class)->name('customers.show');
     Route::get('/deposits', Deposits::class)->name('deposits');
+    Route::get('/transactions', TransactionHistory::class)->name('transactions');
 });
 
 Route::middleware(['auth'])->group(function (): void {
