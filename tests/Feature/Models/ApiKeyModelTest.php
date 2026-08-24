@@ -17,11 +17,13 @@ test('api keys are scoped to the authenticated owner', function () {
 
     ApiKey::create([
         'user_id' => $owner->id,
+        'name' => 'Owner key',
         'key_hash' => 'owner-hash',
         'status' => 'active',
     ]);
     ApiKey::create([
         'user_id' => $otherOwner->id,
+        'name' => 'Other key',
         'key_hash' => 'other-hash',
         'status' => 'active',
     ]);

@@ -31,6 +31,7 @@ use App\Livewire\Authentication\TwoFactorSecurity;
 use App\Livewire\Authentication\VerifyEmailNotice;
 use App\Livewire\Authentication\VerifyOtp;
 use App\Livewire\Dashboard\AdminDashboard;
+use App\Livewire\Dashboard\ApiKeys;
 use App\Livewire\Dashboard\CustomerDetail;
 use App\Livewire\Dashboard\Customers;
 use App\Livewire\Dashboard\Deposits;
@@ -131,6 +132,7 @@ Route::middleware(['auth', 'owner'])->group(function (): void {
     Route::get('/customers/{customer}', CustomerDetail::class)->name('customers.show');
     Route::get('/deposits', Deposits::class)->name('deposits');
     Route::get('/transactions', TransactionHistory::class)->name('transactions');
+    Route::get('/api-keys', ApiKeys::class)->name('api-keys');
 });
 
 Route::middleware(['auth'])->group(function (): void {

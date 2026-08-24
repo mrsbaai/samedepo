@@ -20,6 +20,7 @@ class ApiKeyFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
+            'name' => fake()->words(2, true),
             'key_hash' => Hash::make(fake()->uuid()),
             'status' => fake()->randomElement(['active', 'revoked']),
             'last_used_at' => null,

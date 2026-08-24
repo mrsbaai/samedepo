@@ -1,0 +1,15 @@
+feat(dashboard): api keys list view with generate, revoke, and replace
+
+- Add required 
+ame column to pi_keys for multi-key (one-per-website) support.
+- Implement App\Livewire\Dashboard\ApiKeys and view using Flux Pro table,
+  modals, badges, and copyable input.
+- Generate stores only a bcrypt hash; plaintext token shown once with font-ledger.
+- Revoke and Replace use exact consequence copy from content-rules.md.
+- Empty state, skeleton loading, and query-string error/retry state included.
+- Register /api-keys under auth+owner middleware.
+- Add 8-feature-test ApiKeysTest; full Feature suite (337 tests) passes.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
