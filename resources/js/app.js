@@ -1,0 +1,2 @@
+// Application JavaScript
+import './fingerprint';

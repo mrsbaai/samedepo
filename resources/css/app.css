@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+@import '../../vendor/livewire/flux/dist/flux.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * samedepo visual identity
+ * ------------------------
+ * Personality: precise, secure, quietly confident treasury/infrastructure
+ * tool — not a playful consumer crypto app. Every color below is chosen
+ * (not invented) from Flux Pro's official accent/base palettes per
+ * skills/flux-ui/references/docs/theming.md.
+ *
+ * Accent: Amber — warm, alert, "value/gold" association fitting a deposit
+ * ledger, distinct from the generic-SaaS blue/emerald defaults.
+ * Base: Neutral — true, warmth-free gray that keeps focus on the amber
+ * accent and the ledger/mono content rather than a tinted chrome.
+ */
+@theme {
+    /* Accent (buttons, links, focus rings, confirmed/success states) */
+    --color-accent: var(--color-amber-400);
+    --color-accent-content: var(--color-amber-600);
+    --color-accent-foreground: var(--color-amber-950);
+
+    /* Base gray scale: remap zinc -> neutral throughout */
+    --color-zinc-50: var(--color-neutral-50);
+    --color-zinc-100: var(--color-neutral-100);
+    --color-zinc-200: var(--color-neutral-200);
+    --color-zinc-300: var(--color-neutral-300);
+    --color-zinc-400: var(--color-neutral-400);
+    --color-zinc-500: var(--color-neutral-500);
+    --color-zinc-600: var(--color-neutral-600);
+    --color-zinc-700: var(--color-neutral-700);
+    --color-zinc-800: var(--color-neutral-800);
+    --color-zinc-900: var(--color-neutral-900);
+    --color-zinc-950: var(--color-neutral-950);
+
+    /* Typography: Geist for UI/prose — a cleaner, more modern geometric
+       sans than Inter, with tighter spacing that reads as precise rather
+       than "generic SaaS." Geist Mono for addresses, hashes, and crypto
+       amounts so they read unambiguously and match the sans family. */
+    --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'Liberation Mono', 'Courier New', monospace;
+
+    /* Logo wordmark: Space Grotesk — a distinctive geometric sans with the
+       same technical lineage as Space Mono, giving the samedepo wordmark a
+       slightly more crafted, ownable feel than the body Geist face. */
+    --font-logo: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+
+    /* Spacing personality: compact and information-dense (treasury/ledger
+       console), not airy marketing whitespace, except on public pages
+       which intentionally breathe more (handled with utility classes,
+       not a separate variable). */
+    --radius-field: 0.5rem;
+    --radius-container: 0.75rem;
+}
+
+@layer theme {
+    .dark {
+        --color-accent: var(--color-amber-400);
+        --color-accent-content: var(--color-amber-400);
+        --color-accent-foreground: var(--color-amber-950);
+    }
+}
+
+/* ---------------------------------------------------------------------
+ * Component-level overrides — kept minimal and only where the brand
+ * genuinely needs something Flux's theme variables above don't cover.
+ * ------------------------------------------------------------------- */
+
+/* Tailwind v4 custom utilities must use @utility (not a plain class inside
+   @layer utilities) or they get tree-shaken away since they're never
+   detected as "used" by the class scanner. */
+
+/* Crypto amounts and addresses: always tabular, always legible, never
+   reflowing mid-digit. Apply this utility instead of ad hoc font classes
+   in Blade views. */
+@utility font-ledger {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+/* Logo wordmark treatment: tighter tracking and a slightly heavier feel
+   so "samedepo" reads as one distinct mark rather than body text. */
+@utility font-logo {
+    font-family: var(--font-logo);
+    letter-spacing: -0.02em;
+}
+
+/* The Flux brand component renders the wordmark in a text-sm font-medium div.
+   Bump the logo wordmark up to text-xl / bold with a tight line-height so it
+   reads as a brand mark rather than a small UI label. */
+[data-flux-brand].font-logo > div:last-child {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Subtle continuous float for a single hero showpiece element (e.g. the
+   landing page's code snippet). Not a mouse-hover effect — the element
+   gently bobs on its own to draw the eye without being distracting.
+   Respects prefers-reduced-motion. */
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+@utility animate-float {
+    animation: float 6s ease-in-out infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+
