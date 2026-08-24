@@ -29,7 +29,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $fillable = [
         'email',
+        'name',
         'password',
+        'role',
+        'withdrawal_mode',
+        'deposit_fee_override',
         'is_active',
         'is_admin',
         'appearance',
@@ -48,6 +52,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => 'string',
+            'withdrawal_mode' => 'string',
+            'deposit_fee_override' => 'decimal:2',
             'is_admin' => 'boolean',
             'is_active' => 'boolean',
             'deletion_requested_at' => 'datetime',
@@ -111,6 +118,41 @@ class User extends Authenticatable implements MustVerifyEmail
     public function supportTickets(): HasMany
     {
         return $this->hasMany(SupportTicket::class);
+    }
+
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class);
+    }
+
+    public function balances(): HasMany
+    {
+        return $this->hasMany(Balance::class);
+    }
+
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(LedgerEntry::class);
+    }
+
+    public function withdrawalAddresses(): HasMany
+    {
+        return $this->hasMany(WithdrawalAddress::class);
+    }
+
+    public function withdrawals(): HasMany
+    {
+        return $this->hasMany(Withdrawal::class);
+    }
+
+    public function webhookEndpoint(): HasOne
+    {
+        return $this->hasOne(WebhookEndpoint::class);
+    }
+
+    public function apiKeys(): HasMany
+    {
+        return $this->hasMany(ApiKey::class);
     }
 
     public function devices(): BelongsToMany
