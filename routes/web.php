@@ -33,6 +33,7 @@ use App\Livewire\Authentication\VerifyOtp;
 use App\Livewire\Dashboard\AdminDashboard;
 use App\Livewire\Dashboard\CustomerDetail;
 use App\Livewire\Dashboard\Customers;
+use App\Livewire\Dashboard\Deposits;
 use App\Livewire\Dashboard\UserDashboard;
 use App\Livewire\Demo\EmailInbox;
 use App\Livewire\Support\SupportCenter;
@@ -127,6 +128,7 @@ Route::middleware(['auth', 'owner'])->prefix('dashboard')->group(function (): vo
 Route::middleware(['auth', 'owner'])->group(function (): void {
     Route::get('/customers', Customers::class)->name('customers');
     Route::get('/customers/{customer}', CustomerDetail::class)->name('customers.show');
+    Route::get('/deposits', Deposits::class)->name('deposits');
 });
 
 Route::middleware(['auth'])->group(function (): void {
