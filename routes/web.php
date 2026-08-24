@@ -54,6 +54,7 @@ use App\Livewire\Support\TicketCreate;
 use App\Livewire\Support\TicketThread;
 use App\Models\EmailChangeRequest;
 use App\Models\LegalPage;
+use App\Models\PublicContentPage;
 use App\Models\User;
 use App\Notifications\Authentication\SecurityAlertNotification;
 use Illuminate\Auth\Events\Verified;
@@ -298,11 +299,21 @@ Route::view('/', 'public.landing')->name('public.landing');
 Route::view('/api-docs', 'public.api-docs')->name('public.api-docs');
 
 Route::get('/privacy', function () {
-    return view('pages.privacy', ['page' => LegalPage::where('slug', 'privacy')->firstOrFail()]);
+    $page = PublicContentPage::query()->firstOrCreate(
+        ['type' => 'privacy'],
+        ['content' => '']
+    );
+
+    return view('pages.privacy', ['page' => $page]);
 })->name('privacy');
 
 Route::get('/terms', function () {
-    return view('pages.terms', ['page' => LegalPage::where('slug', 'terms')->firstOrFail()]);
+    $page = PublicContentPage::query()->firstOrCreate(
+        ['type' => 'terms'],
+        ['content' => '']
+    );
+
+    return view('pages.terms', ['page' => $page]);
 })->name('terms');
 
 Route::middleware(['auth'])->prefix('support')->group(function (): void {

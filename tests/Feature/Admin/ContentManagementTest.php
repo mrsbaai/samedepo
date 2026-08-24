@@ -2,7 +2,7 @@
 
 use App\Livewire\Admin\ContentManagement;
 use App\Models\FaqsContent;
-use App\Models\LegalPage;
+use App\Models\PublicContentPage;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -29,7 +29,7 @@ test('an admin can update the terms of service content', function () {
         ->assertHasNoErrors()
         ->assertSee('Terms of Service saved.');
 
-    expect(LegalPage::where('slug', 'terms')->first()->content)->toBe('<p>Updated terms.</p>');
+    expect(PublicContentPage::query()->where('type', 'terms')->first()->content)->toBe('<p>Updated terms.</p>');
 });
 
 test('an admin can update the privacy policy content', function () {
@@ -43,7 +43,7 @@ test('an admin can update the privacy policy content', function () {
         ->assertHasNoErrors()
         ->assertSee('Privacy Policy saved.');
 
-    expect(LegalPage::where('slug', 'privacy')->first()->content)->toBe('<p>Updated privacy policy.</p>');
+    expect(PublicContentPage::query()->where('type', 'privacy')->first()->content)->toBe('<p>Updated privacy policy.</p>');
 });
 
 test('an admin can update the faqs content', function () {
