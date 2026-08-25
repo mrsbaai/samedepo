@@ -51,7 +51,7 @@ def _erc20_transfer(source_index: int, destination: str, amount: str, fee_eth: s
     decimals = contract.functions.decimals().call()
     value = int(Decimal(amount) * (10 ** decimals))
 
-    nonce = w3.eth.get_transaction_count(source, "pending")
+    nonce = w3.eth.get_transaction_count(source, "latest")
     gas = 65000
     gas_price = _to_wei(fee_eth, gas)
 
@@ -74,7 +74,7 @@ def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, f
     source = Web3.to_checksum_address(keys.derive_address("usdt_erc20", source_index))
     source_private = keys.derive_private_key("usdt_erc20", source_index)
 
-    nonce = w3.eth.get_transaction_count(source, "pending")
+    nonce = w3.eth.get_transaction_count(source, "latest")
     tx = {
         "to": Web3.to_checksum_address(destination),
         "value": w3.to_wei(amount_eth, "ether"),
@@ -157,12 +157,35 @@ def broadcast_withdrawal(network: str, index: int, destination: str, amount: str
     raise ValueError(f"Unsupported network: {network}")
 
 
+def _erc20_sweep(source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
+    """Sweep ERC-20 USDT. Auto top-up ETH if the source address is not funded."""
+    w3 = _w3()
+    if w3 is None:
+        return None
+
+    source = Web3.to_checksum_address(keys.derive_address("usdt_erc20", source_index))
+    dest = Web3.to_checksum_address(keys.derive_address("usdt_erc20", destination_index))
+    fee_wei = _to_wei(fee, 65000)
+
+    # Top-up enough ETH to cover this fee plus a small reserve.
+    topup_eth = max(Decimal("0.001"), Decimal(fee) * 2)
+    try:
+        balance = w3.eth.get_balance(source)
+    except Exception:
+        balance = 0
+
+    if balance < fee_wei:
+        _eth_native_transfer(destination_index, source, str(topup_eth), fee)
+        return None
+
+    return _erc20_transfer(source_index, dest, amount, fee)
+
+
 def broadcast_sweep(network: str, source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
     if network == "bitcoin":
         return _btc()
     if network == "usdt_erc20":
-        destination = keys.derive_address("usdt_erc20", destination_index)
-        return _erc20_transfer(source_index, destination, amount, fee)
+        return _erc20_sweep(source_index, destination_index, amount, fee)
     if network == "usdt_trc20":
         return _trc20_sweep(source_index, destination_index, amount, fee)
     raise ValueError(f"Unsupported network: {network}")
