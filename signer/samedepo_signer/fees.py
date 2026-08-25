@@ -15,15 +15,17 @@ from samedepo_signer.config import Config
 def _btc() -> Optional[str]:
     if not Config.blockcypher_token:
         return None
-    url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}/fee?token={Config.blockcypher_token}"
+    url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}?token={Config.blockcypher_token}"
     try:
         r = requests.get(url, timeout=15)
         r.raise_for_status()
         data = r.json()
-        sat_per_kb = data.get("medium", data.get("half_hour_fee", 0))
+        sat_per_kb = data.get("medium_fee_per_kb", data.get("half_hour_fee", 0))
         if not sat_per_kb:
             return None
-        return f"{Decimal(sat_per_kb) / Decimal(100000 * 1000):.8f}"
+        # Assume a 300-byte P2PKH transaction to be safe.
+        fee_btc = Decimal(sat_per_kb) * Decimal(300) / Decimal(1000) / Decimal(10 ** 8)
+        return f"{fee_btc:.8f}"
     except Exception:
         return None
 

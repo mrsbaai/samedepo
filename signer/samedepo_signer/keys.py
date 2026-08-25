@@ -58,6 +58,11 @@ def derive_private_key(network: str, index: int) -> bytes:
     return bytes.fromhex(change.AddressIndex(index).PrivateKey().Raw().ToHex())
 
 
+def derive_public_key(network: str, index: int) -> str:
+    change = _bip44_account(network).Change(Bip44Changes.CHAIN_EXT)
+    return change.AddressIndex(index).PublicKey().RawCompressed().ToHex()
+
+
 def derive_wif(network: str, index: int) -> str:
     change = _bip44_account(network).Change(Bip44Changes.CHAIN_EXT)
     return change.AddressIndex(index).PrivateKey().ToWif()

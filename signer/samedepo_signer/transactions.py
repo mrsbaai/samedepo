@@ -1,9 +1,12 @@
 """Transaction signing and broadcasting. This is where private keys are used."""
 from __future__ import annotations
 
+import hashlib
 from decimal import Decimal
 from typing import Optional
 
+import requests
+from ecdsa import SigningKey, SECP256k1, util
 from tronpy import Tron
 from tronpy.keys import PrivateKey
 from tronpy.providers.http import HTTPProvider
@@ -13,9 +16,56 @@ from samedepo_signer.config import Config
 from samedepo_signer import keys
 
 
-def _btc() -> Optional[str]:
-    # ponytail: bitcoin signing still needs bit+BlockCypher. Return None to keep Laravel retryable.
-    return None
+def _to_sats(btc: str) -> int:
+    return int(Decimal(btc) * Decimal(10 ** 8))
+
+
+def _btc_transfer(source_index: int, destination: str, amount: str, fee: str) -> Optional[str]:
+    if not Config.blockcypher_token:
+        return None
+
+    to_send = _to_sats(amount) - _to_sats(fee)
+    if to_send <= 0:
+        raise ValueError("Amount must be greater than fee")
+
+    fee_sats = _to_sats(fee)
+    source = keys.derive_address("bitcoin", source_index)
+
+    new_url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}/txs/new"
+    payload = {
+        "inputs": [{"addresses": [source]}],
+        "outputs": [{"addresses": [destination], "value": to_send}],
+        "fees": fee_sats,
+    }
+    r = requests.post(new_url, json=payload, params={"token": Config.blockcypher_token}, timeout=30)
+    if not r.ok:
+        return None
+
+    skeleton = r.json()
+    tosign = skeleton.get("tosign") or []
+    if not tosign:
+        return None
+
+    source_private = keys.derive_private_key("bitcoin", source_index)
+    public_key = keys.derive_public_key("bitcoin", source_index)
+    sk = SigningKey.from_string(source_private, curve=SECP256k1, hashfunc=hashlib.sha256)
+
+    signatures = []
+    pubkeys = []
+    for digest in tosign:
+        sig = sk.sign_digest(bytes.fromhex(digest), sigencode=util.sigencode_der)
+        signatures.append(sig.hex() + "01")
+        pubkeys.append(public_key)
+
+    skeleton["signatures"] = signatures
+    skeleton["pubkeys"] = pubkeys
+
+    send_url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}/txs/send"
+    s = requests.post(send_url, json=skeleton, params={"token": Config.blockcypher_token}, timeout=30)
+    if not s.ok:
+        return None
+
+    return s.json().get("tx", {}).get("hash")
 
 
 def _to_wei(fee_eth: str, gas: int) -> int:
@@ -147,16 +197,6 @@ def _trc20_sweep(source_index: int, destination_index: int, amount: str, fee: st
     return _trc20_transfer(source_index, dest, amount, fee)
 
 
-def broadcast_withdrawal(network: str, index: int, destination: str, amount: str, fee: str) -> Optional[str]:
-    if network == "bitcoin":
-        return _btc()
-    if network == "usdt_erc20":
-        return _erc20_transfer(index, destination, amount, fee)
-    if network == "usdt_trc20":
-        return _trc20_transfer(index, destination, amount, fee)
-    raise ValueError(f"Unsupported network: {network}")
-
-
 def _erc20_sweep(source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
     """Sweep ERC-20 USDT. Auto top-up ETH if the source address is not funded."""
     w3 = _w3()
@@ -181,9 +221,20 @@ def _erc20_sweep(source_index: int, destination_index: int, amount: str, fee: st
     return _erc20_transfer(source_index, dest, amount, fee)
 
 
+def broadcast_withdrawal(network: str, index: int, destination: str, amount: str, fee: str) -> Optional[str]:
+    if network == "bitcoin":
+        return _btc_transfer(index, destination, amount, fee)
+    if network == "usdt_erc20":
+        return _erc20_transfer(index, destination, amount, fee)
+    if network == "usdt_trc20":
+        return _trc20_transfer(index, destination, amount, fee)
+    raise ValueError(f"Unsupported network: {network}")
+
+
 def broadcast_sweep(network: str, source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
     if network == "bitcoin":
-        return _btc()
+        destination = keys.derive_address("bitcoin", destination_index)
+        return _btc_transfer(source_index, destination, amount, fee)
     if network == "usdt_erc20":
         return _erc20_sweep(source_index, destination_index, amount, fee)
     if network == "usdt_trc20":
