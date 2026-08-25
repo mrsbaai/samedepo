@@ -13,6 +13,8 @@ use App\Models\User;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\NullBlockchainBroadcaster;
 use App\Services\Blockchain\DepositScanner;
+use App\Services\Blockchain\PriceFeed\CoinGeckoProvider;
+use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
 use App\Services\Blockchain\Providers\BlockCypherProvider;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\Providers\InfuraProvider;
@@ -37,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(IpIntelProvider::class, NullIpIntelProvider::class);
 
         $this->app->bind(BlockchainBroadcaster::class, NullBlockchainBroadcaster::class);
+        $this->app->bind(PriceFeedProvider::class, CoinGeckoProvider::class);
 
         $this->app->singleton(DepositScanner::class, function () {
             $networks = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];

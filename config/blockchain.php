@@ -3,6 +3,11 @@
 declare(strict_types=1);
 
 return [
+    'price_feed' => [
+        'url' => 'https://api.coingecko.com/api/v3/simple/price',
+        'api_key' => env('COINGECKO_API_KEY'),
+    ],
+
     'confirmations' => [
         'bitcoin' => 3,
         'usdt_trc20' => 20,
