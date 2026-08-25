@@ -23,10 +23,16 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
     {
         $tokenTransfer = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true);
 
-        return $this->post('/fee', [
+        $response = $this->post('/fee', [
             'network' => $withdrawal->network,
             'token_transfer' => $tokenTransfer,
-        ])->json('data.fee');
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data.fee');
+        }
+
+        return null;
     }
 
     public function broadcastWithdrawal(Withdrawal $withdrawal): ?string
@@ -37,13 +43,19 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             return null;
         }
 
-        return $this->post('/withdraw', [
+        $response = $this->post('/withdraw', [
             'network' => $withdrawal->network,
             'index' => $wallet->derivation_index,
             'destination' => $withdrawal->destination_address,
             'amount' => (string) $withdrawal->gross_amount,
             'fee' => (string) $withdrawal->network_fee,
-        ])->json('data.tx_hash');
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data.tx_hash');
+        }
+
+        return null;
     }
 
     public function broadcastSweep(TreasurySweep $sweep): ?string
@@ -58,19 +70,25 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
         $fee = $this->post('/fee', [
             'network' => $sweep->network,
             'token_transfer' => in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true),
-        ])->json('data.fee');
+        ]);
 
-        if ($fee === null) {
+        if (! $fee->successful()) {
             return null;
         }
 
-        return $this->post('/sweep', [
+        $response = $this->post('/sweep', [
             'network' => $sweep->network,
             'source_index' => $deposit->depositAddress->derivation_index,
             'destination_index' => $wallet->derivation_index,
             'amount' => (string) $sweep->amount,
-            'fee' => $fee,
-        ])->json('data.tx_hash');
+            'fee' => $fee->json('data.fee'),
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data.tx_hash');
+        }
+
+        return null;
     }
 
     private function post(string $path, array $payload): Response
@@ -86,7 +104,6 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'Content-Type' => 'application/json',
         ])
             ->timeout(30)
-            ->post("{$this->url}{$path}", $payload)
-            ->throwIfServerError();
+            ->post("{$this->url}{$path}", $payload);
     }
 }
