@@ -121,7 +121,9 @@ class Withdraw extends Component
     #[Computed]
     public function mode(): string
     {
-        return PlatformSettings::instance()->default_withdrawal_mode === 'instant' ? 'instant' : 'approval';
+        $mode = Auth::user()?->withdrawal_mode ?? PlatformSettings::instance()->default_withdrawal_mode;
+
+        return $mode === 'instant' ? 'instant' : 'approval';
     }
 
     #[Computed]

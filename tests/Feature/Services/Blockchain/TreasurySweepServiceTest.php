@@ -6,6 +6,7 @@ use App\Models\DepositAddress;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\User;
+use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\TreasurySweepService;
 
@@ -16,6 +17,11 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
         return $this->hash;
+    }
+
+    public function broadcastWithdrawal(Withdrawal $withdrawal): ?string
+    {
+        return null;
     }
 }
 

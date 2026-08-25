@@ -111,17 +111,10 @@ class WithdrawalReview extends Component
             return;
         }
 
-        $fee = $this->estimatedFee();
-        $sent = max(0, (float) $this->withdrawalRecord->gross_amount - $fee);
-
         $this->withdrawalRecord->update([
             'status' => 'approved',
-            'network_fee' => $fee,
-            'amount_sent' => $sent,
             'decided_at' => now(),
             'decided_by' => Auth::id(),
-            'sent_at' => now(),
-            'tx_hash' => 'pending-'.uniqid(),
         ]);
 
         $this->showApproveModal = false;

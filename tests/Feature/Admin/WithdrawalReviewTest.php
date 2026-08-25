@@ -63,6 +63,7 @@ test('an admin can deny a pending withdrawal and return the balance', function (
         ->test(WithdrawalReview::class, ['withdrawal' => $withdrawal->id])
         ->call('confirmDeny')
         ->call('deny')
+        ->call('deny')
         ->assertHasNoErrors()
         ->assertSee('Withdrawal denied');
 

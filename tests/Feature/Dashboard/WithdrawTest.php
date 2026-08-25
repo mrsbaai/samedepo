@@ -102,6 +102,28 @@ test('eligible owner can request a full balance withdrawal', function () {
         ->toBe('0.00000000');
 });
 
+test('an owner withdrawal mode overrides the platform default', function () {
+    $owner = User::factory()->create(['role' => 'owner', 'withdrawal_mode' => 'approval']);
+    PlatformSettings::instance()->update(['default_withdrawal_mode' => 'instant']);
+
+    WithdrawalAddress::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+    ]);
+    Balance::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'amount' => 1000,
+    ]);
+    UsdValuation::factory()->create(['network' => 'usdt_trc20', 'conversion_value' => 1]);
+
+    Livewire::actingAs($owner)
+        ->test(Withdraw::class, ['network' => 'usdt-trc20'])
+        ->call('requestWithdrawal');
+
+    expect(Withdrawal::first()->mode)->toBe('approval');
+});
+
 test('a pending withdrawal can be cancelled', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
@@ -126,6 +148,7 @@ test('a pending withdrawal can be cancelled', function () {
     Livewire::actingAs($owner)
         ->test(Withdraw::class, ['network' => 'usdt-trc20'])
         ->call('confirmCancel')
+        ->call('cancelWithdrawal')
         ->call('cancelWithdrawal')
         ->assertSet('showCancelModal', false);
 
