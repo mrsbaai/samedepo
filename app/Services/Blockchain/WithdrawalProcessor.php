@@ -38,17 +38,29 @@ class WithdrawalProcessor
             return;
         }
 
-        $txHash = $this->broadcaster->broadcastWithdrawal($withdrawal);
+        $fee = $this->broadcaster->estimateWithdrawalFee($withdrawal);
 
-        if ($txHash === null) {
+        if ($fee === null) {
             return;
         }
 
+        $amountSent = bccomp((string) $withdrawal->gross_amount, $fee, 8) >= 0
+            ? bcsub((string) $withdrawal->gross_amount, $fee, 8)
+            : '0.00000000';
+
         $withdrawal->update([
-            'status' => 'sent',
-            'amount_sent' => $withdrawal->amount_sent ?? $withdrawal->gross_amount,
-            'tx_hash' => $txHash,
-            'sent_at' => now(),
+            'network_fee' => $fee,
+            'amount_sent' => $amountSent,
         ]);
+
+        $txHash = $this->broadcaster->broadcastWithdrawal($withdrawal);
+
+        if ($txHash !== null) {
+            $withdrawal->update([
+                'status' => 'sent',
+                'tx_hash' => $txHash,
+                'sent_at' => now(),
+            ]);
+        }
     }
 }

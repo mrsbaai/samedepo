@@ -23,6 +23,11 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
     {
         return null;
     }
+
+    public function estimateWithdrawalFee(Withdrawal $withdrawal): ?string
+    {
+        return null;
+    }
 }
 
 function createSweeper(?string $hash = 'sweep-tx-123'): TreasurySweepService

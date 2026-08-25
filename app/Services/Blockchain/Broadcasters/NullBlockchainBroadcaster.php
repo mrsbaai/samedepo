@@ -18,4 +18,9 @@ class NullBlockchainBroadcaster implements BlockchainBroadcaster
     {
         return null;
     }
+
+    public function estimateWithdrawalFee(Withdrawal $withdrawal): ?string
+    {
+        return null;
+    }
 }

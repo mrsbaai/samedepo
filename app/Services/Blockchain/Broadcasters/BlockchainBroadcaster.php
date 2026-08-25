@@ -6,8 +6,9 @@ namespace App\Services\Blockchain\Broadcasters;
 
 use App\Models\TreasurySweep;
 use App\Models\Withdrawal;
+use App\Services\Blockchain\Fees\WithdrawalFeeEstimator;
 
-interface BlockchainBroadcaster
+interface BlockchainBroadcaster extends WithdrawalFeeEstimator
 {
     /**
      * Broadcast a sweep transaction for the given sweep.
