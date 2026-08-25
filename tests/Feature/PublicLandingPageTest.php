@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\PlatformSettings;
+use App\Models\User;
 
 test('guests can view the public landing page', function () {
     $this->get('/')
@@ -11,6 +12,21 @@ test('guests can view the public landing page', function () {
         ->assertSee('Read the API docs')
         ->assertSee('How it works');
 });
+
+test('authenticated users see their role dashboard link and avatar menu', function (bool $isAdmin) {
+    $user = User::factory()->create([
+        'role' => $isAdmin ? 'admin' : 'owner',
+        'is_admin' => $isAdmin,
+    ]);
+
+    $this->actingAs($user)
+        ->get('/')
+        ->assertOk()
+        ->assertSee($user->email)
+        ->assertSee('Sign out')
+        ->assertSee($isAdmin ? 'Overview' : 'Dashboard')
+        ->assertSee($isAdmin ? route('admin.dashboard') : route('dashboard'));
+})->with([false, true]);
 
 test('the landing page shows supported network icons', function () {
     $this->get('/')
