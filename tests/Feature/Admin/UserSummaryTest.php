@@ -16,6 +16,7 @@ test('admins can view a user summary with human-readable dates', function () {
     $user = User::factory()->create([
         'email' => 'target@example.test',
         'is_active' => true,
+        'created_at' => '2025-01-15 10:30:00',
     ]);
 
     $this->actingAs($admin)
