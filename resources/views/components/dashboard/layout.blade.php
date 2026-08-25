@@ -35,12 +35,12 @@
     <flux:header sticky container class="dark border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 flex items-center">
         <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" aria-label="{{ __('Toggle navigation') }}" />
 
-        <flux:brand href="{{ $homeRoute }}" name="{{ config('app.name') }}" class="font-logo max-lg:hidden" wire:navigate>
-            <x-slot name="logo">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-(--color-accent)">
-                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
-                    <path d="m3.3 7 8.7 5 8.7-5"/>
-                    <path d="M12 22V12"/>
+        <flux:brand href="{{ $homeRoute }}" name="{{ config('app.name') }}" class="max-lg:hidden" wire:navigate>
+            <x-slot name="logo" class="text-(--color-accent)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-5" aria-hidden="true">
+                    <path d="M12 8v8"/>
+                    <path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41L13.7 2.71a2.41 2.41 0 0 0-3.41 0z"/>
+                    <path d="M8 12h8"/>
                 </svg>
             </x-slot>
         </flux:brand>
@@ -157,12 +157,12 @@
 
     <flux:sidebar collapsible="mobile" sticky class="dark lg:hidden border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
         <flux:sidebar.header>
-            <flux:brand href="{{ $homeRoute }}" name="{{ config('app.name') }}" class="font-logo" wire:navigate>
+            <flux:brand href="{{ $homeRoute }}" name="{{ config('app.name') }}" wire:navigate>
                 <x-slot name="logo">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-(--color-accent)">
-                        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
-                        <path d="m3.3 7 8.7 5 8.7-5"/>
-                        <path d="M12 22V12"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-(--color-accent)" aria-hidden="true">
+                        <path d="M12 8v8"/>
+                        <path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41L13.7 2.71a2.41 2.41 0 0 0-3.41 0z"/>
+                        <path d="M8 12h8"/>
                     </svg>
                 </x-slot>
             </flux:brand>

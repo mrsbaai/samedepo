@@ -29,16 +29,20 @@
     <body class="min-h-screen bg-zinc-900 text-zinc-100 antialiased">
         <div>
             <flux:header container class="border-b border-zinc-700 bg-zinc-900/80 backdrop-blur">
-                <flux:brand href="{{ url('/') }}" name="samedepo" class="font-logo">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-(--color-accent)">
-                        <path d="M12 8v8"/>
-                        <path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41L13.7 2.71a2.41 2.41 0 0 0-3.41 0z"/>
-                        <path d="M8 12h8"/>
-                    </svg>
+                <flux:brand href="{{ url('/') }}" name="{{ config('app.name') }}" wire:navigate>
+                    <x-slot name="logo" class="text-(--color-accent)">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-5" aria-hidden="true">
+                            <path d="M12 8v8"/>
+                            <path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41L13.7 2.71a2.41 2.41 0 0 0-3.41 0z"/>
+                            <path d="M8 12h8"/>
+                        </svg>
+                    </x-slot>
                 </flux:brand>
 
+                <flux:separator vertical variant="subtle" class="mx-2 h-4 max-lg:hidden" />
+
                 <flux:navbar class="max-lg:hidden">
-                    <flux:navbar.item href="{{ route('public.api-docs') }}" wire:navigate>API Docs</flux:navbar.item>
+                    <flux:navbar.item href="{{ route('public.api-docs') }}" class="text-zinc-400!" wire:navigate>API Docs</flux:navbar.item>
                 </flux:navbar>
 
                 <flux:spacer />
