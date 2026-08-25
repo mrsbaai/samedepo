@@ -28,6 +28,7 @@ class Deposit extends Model
         'status',
         'detected_at',
         'credited_at',
+        'swept_at',
     ];
 
     protected function casts(): array
@@ -38,6 +39,7 @@ class Deposit extends Model
             'credited_amount' => 'decimal:8',
             'detected_at' => 'datetime',
             'credited_at' => 'datetime',
+            'swept_at' => 'datetime',
         ];
     }
 

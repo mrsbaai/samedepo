@@ -10,6 +10,8 @@ use App\Fraud\Contracts\NullIpIntelProvider;
 use App\Fraud\Contracts\NullPaymentSignalProvider;
 use App\Fraud\Contracts\PaymentSignalProvider;
 use App\Models\User;
+use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\NullBlockchainBroadcaster;
 use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\Providers\BlockCypherProvider;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
@@ -33,6 +35,8 @@ class AppServiceProvider extends ServiceProvider
         // when a billing module or IP intelligence service is added.
         $this->app->bind(PaymentSignalProvider::class, NullPaymentSignalProvider::class);
         $this->app->bind(IpIntelProvider::class, NullIpIntelProvider::class);
+
+        $this->app->bind(BlockchainBroadcaster::class, NullBlockchainBroadcaster::class);
 
         $this->app->singleton(DepositScanner::class, function () {
             $networks = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
