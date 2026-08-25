@@ -21,6 +21,10 @@ class WebhookEndpoint extends Model
         'secret',
     ];
 
+    protected $hidden = [
+        'secret',
+    ];
+
     protected function casts(): array
     {
         return [
