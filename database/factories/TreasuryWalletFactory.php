@@ -18,6 +18,7 @@ class TreasuryWalletFactory extends Factory
     {
         return [
             'network' => fake()->randomElement(['bitcoin', 'usdt_trc20', 'usdt_erc20']),
+            'derivation_index' => 0,
             'address' => fake()->uuid(),
             'available_funds' => fake()->randomFloat(8, 0, 100),
         ];

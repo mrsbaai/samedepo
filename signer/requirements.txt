@@ -1,0 +1,13 @@
+# samedepo isolated signer dependencies
+# Installed into a venv on the hardened signer Droplet.
+
+Flask==3.0.3
+waitress==3.0.0
+bip-utils==2.9.2
+mnemonic==0.21
+pycryptodome==3.20.0
+cryptography==43.0.0
+web3==6.20.3
+tronpy==0.5.0
+requests==2.32.3
+python-dotenv==1.0.1

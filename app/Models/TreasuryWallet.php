@@ -13,6 +13,7 @@ class TreasuryWallet extends Model
 
     protected $fillable = [
         'network',
+        'derivation_index',
         'address',
         'available_funds',
     ];

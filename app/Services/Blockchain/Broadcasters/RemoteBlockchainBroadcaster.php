@@ -1,0 +1,92 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Blockchain\Broadcasters;
+
+use App\Models\Deposit;
+use App\Models\TreasurySweep;
+use App\Models\TreasuryWallet;
+use App\Models\Withdrawal;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
+{
+    public function __construct(
+        private readonly string $url,
+        private readonly string $apiKey,
+    ) {}
+
+    public function estimateWithdrawalFee(Withdrawal $withdrawal): ?string
+    {
+        $tokenTransfer = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true);
+
+        return $this->post('/fee', [
+            'network' => $withdrawal->network,
+            'token_transfer' => $tokenTransfer,
+        ])->json('data.fee');
+    }
+
+    public function broadcastWithdrawal(Withdrawal $withdrawal): ?string
+    {
+        $wallet = TreasuryWallet::where('network', $withdrawal->network)->first();
+
+        if ($wallet === null) {
+            return null;
+        }
+
+        return $this->post('/withdraw', [
+            'network' => $withdrawal->network,
+            'index' => $wallet->derivation_index,
+            'destination' => $withdrawal->destination_address,
+            'amount' => (string) $withdrawal->gross_amount,
+            'fee' => (string) $withdrawal->network_fee,
+        ])->json('data.tx_hash');
+    }
+
+    public function broadcastSweep(TreasurySweep $sweep): ?string
+    {
+        $deposit = Deposit::with('depositAddress')->find($sweep->deposit_id);
+        $wallet = TreasuryWallet::where('network', $sweep->network)->first();
+
+        if ($deposit === null || $deposit->depositAddress === null || $wallet === null) {
+            return null;
+        }
+
+        $fee = $this->post('/fee', [
+            'network' => $sweep->network,
+            'token_transfer' => in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true),
+        ])->json('data.fee');
+
+        if ($fee === null) {
+            return null;
+        }
+
+        return $this->post('/sweep', [
+            'network' => $sweep->network,
+            'source_index' => $deposit->depositAddress->derivation_index,
+            'destination_index' => $wallet->derivation_index,
+            'amount' => (string) $sweep->amount,
+            'fee' => $fee,
+        ])->json('data.tx_hash');
+    }
+
+    private function post(string $path, array $payload): Response
+    {
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        $timestamp = (string) now()->getTimestamp();
+        $message = "{$timestamp}.{$body}";
+        $signature = hash_hmac('sha256', $message, $this->apiKey);
+
+        return Http::withHeaders([
+            'X-Signer-Timestamp' => $timestamp,
+            'X-Signer-Signature' => $signature,
+            'Content-Type' => 'application/json',
+        ])
+            ->timeout(30)
+            ->post("{$this->url}{$path}", $payload)
+            ->throwIfServerError();
+    }
+}

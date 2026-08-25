@@ -27,6 +27,11 @@ return [
         'coin_type' => 60,
     ],
 
+    'signer' => [
+        'url' => env('SIGNER_URL'),
+        'api_key' => env('SIGNER_API_KEY'),
+    ],
+
     'providers' => [
         'bitcoin' => [
             'driver' => 'blockcypher',

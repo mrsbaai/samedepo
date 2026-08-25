@@ -40,7 +40,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PaymentSignalProvider::class, NullPaymentSignalProvider::class);
         $this->app->bind(IpIntelProvider::class, NullIpIntelProvider::class);
 
-        $this->app->bind(BlockchainBroadcaster::class, NullBlockchainBroadcaster::class);
+        if (config('blockchain.signer.url') && config('blockchain.signer.api_key')) {
+            $this->app->bind(BlockchainBroadcaster::class, function () {
+                return new \App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster(
+                    config('blockchain.signer.url'),
+                    config('blockchain.signer.api_key'),
+                );
+            });
+        } else {
+            $this->app->bind(BlockchainBroadcaster::class, NullBlockchainBroadcaster::class);
+        }
         $this->app->bind(PriceFeedProvider::class, CoinGeckoProvider::class);
 
         $this->app->singleton(DepositScanner::class, function () {
