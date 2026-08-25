@@ -44,9 +44,16 @@ class WithdrawalProcessor
             return;
         }
 
-        $amountSent = bccomp((string) $withdrawal->gross_amount, $fee, 8) >= 0
-            ? bcsub((string) $withdrawal->gross_amount, $fee, 8)
-            : '0.00000000';
+        $tokenNetworks = ['usdt_erc20', 'usdt_trc20'];
+        if (in_array($withdrawal->network, $tokenNetworks, true)) {
+            // For token networks the fee is paid in the native gas asset (ETH/TRX),
+            // not in the token itself, so the full gross token amount is sent.
+            $amountSent = (string) $withdrawal->gross_amount;
+        } else {
+            $amountSent = bccomp((string) $withdrawal->gross_amount, $fee, 8) >= 0
+                ? bcsub((string) $withdrawal->gross_amount, $fee, 8)
+                : '0.00000000';
+        }
 
         $withdrawal->update([
             'network_fee' => $fee,

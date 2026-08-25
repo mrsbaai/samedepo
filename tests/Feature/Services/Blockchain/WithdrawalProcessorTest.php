@@ -119,8 +119,8 @@ test('it estimates fees for every supported network', function (string $network,
         ->and($withdrawal->fresh()->amount_sent)->toBe($sent);
 })->with([
     ['bitcoin', '1.00000000', '0.00020000', '0.99980000'],
-    ['usdt_trc20', '10.00000000', '1.00000000', '9.00000000'],
-    ['usdt_erc20', '4.00000000', '5.00000000', '0.00000000'],
+    ['usdt_trc20', '10.00000000', '1.00000000', '10.00000000'],
+    ['usdt_erc20', '4.00000000', '5.00000000', '4.00000000'],
 ]);
 
 test('it leaves a withdrawal retryable when fee estimation fails', function () {
