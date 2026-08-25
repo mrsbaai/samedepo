@@ -10,6 +10,12 @@ use App\Fraud\Contracts\NullIpIntelProvider;
 use App\Fraud\Contracts\NullPaymentSignalProvider;
 use App\Fraud\Contracts\PaymentSignalProvider;
 use App\Models\User;
+use App\Services\Blockchain\DepositScanner;
+use App\Services\Blockchain\Providers\BlockCypherProvider;
+use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
+use App\Services\Blockchain\Providers\InfuraProvider;
+use App\Services\Blockchain\Providers\NullBlockchainProvider;
+use App\Services\Blockchain\Providers\TronGridProvider;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -27,6 +33,45 @@ class AppServiceProvider extends ServiceProvider
         // when a billing module or IP intelligence service is added.
         $this->app->bind(PaymentSignalProvider::class, NullPaymentSignalProvider::class);
         $this->app->bind(IpIntelProvider::class, NullIpIntelProvider::class);
+
+        $this->app->singleton(DepositScanner::class, function () {
+            $networks = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
+            $providers = [];
+
+            foreach ($networks as $network) {
+                $providers[] = $this->makeBlockchainProvider($network);
+            }
+
+            return new DepositScanner($providers);
+        });
+    }
+
+    private function makeBlockchainProvider(string $network): BlockchainProvider
+    {
+        $config = config("blockchain.providers.{$network}");
+        $driver = $config['driver'] ?? null;
+
+        return match ($driver) {
+            'blockcypher' => new BlockCypherProvider(
+                network: $network,
+                coinSymbol: 'btc',
+                token: $config['token'] ?? null,
+                apiNetwork: $config['network'] ?? 'main',
+            ),
+            'trongrid' => new TronGridProvider(
+                network: $network,
+                usdtContract: $config['usdt_contract'] ?? 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+                apiKey: $config['api_key'] ?? null,
+            ),
+            'infura' => new InfuraProvider(
+                network: $network,
+                usdtContract: $config['usdt_contract'] ?? '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                projectId: $config['project_id'] ?? null,
+                projectSecret: $config['project_secret'] ?? null,
+                infuraNetwork: $config['network'] ?? 'mainnet',
+            ),
+            default => new NullBlockchainProvider($network),
+        };
     }
 
     public function boot(): void
