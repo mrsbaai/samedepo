@@ -20,11 +20,11 @@ def _btc() -> Optional[str]:
         r = requests.get(url, timeout=15)
         r.raise_for_status()
         data = r.json()
-        sat_per_kb = data.get("medium_fee_per_kb", data.get("half_hour_fee", 0))
+        sat_per_kb = data.get("low_fee_per_kb", data.get("half_hour_fee", 0))
         if not sat_per_kb:
             return None
-        # Assume a 300-byte P2PKH transaction to be safe.
-        fee_btc = Decimal(sat_per_kb) * Decimal(300) / Decimal(1000) / Decimal(10 ** 8)
+        # Assume a 250-byte P2PKH transaction.
+        fee_btc = Decimal(sat_per_kb) * Decimal(250) / Decimal(1000) / Decimal(10 ** 8)
         return f"{fee_btc:.8f}"
     except Exception:
         return None
@@ -66,17 +66,16 @@ def _erc20() -> Optional[str]:
         r = requests.post(url, json=payload, auth=auth, timeout=15)
         r.raise_for_status()
         wei = int(r.json()["result"], 16)
-        eth = Decimal(wei) * Decimal("65000") / Decimal(10 ** 18)
+        eth = Decimal(wei) * Decimal("55000") / Decimal(10 ** 18)
         return f"{eth:.8f}"
     except Exception:
         return None
 
 
 def _tron() -> Optional[str]:
-    # TRON USDT TRC-20 fee estimate: a typical transfer costs ~13.5 TRX in energy/bandwidth today.
-    # We use a fixed safe estimate because precise energy cannot be predicted without account state.
-    # ponytail: fixed estimate; query chain parameters when live precision matters.
-    return "13.50000000"
+    # TRON USDT TRC-20 fee estimate: a typical transfer costs ~2-8 TRX in energy/bandwidth.
+    # We use a conservative fee limit that is lower than the original 13.5 TRX buffer.
+    return "10.00000000"
 
 
 def estimate(network: str, token_transfer: bool = False) -> Optional[str]:

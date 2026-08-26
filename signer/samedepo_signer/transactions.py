@@ -102,7 +102,7 @@ def _erc20_transfer(source_index: int, destination: str, amount: str, fee_eth: s
     value = int(Decimal(amount) * (10 ** decimals))
 
     nonce = w3.eth.get_transaction_count(source, "latest")
-    gas = 65000
+    gas = 55000
     gas_price = _to_wei(fee_eth, gas)
 
     tx = contract.functions.transfer(Web3.to_checksum_address(destination), value).build_transaction({
@@ -191,7 +191,7 @@ def _trc20_sweep(source_index: int, destination_index: int, amount: str, fee: st
     if needs_topup:
         # Top up the deposit address with TRX from the treasury (destination).
         # Return None so the Laravel scheduler retries after the top-up confirms.
-        _trx_transfer(destination_index, source, str(Decimal(topup_sun) / Decimal(10 ** 6)), "15.0")
+        _trx_transfer(destination_index, source, str(Decimal(topup_sun) / Decimal(10 ** 6)), fee)
         return None
 
     return _trc20_transfer(source_index, dest, amount, fee)
