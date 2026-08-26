@@ -45,6 +45,7 @@ def derive_xpubs():
         "bitcoin": keys.get_xpub("bitcoin"),
         "usdt_erc20": keys.get_xpub("usdt_erc20"),
         "usdt_trc20": keys.get_xpub("usdt_trc20"),
+        "usdt_base": keys.get_xpub("usdt_base"),
     }
     return _json_response(result)
 

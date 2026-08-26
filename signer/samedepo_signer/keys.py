@@ -10,9 +10,9 @@ from mnemonic import Mnemonic
 from samedepo_signer.config import wallet_enc_path, wallet_key_path
 
 _NETWORK_COIN = {
-    "bitcoin": Bip44Coins.BITCOIN,
-    "usdt_erc20": Bip44Coins.ETHEREUM,
-    "usdt_trc20": Bip44Coins.TRON,
+    "usdt_erc20": (Bip44Coins.ETHEREUM, 0),
+    "usdt_trc20": (Bip44Coins.TRON, 0),
+    "usdt_base": (Bip44Coins.ETHEREUM, 1),
 }
 
 
@@ -27,6 +27,7 @@ def _seed_for(network: str) -> str:
     blocks = {
         "bitcoin": "BITCOIN",
         "usdt_erc20": "ETHEREUM / USDT ERC20",
+        "usdt_base": "ETHEREUM / USDT ERC20",
         "usdt_trc20": "TRON / USDT TRC20",
     }
     label = blocks[network]
@@ -43,11 +44,11 @@ def _bip84_account():
     return Bip84.FromSeed(seed_bytes, Bip84Coins.BITCOIN).Purpose().Coin().Account(0)
 
 
-def _bip44_account(network: str) -> Bip44:
+def _bip44_account(network: str):
     seed = _seed_for(network)
     seed_bytes = Bip39SeedGenerator(seed).Generate()
-    coin = _NETWORK_COIN[network]
-    return Bip44.FromSeed(seed_bytes, coin).Purpose().Coin().Account(0)
+    coin, account = _NETWORK_COIN[network]
+    return Bip44.FromSeed(seed_bytes, coin).Purpose().Coin().Account(account)
 
 
 def get_xpub(network: str) -> str:

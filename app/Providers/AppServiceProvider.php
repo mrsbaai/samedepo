@@ -53,7 +53,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PriceFeedProvider::class, CoinGeckoProvider::class);
 
         $this->app->singleton(DepositScanner::class, function () {
-            $networks = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
+            $networks = ['bitcoin', 'usdt_trc20', 'usdt_erc20', 'usdt_base'];
             $providers = [];
 
             foreach ($networks as $network) {

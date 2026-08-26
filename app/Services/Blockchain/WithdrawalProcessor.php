@@ -44,7 +44,7 @@ class WithdrawalProcessor
             return;
         }
 
-        $tokenNetworks = ['usdt_erc20', 'usdt_trc20'];
+        $tokenNetworks = ['usdt_erc20', 'usdt_trc20', 'usdt_base'];
         if (in_array($withdrawal->network, $tokenNetworks, true)) {
             // For token networks the fee is paid in the native gas asset (ETH/TRX),
             // not in the token itself, so the full gross token amount is sent.

@@ -35,6 +35,8 @@ class Config:
     trongrid_api_key = os.environ.get("TRONGRID_API_KEY", "")
     trongrid_usdt_contract = os.environ.get("TRONGRID_USDT_CONTRACT", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
     infura_usdt_contract = os.environ.get("INFURA_USDT_CONTRACT", "0xdAC17F958D2ee523a2206206994597C13D831ec7")
+    infura_base_network = os.environ.get("INFURA_BASE_NETWORK", "base-mainnet")
+    infura_base_usdt_contract = os.environ.get("INFURA_BASE_USDT_CONTRACT", "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2")
     manual_approval = os.environ.get("SIGNER_MANUAL_APPROVAL", "true").lower() in ("1", "true", "yes")
     daily_limit = float(os.environ.get("SIGNER_DAILY_LIMIT", "1000"))
     per_tx_limit = float(os.environ.get("SIGNER_PER_TX_LIMIT", "500"))

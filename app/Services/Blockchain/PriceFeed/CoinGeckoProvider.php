@@ -26,6 +26,7 @@ class CoinGeckoProvider implements PriceFeedProvider
             'bitcoin' => $prices['bitcoin']['usd'] ?? 0,
             'usdt_trc20' => $prices['tether']['usd'] ?? 0,
             'usdt_erc20' => $prices['tether']['usd'] ?? 0,
+            'usdt_base' => $prices['tether']['usd'] ?? 0,
         ];
     }
 }
