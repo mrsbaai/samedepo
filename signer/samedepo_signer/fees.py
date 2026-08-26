@@ -73,9 +73,10 @@ def _erc20() -> Optional[str]:
 
 
 def _tron() -> Optional[str]:
-    # TRON USDT TRC-20 fee estimate: a typical transfer costs ~2-8 TRX in energy/bandwidth.
-    # We use a conservative fee limit that is lower than the original 13.5 TRX buffer.
-    return "10.00000000"
+    # TRON USDT TRC-20 fee limit: a small cap is safe when the source has
+    # delegated energy. The treasury stakes TRX and delegates energy before
+    # each sweep, so the actual burn is mostly bandwidth/account-creation.
+    return "5.00000000"
 
 
 def estimate(network: str, token_transfer: bool = False) -> Optional[str]:
