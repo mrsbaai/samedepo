@@ -23,8 +23,8 @@ def _btc() -> Optional[str]:
         sat_per_kb = data.get("low_fee_per_kb", data.get("half_hour_fee", 0))
         if not sat_per_kb:
             return None
-        # Assume a 250-byte P2PKH transaction.
-        fee_btc = Decimal(sat_per_kb) * Decimal(250) / Decimal(1000) / Decimal(10 ** 8)
+        # Assume a 140-byte P2WPKH transaction.
+        fee_btc = Decimal(sat_per_kb) * Decimal(140) / Decimal(1000) / Decimal(10 ** 8)
         return f"{fee_btc:.8f}"
     except Exception:
         return None
