@@ -99,6 +99,39 @@
         </div>
     </section>
 
+    <section class="py-16 border-t border-zinc-800">
+        <flux:heading size="lg" level="2" class="mb-8">Built to keep network costs down</flux:heading>
+
+        <div class="grid gap-8 md:grid-cols-3">
+            <div class="border-t border-zinc-700 pt-5">
+                <flux:icon.bolt class="size-6 text-(--color-accent)" />
+                <flux:heading size="lg" level="3" class="mt-4">Lower-cost Bitcoin transfers</flux:heading>
+                <flux:text class="mt-2 text-zinc-400">
+                    Bitcoin deposits use native SegWit addresses. They reduce transaction size and network fees
+                    without changing how customers send Bitcoin.
+                </flux:text>
+            </div>
+
+            <div class="border-t border-zinc-700 pt-5">
+                <flux:icon.banknotes class="size-6 text-(--color-accent)" />
+                <flux:heading size="lg" level="3" class="mt-4">Automatic USDT gas handling</flux:heading>
+                <flux:text class="mt-2 text-zinc-400">
+                    samedepo handles ETH, TRX, energy, and bandwidth from treasury. Website owners and their
+                    customers don't need to fund deposit addresses with separate gas balances.
+                </flux:text>
+            </div>
+
+            <div class="border-t border-zinc-700 pt-5">
+                <flux:icon.shield-check class="size-6 text-(--color-accent)" />
+                <flux:heading size="lg" level="3" class="mt-4">Isolated transaction signing</flux:heading>
+                <flux:text class="mt-2 text-zinc-400">
+                    Private wallet keys never enter the website application. Deposits and withdrawals are signed
+                    by an isolated service through authenticated requests.
+                </flux:text>
+            </div>
+        </div>
+    </section>
+
     {{-- Fee disclosure --}}
     <section class="py-16 max-w-3xl mx-auto">
         <flux:callout icon="banknotes" color="amber">

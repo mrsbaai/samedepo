@@ -36,6 +36,16 @@ test('the landing page shows supported network icons', function () {
         ->assertSee('crypto/usdt-erc20.svg');
 });
 
+test('the landing page explains its network cost and signing technology', function () {
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('Lower-cost Bitcoin transfers')
+        ->assertSee('Automatic USDT gas handling')
+        ->assertSee('Isolated transaction signing')
+        ->assertSee('native SegWit addresses')
+        ->assertSee('ETH, TRX, energy, and bandwidth');
+});
+
 test('the landing page links to sign up and api docs', function () {
     $this->get('/')
         ->assertOk()
