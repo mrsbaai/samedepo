@@ -36,17 +36,21 @@
                     <flux:text size="sm" class="ml-3 font-mono text-zinc-500">register-customer.sh</flux:text>
                 </div>
                 <pre class="p-5 text-sm font-mono leading-relaxed overflow-x-auto"><code><span class="text-zinc-500"># Register once, get three permanent addresses</span>
-<span class="text-(--color-accent) font-medium">curl</span> https://api.samedepo.com/v1/customers \
+<span class="text-(--color-accent) font-medium">curl</span> -X POST {{ url('/api/v1/customers') }} \
   -H "Authorization: Bearer sk_live_..." \
-  -d '{"customer_reference": "cus_482"}'
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"reference": "cus_482"}'
 
-<span class="text-zinc-500"># Response</span>
+<span class="text-zinc-500"># Response · 201 Created</span>
 {
-  <span class="text-zinc-300">"customer_reference"</span>: "cus_482",
-  <span class="text-zinc-300">"addresses"</span>: {
-    <span class="text-zinc-300">"bitcoin"</span>: <span class="text-(--color-accent)">"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"</span>,
-    <span class="text-zinc-300">"usdt_trc20"</span>: <span class="text-(--color-accent)">"TXn9YbZ...v4mQ2"</span>,
-    <span class="text-zinc-300">"usdt_erc20"</span>: <span class="text-(--color-accent)">"0x4f2A1c...B9cE1"</span>
+  <span class="text-zinc-300">"data"</span>: {
+    <span class="text-zinc-300">"customer_reference"</span>: "cus_482",
+    <span class="text-zinc-300">"addresses"</span>: [
+      { <span class="text-zinc-300">"network"</span>: "bitcoin", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"bc1qxy2k...hx0wlh"</span> },
+      { <span class="text-zinc-300">"network"</span>: "usdt_trc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"TXn9YbZ...v4mQ2"</span> },
+      { <span class="text-zinc-300">"network"</span>: "usdt_erc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"0x4f2A1c...B9cE1"</span> }
+    ]
   }
 }
 <span class="text-zinc-500"># That's it. Seriously.</span></code></pre>

@@ -46,6 +46,16 @@ test('the landing page explains its network cost and signing technology', functi
         ->assertSee('ETH, TRX, energy, and bandwidth');
 });
 
+test('the landing page shows an accurate customer registration example', function () {
+    $this->get('/')
+        ->assertOk()
+        ->assertSee(url('/api/v1/customers'))
+        ->assertSee('"reference": "cus_482"', false)
+        ->assertSee('"data"', false)
+        ->assertSee('"network"', false)
+        ->assertSee('"bitcoin"', false);
+});
+
 test('the landing page links to sign up and api docs', function () {
     $this->get('/')
         ->assertOk()
