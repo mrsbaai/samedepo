@@ -16,6 +16,9 @@ class CustomerController
 {
     private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
 
+    /**
+     * Register or return an existing customer and generate permanent deposit addresses.
+     */
     public function store(StoreCustomerRequest $request)
     {
         $reference = $request->validated('reference');
@@ -47,6 +50,9 @@ class CustomerController
             ->setStatusCode($statusCode);
     }
 
+    /**
+     * Retrieve a customer and their permanent deposit addresses.
+     */
     public function show(Request $request, string $reference)
     {
         $customer = Customer::query()

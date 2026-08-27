@@ -9,6 +9,9 @@ use App\Models\Balance;
 
 class BalanceController
 {
+    /**
+     * List the owner's balances for all supported networks.
+     */
     public function __invoke(): BalanceCollection
     {
         $balances = Balance::query()
