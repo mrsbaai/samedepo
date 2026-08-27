@@ -18,4 +18,14 @@ interface BlockchainBroadcaster extends WithdrawalFeeEstimator
     public function broadcastSweep(TreasurySweep $sweep): ?string;
 
     public function broadcastWithdrawal(Withdrawal $withdrawal): ?string;
+
+    public function getNativeBalance(string $network, int $index): ?string;
+
+    public function getTronResource(int $index): ?array;
+
+    public function getTransactionReceipt(string $network, string $txHash): ?array;
+
+    public function estimateFee(string $network, bool $tokenTransfer = true): ?string;
+
+    public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string;
 }

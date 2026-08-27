@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Models\GasPolicy;
 use App\Models\TreasurySweep;
+use App\Models\TreasuryWallet;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
@@ -13,6 +15,8 @@ class WithdrawalBroadcasterFake implements BlockchainBroadcaster
     public ?string $hash = 'withdrawal-tx-123';
 
     public ?string $fee = '0.25000000';
+
+    public ?string $balance = '1000.00000000';
 
     /** @var array<int, int> */
     public array $withdrawalIds = [];
@@ -38,6 +42,36 @@ class WithdrawalBroadcasterFake implements BlockchainBroadcaster
 
         return $this->fee;
     }
+
+    public function getNativeBalance(string $network, int $index): ?string
+    {
+        return $this->balance;
+    }
+
+    public function getTronResource(int $index): ?array
+    {
+        return [
+            'energy_limit' => 100000,
+            'energy_used' => 0,
+            'bandwidth_limit' => 100000,
+            'bandwidth_used' => 0,
+        ];
+    }
+
+    public function getTransactionReceipt(string $network, string $txHash): ?array
+    {
+        return null;
+    }
+
+    public function estimateFee(string $network, bool $tokenTransfer = true): ?string
+    {
+        return '0.00100000';
+    }
+
+    public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
+    {
+        return null;
+    }
 }
 
 function withdrawalProcessor(?string $hash = 'withdrawal-tx-123', ?string $fee = '0.25000000'): array
@@ -52,6 +86,12 @@ function withdrawalProcessor(?string $hash = 'withdrawal-tx-123', ?string $fee =
 function withdrawal(array $attributes = []): Withdrawal
 {
     $owner = User::factory()->create(['role' => 'owner']);
+    $network = $attributes['network'] ?? 'bitcoin';
+
+    TreasuryWallet::firstOrCreate(
+        ['network' => $network],
+        ['derivation_index' => 0, 'address' => 'treasury-'.$network, 'available_funds' => 0],
+    );
 
     return Withdrawal::factory()->create(array_merge([
         'user_id' => $owner->id,
@@ -121,6 +161,7 @@ test('it estimates fees for every supported network', function (string $network,
     ['bitcoin', '1.00000000', '0.00020000', '0.99980000'],
     ['usdt_trc20', '10.00000000', '1.00000000', '10.00000000'],
     ['usdt_erc20', '4.00000000', '5.00000000', '4.00000000'],
+    ['usdt_base', '4.00000000', '0.00010000', '4.00000000'],
 ]);
 
 test('it leaves a withdrawal retryable when fee estimation fails', function () {
@@ -158,4 +199,21 @@ test('it does not broadcast a sent withdrawal twice', function () {
     expect($withdrawal->fresh()->status)->toBe('sent')
         ->and($broadcaster->estimatedWithdrawalIds)->toBe([$withdrawal->id])
         ->and($broadcaster->withdrawalIds)->toBe([$withdrawal->id]);
+});
+
+test('it leaves a token withdrawal pending when treasury gas is low', function () {
+    $withdrawal = withdrawal(['network' => 'usdt_erc20', 'gross_amount' => '5.00000000']);
+    [$processor, $broadcaster] = withdrawalProcessor();
+    $broadcaster->balance = '0.00000100';
+
+    GasPolicy::factory()->create([
+        'network' => 'usdt_erc20',
+        'reserve_threshold' => '0.01000000',
+    ]);
+
+    $processor->process();
+
+    expect($withdrawal->fresh()->status)->toBe('pending')
+        ->and($withdrawal->fresh()->tx_hash)->toBeNull()
+        ->and($broadcaster->withdrawalIds)->toBe([]);
 });

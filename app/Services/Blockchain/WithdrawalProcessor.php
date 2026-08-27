@@ -10,7 +10,12 @@ use Illuminate\Support\Facades\DB;
 
 class WithdrawalProcessor
 {
-    public function __construct(private readonly BlockchainBroadcaster $broadcaster) {}
+    public function __construct(
+        private readonly BlockchainBroadcaster $broadcaster,
+        private ?GasTreasuryService $gasTreasury = null,
+    ) {
+        $this->gasTreasury ??= new GasTreasuryService($this->broadcaster);
+    }
 
     public function process(): void
     {
@@ -46,8 +51,12 @@ class WithdrawalProcessor
 
         $tokenNetworks = ['usdt_erc20', 'usdt_trc20', 'usdt_base'];
         if (in_array($withdrawal->network, $tokenNetworks, true)) {
-            // For token networks the fee is paid in the native gas asset (ETH/TRX),
-            // not in the token itself, so the full gross token amount is sent.
+            if (! $this->gasTreasury->ensureGasForWithdrawal($withdrawal)) {
+                return;
+            }
+        }
+
+        if (in_array($withdrawal->network, $tokenNetworks, true)) {
             $amountSent = (string) $withdrawal->gross_amount;
         } else {
             $amountSent = bccomp((string) $withdrawal->gross_amount, $fee, 8) >= 0

@@ -19,6 +19,7 @@ it('fetches and maps CoinGecko prices', function () {
         'bitcoin' => 65432.12,
         'usdt_trc20' => 1.001,
         'usdt_erc20' => 1.001,
+        'usdt_base' => 1.001,
     ]);
 
     Http::assertSent(fn ($request) => $request->url() === 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin%2Ctether&vs_currencies=usd');

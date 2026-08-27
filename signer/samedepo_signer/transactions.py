@@ -287,6 +287,98 @@ def broadcast_sweep(network: str, source_index: int, destination_index: int, amo
     raise ValueError(f"Unsupported network: {network}")
 
 
+def get_native_balance(network: str, index: int) -> Optional[str]:
+    if network in ("usdt_erc20", "usdt_base"):
+        w3 = _w3(network)
+        if w3 is None:
+            return None
+        address = keys.derive_address(network, index)
+        try:
+            wei = w3.eth.get_balance(address)
+            return f"{Decimal(wei) / Decimal(10 ** 18):.8f}"
+        except Exception:
+            return None
+
+    if network == "usdt_trc20":
+        client = _trx_client()
+        address = keys.derive_address("usdt_trc20", index)
+        try:
+            account = client.get_account(address)
+            if account is None:
+                return "0.00000000"
+            return f"{Decimal(account.get('balance', 0)) / Decimal(10 ** 6):.8f}"
+        except Exception:
+            return None
+
+    return None
+
+
+def get_tron_resource(index: int) -> Optional[dict]:
+    client = _trx_client()
+    address = keys.derive_address("usdt_trc20", index)
+    try:
+        resource = client.get_account_resource(address)
+        return {
+            "energy_limit": resource.get("EnergyLimit", 0),
+            "energy_used": resource.get("EnergyUsed", 0),
+            "bandwidth_limit": resource.get("NetLimit", 0),
+            "bandwidth_used": resource.get("NetUsed", 0),
+        }
+    except Exception:
+        return None
+
+
+def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
+    if network in ("usdt_erc20", "usdt_base"):
+        w3 = _w3(network)
+        if w3 is None:
+            return None
+        try:
+            receipt = w3.eth.get_transaction_receipt(tx_hash)
+        except Exception:
+            return None
+        if receipt is None:
+            return {"status": "pending", "fee": None, "confirmations": 0}
+        gas_price = receipt.effectiveGasPrice if receipt.effectiveGasPrice is not None else receipt.gasPrice
+        fee_wei = receipt.gasUsed * gas_price
+        fee = f"{Decimal(fee_wei) / Decimal(10 ** 18):.8f}"
+        status = {1: "confirmed", 0: "failed"}.get(receipt.status, "pending")
+        confirmations = 0
+        try:
+            current = w3.eth.block_number
+            block = receipt.blockNumber if receipt.blockNumber is not None else 0
+            confirmations = max(0, current - block + 1)
+        except Exception:
+            pass
+        return {"status": status, "fee": fee, "confirmations": confirmations}
+
+    if network == "usdt_trc20":
+        client = _trx_client()
+        try:
+            info = client.get_transaction_info(tx_hash)
+        except Exception:
+            return None
+        if info is None:
+            return {"status": "pending", "fee": None, "confirmations": 0}
+        fee_sun = info.get("fee", 0)
+        fee = f"{Decimal(fee_sun) / Decimal(10 ** 6):.8f}"
+        result = info.get("receipt", {}).get("result")
+        status = "confirmed" if result == "SUCCESS" else "failed" if result else "pending"
+        return {"status": status, "fee": fee, "confirmations": 20}
+
+    return None
+
+
+def broadcast_topup(network: str, source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
+    if network == "usdt_erc20":
+        return _eth_native_transfer(source_index, keys.derive_address(network, destination_index), amount, fee, "usdt_erc20")
+    if network == "usdt_base":
+        return _eth_native_transfer(source_index, keys.derive_address(network, destination_index), amount, fee, "usdt_base")
+    if network == "usdt_trc20":
+        return _trx_transfer(source_index, keys.derive_address("usdt_trc20", destination_index), amount, fee)
+    return None
+
+
 ERC20_ABI = [
     {
         "constant": True,

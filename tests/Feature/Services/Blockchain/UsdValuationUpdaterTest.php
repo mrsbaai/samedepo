@@ -26,13 +26,14 @@ test('it updates existing valuations without creating duplicates', function () {
         'bitcoin' => 65000.25,
         'usdt_trc20' => 1,
         'usdt_erc20' => 1,
+        'usdt_base' => 1,
     ]));
 
     $updater->update();
     $updater->update();
 
     expect(UsdValuation::query()->where('network', 'bitcoin')->value('conversion_value'))->toBe('65000.250000')
-        ->and(UsdValuation::query()->count())->toBe(3);
+        ->and(UsdValuation::query()->count())->toBe(4);
 });
 
 test('it creates all supported valuations and stores zero for missing prices', function () {
@@ -42,5 +43,6 @@ test('it creates all supported valuations and stores zero for missing prices', f
         'bitcoin' => '64000.000000',
         'usdt_trc20' => '0.000000',
         'usdt_erc20' => '0.000000',
+        'usdt_base' => '0.000000',
     ]);
 });

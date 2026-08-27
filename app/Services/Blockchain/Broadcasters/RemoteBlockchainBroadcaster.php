@@ -10,7 +10,6 @@ use App\Models\TreasuryWallet;
 use App\Models\Withdrawal;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
 {
@@ -82,6 +81,78 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'destination_index' => $wallet->derivation_index,
             'amount' => (string) $sweep->amount,
             'fee' => $fee->json('data.fee'),
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data.tx_hash');
+        }
+
+        return null;
+    }
+
+    public function getNativeBalance(string $network, int $index): ?string
+    {
+        $response = $this->post('/balance', [
+            'network' => $network,
+            'index' => $index,
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data.balance');
+        }
+
+        return null;
+    }
+
+    public function getTronResource(int $index): ?array
+    {
+        $response = $this->post('/tron-resource', [
+            'index' => $index,
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data');
+        }
+
+        return null;
+    }
+
+    public function getTransactionReceipt(string $network, string $txHash): ?array
+    {
+        $response = $this->post('/receipt', [
+            'network' => $network,
+            'tx_hash' => $txHash,
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data');
+        }
+
+        return null;
+    }
+
+    public function estimateFee(string $network, bool $tokenTransfer = true): ?string
+    {
+        $response = $this->post('/fee', [
+            'network' => $network,
+            'token_transfer' => $tokenTransfer,
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data.fee');
+        }
+
+        return null;
+    }
+
+    public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
+    {
+        $response = $this->post('/topup', [
+            'network' => $network,
+            'source_index' => $sourceIndex,
+            'destination_index' => $destinationIndex,
+            'amount' => $amount,
+            'fee' => $fee,
         ]);
 
         if ($response->successful()) {
