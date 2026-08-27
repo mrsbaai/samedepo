@@ -50,121 +50,90 @@
     </section>
 
     {{-- How it works --}}
-    <section class="py-16 border-t border-zinc-800">
-        <div class="text-center max-w-2xl mx-auto mb-16">
-            <flux:heading size="lg" level="2">How it works</flux:heading>
-            <flux:text class="mt-2 text-zinc-400">Three steps. That's the whole integration.</flux:text>
+    <section id="how-it-works" class="py-20 sm:py-24 scroll-mt-20">
+        <div class="max-w-xl">
+            <flux:heading size="xl" level="2">Three steps between you and a credited balance.</flux:heading>
+            <flux:text size="lg" class="mt-3 text-zinc-400">Register once. Keep the addresses. Let samedepo watch the chains.</flux:text>
         </div>
 
-        <div class="max-w-xl mx-auto">
-            <flux:timeline size="lg">
-                <flux:timeline.item status="complete">
-                    <flux:timeline.indicator>1</flux:timeline.indicator>
-                    <flux:timeline.content>
-                        <flux:heading size="lg">Register a customer</flux:heading>
-                        <flux:text class="mt-1 text-zinc-400">
-                            Hit the API with your own customer reference. Send the same one twice and you get the
-                            same customer back — no dupes, no cleanup.
-                        </flux:text>
-                    </flux:timeline.content>
-                </flux:timeline.item>
+        <div class="mt-12 grid gap-8 md:grid-cols-3 md:gap-10">
+            @foreach ([
+                ['Register a customer', 'Send your customer reference. Repeating it returns the same customer.'],
+                ['Get permanent addresses', 'One reusable address for each supported network. Nothing to regenerate.'],
+                ['Get credited automatically', 'We confirm the deposit, credit your balance, and send the webhook.'],
+            ] as [$heading, $copy])
+                <div>
+                    <span class="flex size-8 items-center justify-center rounded-full bg-amber-400 font-mono text-sm font-semibold text-zinc-950">{{ $loop->iteration }}</span>
+                    <flux:heading size="lg" class="mt-5">{{ $heading }}</flux:heading>
+                    <flux:text class="mt-2 max-w-xs text-zinc-400">{{ $copy }}</flux:text>
+                </div>
+            @endforeach
+        </div>
 
-                <flux:timeline.item status="complete">
-                    <flux:timeline.indicator>2</flux:timeline.indicator>
-                    <flux:timeline.content>
-                        <flux:heading size="lg">Get permanent addresses</flux:heading>
-                        <flux:text class="mt-1 text-zinc-400">
-                            You get back permanent Bitcoin, USDT (TRC20), and USDT (ERC20) addresses. Reuse them
-                            forever — that's the whole point, no regenerating anything.
-                        </flux:text>
-                        <div class="mt-3 flex items-center gap-2">
-                            <img src="{{ asset('crypto/bitcoin.svg') }}" alt="Bitcoin" title="Bitcoin" class="h-8 w-8" />
-                            <img src="{{ asset('crypto/usdt-trc20.svg') }}" alt="USDT (TRC20)" title="USDT (TRC20)" class="h-8 w-8" />
-                            <img src="{{ asset('crypto/usdt-erc20.svg') }}" alt="USDT (ERC20)" title="USDT (ERC20)" class="h-8 w-8" />
-                        </div>
-                    </flux:timeline.content>
-                </flux:timeline.item>
-
-                <flux:timeline.item status="current">
-                    <flux:timeline.indicator>3</flux:timeline.indicator>
-                    <flux:timeline.content>
-                        <flux:heading size="lg">Get credited automatically</flux:heading>
-                        <flux:text class="mt-1 text-zinc-400">
-                            We watch the chain, wait for confirmations, take our cut, and credit the rest to your
-                            balance. Then we ping your webhook — you don't have to poll anything.
-                        </flux:text>
-                    </flux:timeline.content>
-                </flux:timeline.item>
-            </flux:timeline>
+        <div class="mt-12 flex items-center gap-3">
+            <img src="{{ asset('crypto/bitcoin.svg') }}" alt="Bitcoin" class="size-7" />
+            <img src="{{ asset('crypto/usdt-trc20.svg') }}" alt="USDT (TRC20)" class="size-7" />
+            <img src="{{ asset('crypto/usdt-erc20.svg') }}" alt="USDT (ERC20)" class="size-7" />
+            <flux:text size="sm" class="text-zinc-500">Bitcoin · USDT (TRC20) · USDT (ERC20)</flux:text>
         </div>
     </section>
 
-    <section class="py-16 border-t border-zinc-800">
-        <flux:heading size="lg" level="2" class="mb-8">Built to keep network costs down</flux:heading>
-
-        <div class="grid gap-8 md:grid-cols-3">
-            <div class="border-t border-zinc-700 pt-5">
-                <flux:icon.bolt class="size-6 text-(--color-accent)" />
-                <flux:heading size="lg" level="3" class="mt-4">Lower-cost Bitcoin transfers</flux:heading>
-                <flux:text class="mt-2 text-zinc-400">
-                    Bitcoin deposits use native SegWit addresses. They reduce transaction size and network fees
-                    without changing how customers send Bitcoin.
-                </flux:text>
+    <section class="py-20 sm:py-24">
+        <div class="rounded-2xl bg-zinc-950/70 p-6 ring-1 ring-white/8 sm:p-10">
+            <div class="max-w-xl">
+                <flux:text size="sm" class="font-medium text-(--color-accent)">Network infrastructure</flux:text>
+                <flux:heading size="xl" level="2" class="mt-2">Lower fees without more work.</flux:heading>
             </div>
 
-            <div class="border-t border-zinc-700 pt-5">
-                <flux:icon.banknotes class="size-6 text-(--color-accent)" />
-                <flux:heading size="lg" level="3" class="mt-4">Automatic USDT gas handling</flux:heading>
-                <flux:text class="mt-2 text-zinc-400">
-                    samedepo handles ETH, TRX, energy, and bandwidth from treasury. Website owners and their
-                    customers don't need to fund deposit addresses with separate gas balances.
-                </flux:text>
-            </div>
+            <div class="mt-10 grid gap-10 md:grid-cols-3">
+                <div>
+                    <span class="flex size-10 items-center justify-center rounded-lg bg-amber-400/10 text-(--color-accent)">
+                        <flux:icon.bolt class="size-5" />
+                    </span>
+                    <flux:heading size="lg" level="3" class="mt-5">Lower-cost Bitcoin transfers</flux:heading>
+                    <flux:text class="mt-2 text-zinc-400">Bitcoin deposits use native SegWit addresses. They reduce transaction size and network fees without changing how customers send Bitcoin.</flux:text>
+                </div>
 
-            <div class="border-t border-zinc-700 pt-5">
-                <flux:icon.shield-check class="size-6 text-(--color-accent)" />
-                <flux:heading size="lg" level="3" class="mt-4">Isolated transaction signing</flux:heading>
-                <flux:text class="mt-2 text-zinc-400">
-                    Private wallet keys never enter the website application. Deposits and withdrawals are signed
-                    by an isolated service through authenticated requests.
-                </flux:text>
+                <div>
+                    <span class="flex size-10 items-center justify-center rounded-lg bg-amber-400/10 text-(--color-accent)">
+                        <flux:icon.banknotes class="size-5" />
+                    </span>
+                    <flux:heading size="lg" level="3" class="mt-5">Automatic USDT gas handling</flux:heading>
+                    <flux:text class="mt-2 text-zinc-400">samedepo handles ETH, TRX, energy, and bandwidth from treasury. Website owners and their customers don't need to fund deposit addresses with separate gas balances.</flux:text>
+                </div>
+
+                <div>
+                    <span class="flex size-10 items-center justify-center rounded-lg bg-amber-400/10 text-(--color-accent)">
+                        <flux:icon.shield-check class="size-5" />
+                    </span>
+                    <flux:heading size="lg" level="3" class="mt-5">Isolated transaction signing</flux:heading>
+                    <flux:text class="mt-2 text-zinc-400">Private wallet keys never enter the website application. Deposits and withdrawals are signed by an isolated service through authenticated requests.</flux:text>
+                </div>
             </div>
         </div>
     </section>
 
-    {{-- Fee disclosure --}}
-    <section class="py-16 max-w-3xl mx-auto">
-        <flux:callout icon="banknotes" color="amber">
-            <flux:callout.heading>Free for website owners</flux:callout.heading>
-            <flux:callout.text>
-                No monthly fee, no setup cost. We take a flat percentage of each confirmed deposit — shown right
-                in your dashboard, no surprises — before crediting your balance. Withdrawal network fees are shown
-                before you withdraw and again once we send it.
-            </flux:callout.text>
-        </flux:callout>
-    </section>
-
-    {{-- What samedepo does not do --}}
-    <section class="pb-16 max-w-3xl mx-auto">
-        <flux:heading size="lg" level="2" class="mb-4">What samedepo doesn't do</flux:heading>
-        <flux:text class="text-zinc-400">
-            We're not a one-time payment or invoicing tool, and we don't give you a customer-facing top-up page or
-            account system — that part's still on you. Three networks for now: Bitcoin, USDT (TRC20), and USDT
-            (ERC20). No test mode — you're on real crypto from the first request.
-        </flux:text>
+    <section class="grid gap-10 py-20 md:grid-cols-2 md:gap-16">
+        <div>
+            <flux:heading size="lg" level="2">Free for website owners</flux:heading>
+            <flux:text class="mt-3 text-zinc-400">No monthly fee or setup cost. We deduct a flat percentage from each confirmed deposit before crediting your balance. Withdrawal network fees are shown before and after the transaction.</flux:text>
+        </div>
+        <div>
+            <flux:heading size="lg" level="2">Clear limits</flux:heading>
+            <flux:text class="mt-3 text-zinc-400">This isn't an invoicing tool or customer account system. It supports Bitcoin, USDT (TRC20), and USDT (ERC20), with real blockchain transactions from the first request.</flux:text>
+        </div>
     </section>
 
     {{-- Final CTA --}}
-    <section class="py-20 text-center">
-        <flux:card class="max-w-xl mx-auto">
-            <flux:heading size="lg" level="2">Integrate samedepo into your website</flux:heading>
-            <flux:text class="mt-3 text-zinc-400">
-                Then hand every user on your site a permanent deposit address to top up their account with.
-            </flux:text>
-            <div class="mt-6">
-                <flux:button href="{{ route('signup') }}" variant="primary" class="w-full" wire:navigate>Create a free account</flux:button>
+    <section class="py-20 text-center sm:py-28">
+        <div class="mx-auto max-w-2xl">
+            <flux:heading size="xl" level="2">Give every customer an address that stays theirs.</flux:heading>
+            <flux:text size="lg" class="mx-auto mt-4 max-w-xl text-zinc-400">Register them once. We handle deposits, confirmations, credits, and webhooks from there.</flux:text>
+            <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                <flux:button href="{{ route('signup') }}" variant="primary" wire:navigate>Create a free account</flux:button>
+                <flux:button href="{{ route('public.api-docs') }}" variant="ghost" wire:navigate>Read the API docs</flux:button>
             </div>
-        </flux:card>
+        </div>
     </section>
 
 </x-layouts.public>

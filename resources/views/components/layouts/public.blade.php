@@ -42,7 +42,7 @@
     </head>
     <body class="min-h-screen bg-zinc-900 text-zinc-100 antialiased">
         <div>
-            <flux:header container class="border-b border-zinc-700 bg-zinc-900/80 backdrop-blur">
+            <flux:header container class="bg-zinc-900/80 backdrop-blur-xl">
                 <flux:brand href="{{ url('/') }}" name="{{ config('app.name') }}" wire:navigate>
                     <x-slot name="logo" class="text-(--color-accent)">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-5" aria-hidden="true">
@@ -53,10 +53,9 @@
                     </x-slot>
                 </flux:brand>
 
-                <flux:separator vertical variant="subtle" class="mx-2 h-4 max-lg:hidden" />
-
-                <flux:navbar class="max-lg:hidden">
-                    <flux:navbar.item href="{{ route('public.api-docs') }}" class="text-zinc-400!" wire:navigate>API Docs</flux:navbar.item>
+                <flux:navbar class="ml-6 max-lg:hidden">
+                    <flux:navbar.item href="{{ url('/#how-it-works') }}">How it works</flux:navbar.item>
+                    <flux:navbar.item href="{{ route('public.api-docs') }}" wire:navigate>API Docs</flux:navbar.item>
                 </flux:navbar>
 
                 <flux:spacer />
