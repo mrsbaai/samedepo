@@ -12,9 +12,8 @@
                 </flux:heading>
 
                 <flux:text size="lg" class="mt-6 text-zinc-400">
-                    Register a customer once, get back a permanent Bitcoin, USDT (TRC20), and USDT (ERC20) address.
-                    We watch the chain, credit confirmed deposits, and ping your webhook — no invoices, no expiring
-                    links.
+                    Register a customer once and get permanent Bitcoin, USDT (TRC20), and USDT (ERC20) deposit
+                    addresses. We watch each network, wait for confirmations, credit the deposit, and send the webhook.
                 </flux:text>
 
                 <div class="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
