@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\Authentication\ResolvePostSigninRedirect;
 use App\Events\Authentication\AuthenticationEvent;
 use App\Http\Controllers\Admin\UserSummaryController;
+use App\Http\Controllers\ApiDocsController;
 use App\Http\Controllers\Authentication\SocialiteController;
 use App\Livewire\Account\AccountSettings;
 use App\Livewire\Admin\AnnouncementEditor;
@@ -303,7 +304,7 @@ Route::get('/security/delete/recover', function (Request $request): mixed {
 
 Route::view('/', 'public.landing')->name('public.landing');
 
-Route::view('/api-docs', 'public.api-docs')->name('public.api-docs');
+Route::get('/api-docs', ApiDocsController::class)->name('public.api-docs');
 
 Route::get('/privacy', function () {
     $page = PublicContentPage::query()->firstOrCreate(
