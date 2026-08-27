@@ -20,7 +20,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
 
     public function estimateWithdrawalFee(Withdrawal $withdrawal): ?string
     {
-        $tokenTransfer = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20', 'usdt_base'], true);
+        $tokenTransfer = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true);
 
         $response = $this->post('/fee', [
             'network' => $withdrawal->network,
@@ -68,7 +68,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
 
         $fee = $this->post('/fee', [
             'network' => $sweep->network,
-            'token_transfer' => in_array($sweep->network, ['usdt_erc20', 'usdt_trc20', 'usdt_base'], true),
+            'token_transfer' => in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true),
         ]);
 
         if (! $fee->successful()) {

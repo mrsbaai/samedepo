@@ -12,7 +12,6 @@ return [
         'bitcoin' => 3,
         'usdt_trc20' => 20,
         'usdt_erc20' => 12,
-        'usdt_base' => 12,
     ],
 
     'bitcoin' => [
@@ -25,10 +24,6 @@ return [
     ],
     'usdt_erc20' => [
         'xpub' => env('BLOCKCHAIN_USDT_ERC20_XPUB'),
-        'coin_type' => 60,
-    ],
-    'usdt_base' => [
-        'xpub' => env('BLOCKCHAIN_USDT_BASE_XPUB'),
         'coin_type' => 60,
     ],
 
@@ -54,13 +49,6 @@ return [
             'project_secret' => env('INFURA_PROJECT_SECRET'),
             'network' => env('INFURA_NETWORK', 'mainnet'),
             'usdt_contract' => env('INFURA_USDT_CONTRACT', '0xdAC17F958D2ee523a2206206994597C13D831ec7'),
-        ],
-        'usdt_base' => [
-            'driver' => 'infura',
-            'project_id' => env('INFURA_PROJECT_ID'),
-            'project_secret' => env('INFURA_PROJECT_SECRET'),
-            'network' => env('INFURA_BASE_NETWORK', 'base-mainnet'),
-            'usdt_contract' => env('INFURA_BASE_USDT_CONTRACT', '0xfde4c96c8593536e31f229ea8f37b2ada2699bb2'),
         ],
     ],
 ];

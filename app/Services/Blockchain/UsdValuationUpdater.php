@@ -9,7 +9,7 @@ use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
 
 class UsdValuationUpdater
 {
-    private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20', 'usdt_base'];
+    private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
 
     public function __construct(private readonly PriceFeedProvider $provider) {}
 

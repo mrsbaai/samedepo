@@ -69,7 +69,7 @@ class TreasurySweepService
             return;
         }
 
-        $tokenNetworks = ['usdt_erc20', 'usdt_trc20', 'usdt_base'];
+        $tokenNetworks = ['usdt_erc20', 'usdt_trc20'];
 
         if (in_array($sweep->network, $tokenNetworks, true)) {
             $ready = $this->gasTreasury->ensureGasForSweep(

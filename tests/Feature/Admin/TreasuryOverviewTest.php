@@ -1,9 +1,7 @@
 <?php
 
 use App\Livewire\Admin\TreasuryOverview;
-use App\Models\GasExpense;
 use App\Models\GasPolicy;
-use App\Models\GasTopup;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\User;
@@ -73,40 +71,6 @@ test('error state renders a callout and retry resets to normal', function () {
         ->assertSee("Couldn't load treasury data")
         ->call('retry')
         ->assertSet('uiState', 'normal');
-});
-
-test('treasury overview displays base metadata gas resources and operational activity', function () {
-    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
-    $wallet = TreasuryWallet::factory()->create([
-        'network' => 'usdt_base',
-        'available_funds' => '125.00000000',
-        'native_balance' => '0.00400000',
-        'refreshed_at' => now(),
-    ]);
-    GasPolicy::factory()->create(['network' => 'usdt_base', 'reserve_threshold' => '0.00500000']);
-    $topup = GasTopup::create([
-        'treasury_wallet_id' => $wallet->id,
-        'network' => 'usdt_base',
-        'recipient_address' => '0xabc',
-        'recipient_index' => 2,
-        'amount' => '0.01000000',
-        'status' => 'failed',
-        'error_message' => 'Broadcast failed',
-    ]);
-    GasExpense::create([
-        'gas_topup_id' => $topup->id,
-        'network' => 'usdt_base',
-        'tx_hash' => '0xfee',
-        'amount' => '0.00020000',
-    ]);
-
-    Livewire::actingAs($admin)
-        ->test(TreasuryOverview::class)
-        ->assertSee('USDT (Base)')
-        ->assertSee('Base ETH')
-        ->assertSee('Low gas reserve')
-        ->assertSee('Broadcast failed')
-        ->assertSee('0xfee');
 });
 
 test('an admin can edit gas policy pause and refresh a wallet', function () {

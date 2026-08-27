@@ -79,13 +79,8 @@ def _to_wei(fee_eth: str, gas: int) -> int:
 def _w3(network: str = "usdt_erc20") -> Optional[Web3]:
     if not Config.infura_project_id:
         return None
-    if network == "usdt_base":
-        network_name = Config.infura_base_network
-        auth = (Config.infura_project_id, Config.infura_project_secret) if Config.infura_project_secret else None
-        url = f"https://{network_name}.infura.io/v3/{Config.infura_project_id}"
-    else:
-        auth = (Config.infura_project_id, Config.infura_project_secret) if Config.infura_project_secret else None
-        url = f"https://{Config.infura_network}.infura.io/v3/{Config.infura_project_id}"
+    auth = (Config.infura_project_id, Config.infura_project_secret) if Config.infura_project_secret else None
+    url = f"https://{Config.infura_network}.infura.io/v3/{Config.infura_project_id}"
     w3 = Web3(Web3.HTTPProvider(url, request_kwargs={"auth": auth} if auth else {}))
     if not w3.is_connected():
         return None
@@ -97,7 +92,7 @@ def _erc20_transfer(source_index: int, destination: str, amount: str, fee_eth: s
     if w3 is None:
         return None
 
-    contract_address = Config.infura_base_usdt_contract if network == "usdt_base" else Config.infura_usdt_contract
+    contract_address = Config.infura_usdt_contract
     source = Web3.to_checksum_address(keys.derive_address(network, source_index))
     source_private = keys.derive_private_key(network, source_index)
 
@@ -267,8 +262,6 @@ def broadcast_withdrawal(network: str, index: int, destination: str, amount: str
         return _btc_transfer(index, destination, amount, fee)
     if network == "usdt_erc20":
         return _erc20_transfer(index, destination, amount, fee, "usdt_erc20")
-    if network == "usdt_base":
-        return _erc20_transfer(index, destination, amount, fee, "usdt_base")
     if network == "usdt_trc20":
         return _trc20_transfer(index, destination, amount, fee)
     raise ValueError(f"Unsupported network: {network}")
@@ -280,15 +273,13 @@ def broadcast_sweep(network: str, source_index: int, destination_index: int, amo
         return _btc_transfer(source_index, destination, amount, fee)
     if network == "usdt_erc20":
         return _erc20_sweep(source_index, destination_index, amount, fee, "usdt_erc20")
-    if network == "usdt_base":
-        return _erc20_sweep(source_index, destination_index, amount, fee, "usdt_base")
     if network == "usdt_trc20":
         return _trc20_sweep(source_index, destination_index, amount, fee)
     raise ValueError(f"Unsupported network: {network}")
 
 
 def get_native_balance(network: str, index: int) -> Optional[str]:
-    if network in ("usdt_erc20", "usdt_base"):
+    if network == "usdt_erc20":
         w3 = _w3(network)
         if w3 is None:
             return None
@@ -329,7 +320,7 @@ def get_tron_resource(index: int) -> Optional[dict]:
 
 
 def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
-    if network in ("usdt_erc20", "usdt_base"):
+    if network == "usdt_erc20":
         w3 = _w3(network)
         if w3 is None:
             return None
@@ -372,8 +363,6 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
 def broadcast_topup(network: str, source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
     if network == "usdt_erc20":
         return _eth_native_transfer(source_index, keys.derive_address(network, destination_index), amount, fee, "usdt_erc20")
-    if network == "usdt_base":
-        return _eth_native_transfer(source_index, keys.derive_address(network, destination_index), amount, fee, "usdt_base")
     if network == "usdt_trc20":
         return _trx_transfer(source_index, keys.derive_address("usdt_trc20", destination_index), amount, fee)
     return None

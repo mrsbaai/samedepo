@@ -29,7 +29,6 @@ class TreasuryOverview extends Component
         'bitcoin' => ['label' => 'Bitcoin', 'symbol' => 'BTC', 'native' => 'BTC', 'decimals' => 8, 'slug' => 'bitcoin'],
         'usdt_trc20' => ['label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'native' => 'TRX', 'decimals' => 2, 'slug' => 'usdt-trc20'],
         'usdt_erc20' => ['label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'native' => 'ETH', 'decimals' => 2, 'slug' => 'usdt-erc20'],
-        'usdt_base' => ['label' => 'USDT (Base)', 'symbol' => 'USDT', 'native' => 'Base ETH', 'decimals' => 2, 'slug' => 'usdt-erc20'],
     ];
 
     public function mount(GasTreasuryService $gasTreasury): void
@@ -137,7 +136,7 @@ class TreasuryOverview extends Component
 
     private function gasNetworks(): array
     {
-        return ['usdt_erc20', 'usdt_base', 'usdt_trc20'];
+        return ['usdt_erc20', 'usdt_trc20'];
     }
 
     public function render(): mixed

@@ -30,12 +30,11 @@ def _btc() -> Optional[str]:
         return None
 
 
-def _eth(network: str = "usdt_erc20") -> Optional[str]:
+def _eth() -> Optional[str]:
     if not Config.infura_project_id:
         return None
-    network_name = Config.infura_base_network if network == "usdt_base" else Config.infura_network
     auth = (Config.infura_project_id, Config.infura_project_secret) if Config.infura_project_secret else None
-    url = f"https://{network_name}.infura.io/v3/{Config.infura_project_id}"
+    url = f"https://{Config.infura_network}.infura.io/v3/{Config.infura_project_id}"
     payload = {
         "jsonrpc": "2.0",
         "method": "eth_gasPrice",
@@ -52,12 +51,11 @@ def _eth(network: str = "usdt_erc20") -> Optional[str]:
         return None
 
 
-def _erc20(network: str = "usdt_erc20") -> Optional[str]:
+def _erc20() -> Optional[str]:
     if not Config.infura_project_id:
         return None
-    network_name = Config.infura_base_network if network == "usdt_base" else Config.infura_network
     auth = (Config.infura_project_id, Config.infura_project_secret) if Config.infura_project_secret else None
-    url = f"https://{network_name}.infura.io/v3/{Config.infura_project_id}"
+    url = f"https://{Config.infura_network}.infura.io/v3/{Config.infura_project_id}"
     payload = {
         "jsonrpc": "2.0",
         "method": "eth_gasPrice",
@@ -85,13 +83,9 @@ def estimate(network: str, token_transfer: bool = False) -> Optional[str]:
     if network == "bitcoin":
         return _btc()
     if network == "usdt_erc20" and token_transfer:
-        return _erc20("usdt_erc20")
+        return _erc20()
     if network == "usdt_erc20":
-        return _eth("usdt_erc20")
-    if network == "usdt_base" and token_transfer:
-        return _erc20("usdt_base")
-    if network == "usdt_base":
-        return _eth("usdt_base")
+        return _eth()
     if network == "usdt_trc20":
         return _tron()
     return None

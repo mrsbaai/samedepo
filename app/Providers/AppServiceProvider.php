@@ -14,6 +14,7 @@ use App\Models\Withdrawal;
 use App\Observers\WithdrawalObserver;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\NullBlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
 use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\PriceFeed\CoinGeckoProvider;
 use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
@@ -42,7 +43,7 @@ class AppServiceProvider extends ServiceProvider
 
         if (config('blockchain.signer.url') && config('blockchain.signer.api_key')) {
             $this->app->bind(BlockchainBroadcaster::class, function () {
-                return new \App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster(
+                return new RemoteBlockchainBroadcaster(
                     config('blockchain.signer.url'),
                     config('blockchain.signer.api_key'),
                 );
@@ -53,7 +54,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PriceFeedProvider::class, CoinGeckoProvider::class);
 
         $this->app->singleton(DepositScanner::class, function () {
-            $networks = ['bitcoin', 'usdt_trc20', 'usdt_erc20', 'usdt_base'];
+            $networks = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
             $providers = [];
 
             foreach ($networks as $network) {

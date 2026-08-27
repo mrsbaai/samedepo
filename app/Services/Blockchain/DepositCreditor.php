@@ -89,7 +89,6 @@ class DepositCreditor
             'bitcoin' => 'min_deposit_bitcoin',
             'usdt_trc20' => 'min_deposit_usdt_trc20',
             'usdt_erc20' => 'min_deposit_usdt_erc20',
-            'usdt_base' => 'min_deposit_usdt_erc20',
         };
 
         $minimum = (string) $settings->{$column};

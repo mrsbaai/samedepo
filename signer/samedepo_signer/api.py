@@ -28,7 +28,7 @@ def _require_body(keys_req: list[str]) -> dict:
     return body
 
 
-ALLOWED_NETWORKS = {"bitcoin", "usdt_erc20", "usdt_base", "usdt_trc20"}
+ALLOWED_NETWORKS = {"bitcoin", "usdt_erc20", "usdt_trc20"}
 
 
 def _validate_network(network: str) -> None:
@@ -59,7 +59,7 @@ def _validate_amount(value: str, field: str = "amount") -> Decimal:
 
 
 def _validate_tx_hash(network: str, tx_hash: str) -> None:
-    if network in ("usdt_erc20", "usdt_base"):
+    if network == "usdt_erc20":
         if not re.fullmatch(r"0x[0-9a-fA-F]{64}", tx_hash):
             abort(400, "Invalid tx_hash")
     elif network == "usdt_trc20" or network == "bitcoin":
@@ -85,7 +85,6 @@ def derive_xpubs():
         "bitcoin": keys.get_xpub("bitcoin"),
         "usdt_erc20": keys.get_xpub("usdt_erc20"),
         "usdt_trc20": keys.get_xpub("usdt_trc20"),
-        "usdt_base": keys.get_xpub("usdt_base"),
     }
     return _json_response(result)
 

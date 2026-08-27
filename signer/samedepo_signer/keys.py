@@ -12,7 +12,6 @@ from samedepo_signer.config import wallet_enc_path, wallet_key_path
 _NETWORK_COIN = {
     "usdt_erc20": (Bip44Coins.ETHEREUM, 0),
     "usdt_trc20": (Bip44Coins.TRON, 0),
-    "usdt_base": (Bip44Coins.ETHEREUM, 1),
 }
 
 
@@ -27,7 +26,6 @@ def _seed_for(network: str) -> str:
     blocks = {
         "bitcoin": "BITCOIN",
         "usdt_erc20": "ETHEREUM / USDT ERC20",
-        "usdt_base": "ETHEREUM / USDT ERC20",
         "usdt_trc20": "TRON / USDT TRC20",
     }
     label = blocks[network]

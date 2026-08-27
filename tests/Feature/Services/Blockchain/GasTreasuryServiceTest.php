@@ -238,16 +238,16 @@ test('it queues low gas email alerts only to active administrators', function ()
     $activeAdmin = User::factory()->create(['role' => 'admin', 'is_admin' => true, 'is_active' => true]);
     $inactiveAdmin = User::factory()->create(['role' => 'admin', 'is_admin' => true, 'is_active' => false]);
     $owner = User::factory()->create(['role' => 'owner', 'is_admin' => false, 'is_active' => true]);
-    TreasuryWallet::factory()->create(['network' => 'usdt_base', 'derivation_index' => 0]);
+    TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_base',
-        'reserve_threshold' => '0.00500000',
+        'network' => 'usdt_erc20',
+        'reserve_threshold' => '0.01000000',
         'last_alert_at' => null,
         'alert_cooldown' => 60,
     ]);
 
     [$service] = gasTreasury(['balance' => '0.00010000']);
-    $service->ensureGasForWithdrawal(Withdrawal::factory()->make(['network' => 'usdt_base']));
+    $service->ensureGasForWithdrawal(Withdrawal::factory()->make(['network' => 'usdt_erc20']));
 
     Notification::assertSentTo($activeAdmin, LowGasAlert::class);
     Notification::assertNotSentTo($inactiveAdmin, LowGasAlert::class);
@@ -258,7 +258,6 @@ test('it provides network-specific policy defaults', function () {
     [$service] = gasTreasury();
 
     expect($service->policy('usdt_erc20')->reserve_threshold)->toBe('0.05000000')
-        ->and($service->policy('usdt_base')->reserve_threshold)->toBe('0.00500000')
         ->and($service->policy('usdt_trc20')->reserve_threshold)->toBe('100.00000000');
 });
 

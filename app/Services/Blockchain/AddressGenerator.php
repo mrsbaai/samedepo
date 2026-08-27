@@ -10,7 +10,7 @@ use StephenHill\Base58;
 
 class AddressGenerator
 {
-    private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20', 'usdt_base'];
+    private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
 
     public function generate(string $network, int $index): string
     {
@@ -29,7 +29,6 @@ class AddressGenerator
         return match ($network) {
             'bitcoin' => $child->toAddress('btc'),
             'usdt_erc20' => $child->toAddress('eth'),
-            'usdt_base' => $child->toAddress('eth'),
             'usdt_trc20' => $this->toTronAddress($child->toAddress('eth')),
             default => throw new RuntimeException("Unsupported network: {$network}"),
         };

@@ -202,7 +202,7 @@ class GasTreasuryService
 
         $wallet->update($update);
 
-        if (in_array($wallet->network, ['usdt_erc20', 'usdt_base', 'usdt_trc20'], true)) {
+        if (in_array($wallet->network, ['usdt_erc20', 'usdt_trc20'], true)) {
             $this->alertIfNeeded($this->policy($wallet->network), $balance);
         }
 
@@ -376,7 +376,6 @@ class GasTreasuryService
     {
         $amounts = match ($network) {
             'usdt_erc20' => ['0.05000000', '0.02000000', '0.10000000'],
-            'usdt_base' => ['0.00500000', '0.01000000', '0.05000000'],
             'usdt_trc20' => ['100.00000000', '200.00000000', '1000.00000000'],
             default => ['0.01000000', '0.02000000', '0.10000000'],
         };

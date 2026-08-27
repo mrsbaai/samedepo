@@ -29,7 +29,7 @@ function apiKeyHeader(User $owner): array
     return ['Authorization' => 'Bearer '.$key];
 }
 
-test('an owner can register a customer and receives four deposit addresses', function () {
+test('an owner can register a customer and receives three deposit addresses', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
     $response = $this->withHeaders(apiKeyHeader($owner))
@@ -37,12 +37,11 @@ test('an owner can register a customer and receives four deposit addresses', fun
         ->assertCreated();
 
     $response->assertJsonPath('data.customer_reference', 'CUST-ABC123');
-    expect($response->json('data.addresses'))->toHaveCount(4);
+    expect($response->json('data.addresses'))->toHaveCount(3);
 
     $addresses = collect($response->json('data.addresses'));
     expect($addresses->where('network', 'bitcoin')->first()['address'])->toStartWith('1');
     expect($addresses->where('network', 'usdt_erc20')->first()['address'])->toStartWith('0x');
-    expect($addresses->where('network', 'usdt_base')->first()['address'])->toStartWith('0x');
     expect($addresses->where('network', 'usdt_trc20')->first()['address'])->toStartWith('T');
 
     $customer = Customer::query()
@@ -50,7 +49,7 @@ test('an owner can register a customer and receives four deposit addresses', fun
         ->where('customer_reference', 'CUST-ABC123')
         ->first();
     expect($customer)->not->toBeNull();
-    expect($customer->depositAddresses)->toHaveCount(4);
+    expect($customer->depositAddresses)->toHaveCount(3);
 });
 
 test('registering the same customer reference returns existing addresses', function () {
@@ -66,7 +65,7 @@ test('registering the same customer reference returns existing addresses', funct
         ->assertOk()
         ->json('data.addresses');
 
-    expect($second)->toHaveCount(4);
+    expect($second)->toHaveCount(3);
     expect($second)->toEqual($first);
 
     expect(Customer::query()
