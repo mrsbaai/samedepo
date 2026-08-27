@@ -1,12 +1,15 @@
 <x-layouts.public :title="'Permanent crypto deposit addresses for your customers'" :description="'samedepo gives every customer of a website owner the same permanent crypto deposit address and automatic top-up tracking.'">
 
     {{-- Hero --}}
-    <section class="py-20 sm:py-28">
-        <div class="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div class="text-center lg:text-left">
-                <flux:badge icon="check" color="amber" size="sm" class="mb-6">Bitcoin, USDT (TRC20), and USDT (ERC20)</flux:badge>
+    <section class="relative isolate overflow-hidden py-20 sm:py-28">
+        <div aria-hidden="true" class="absolute -right-32 top-16 -z-10 size-96 rounded-full bg-amber-400/8 blur-3xl"></div>
+        <div aria-hidden="true" class="absolute -left-48 bottom-0 -z-10 size-80 rounded-full bg-amber-400/5 blur-3xl"></div>
 
-                <flux:heading size="xl" level="1" class="text-4xl sm:text-5xl font-semibold tracking-tight">
+        <div class="grid gap-16 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div class="text-center lg:text-left">
+                <flux:badge rounded icon="check" color="amber" size="sm" class="mb-7">Bitcoin, USDT (TRC20), and USDT (ERC20)</flux:badge>
+
+                <flux:heading size="xl" level="1" class="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl sm:leading-[1.02]">
                     Same customer,<br />
                     same deposit address.<br />
                 </flux:heading>
@@ -17,20 +20,28 @@
                     links.
                 </flux:text>
 
-                <div class="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
+                <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
                     <flux:button href="{{ route('signup') }}" variant="primary" wire:navigate>Create a free account</flux:button>
-                    <flux:button href="{{ route('public.api-docs') }}" variant="ghost" wire:navigate>Read the API docs</flux:button>
+                    <flux:button href="{{ route('public.api-docs') }}" variant="ghost" icon:trailing="arrow-right" wire:navigate>Read the API docs</flux:button>
+                </div>
+
+                <div class="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-zinc-500 lg:justify-start">
+                    <span class="inline-flex items-center gap-1.5"><flux:icon.check variant="micro" class="text-(--color-accent)" /> No invoices</span>
+                    <span class="inline-flex items-center gap-1.5"><flux:icon.check variant="micro" class="text-(--color-accent)" /> No expiring links</span>
+                    <span class="inline-flex items-center gap-1.5"><flux:icon.check variant="micro" class="text-(--color-accent)" /> Signed webhooks</span>
                 </div>
             </div>
 
-            <div class="animate-float rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/40 overflow-hidden">
-                <div class="flex items-center gap-1.5 px-4 py-3 border-b border-zinc-800">
+            <div class="relative lg:pl-6">
+                <div aria-hidden="true" class="absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-br from-amber-400/10 via-transparent to-transparent blur-2xl"></div>
+                <div class="animate-float overflow-hidden rounded-2xl bg-zinc-950 shadow-2xl shadow-black/50 ring-1 ring-white/12">
+                    <div class="flex items-center gap-1.5 border-b border-white/8 px-4 py-3">
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
                     <flux:text size="sm" class="ml-3 font-mono text-zinc-500">register-customer.sh</flux:text>
                 </div>
-                <pre class="p-5 text-sm font-mono leading-relaxed overflow-x-auto"><code><span class="text-zinc-500"># Register once, get three permanent addresses</span>
+                    <pre class="overflow-x-auto p-5 font-mono text-sm leading-relaxed sm:p-6"><code><span class="text-zinc-500"># Register once, get three permanent addresses</span>
 <span class="text-(--color-accent) font-medium">curl</span> https://api.samedepo.com/v1/customers \
   -H "Authorization: Bearer sk_live_..." \
   -d '{"customer_reference": "cus_482"}'
@@ -45,6 +56,11 @@
   }
 }
 <span class="text-zinc-500"># That's it. Seriously.</span></code></pre>
+                </div>
+                <div class="absolute -bottom-4 right-5 flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 shadow-lg ring-1 ring-white/10">
+                    <span class="size-1.5 rounded-full bg-emerald-400"></span>
+                    Permanent addresses returned
+                </div>
             </div>
         </div>
     </section>
