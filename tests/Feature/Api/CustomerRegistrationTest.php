@@ -36,6 +36,7 @@ test('an owner can register a customer and receives three deposit addresses', fu
         ->postJson('/api/v1/customers', ['reference' => 'CUST-ABC123'])
         ->assertCreated();
 
+    $response->assertJsonPath('status', 'created');
     $response->assertJsonPath('data.customer_reference', 'CUST-ABC123');
     expect($response->json('data.addresses'))->toHaveCount(3);
 
@@ -58,11 +59,13 @@ test('registering the same customer reference returns existing addresses', funct
     $first = $this->withHeaders(apiKeyHeader($owner))
         ->postJson('/api/v1/customers', ['reference' => 'CUST-ABC123'])
         ->assertCreated()
+        ->assertJsonPath('status', 'created')
         ->json('data.addresses');
 
     $second = $this->withHeaders(apiKeyHeader($owner))
         ->postJson('/api/v1/customers', ['reference' => 'CUST-ABC123'])
         ->assertOk()
+        ->assertJsonPath('status', 'existing')
         ->json('data.addresses');
 
     expect($second)->toHaveCount(3);
@@ -86,11 +89,13 @@ test('an owner can retrieve an existing customer by reference', function () {
         'network' => 'bitcoin',
     ]);
 
-    $this->withHeaders(apiKeyHeader($owner))
+    $response = $this->withHeaders(apiKeyHeader($owner))
         ->getJson('/api/v1/customers/CUST-ABC123')
         ->assertOk()
         ->assertJsonPath('data.customer_reference', 'CUST-ABC123')
         ->assertJsonCount(1, 'data.addresses');
+
+    expect($response->json())->not->toHaveKey('status');
 });
 
 test('requests without a valid api key are unauthorized', function () {

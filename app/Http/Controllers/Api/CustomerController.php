@@ -45,7 +45,10 @@ class CustomerController
             $statusCode = 201;
         }
 
+        $status = $statusCode === 201 ? 'created' : 'existing';
+
         return (new CustomerResource($customer->load('depositAddresses')))
+            ->additional(['status' => $status])
             ->response()
             ->setStatusCode($statusCode);
     }
