@@ -22,7 +22,7 @@
 <table border="0" cellpadding="0" cellspacing="0" role="presentation">
 <tr>
 <td>
-<a href="{{ $url }}" class="button button-{{ $color }}" target="_blank" rel="noopener" style="background-color: {{ $buttonColor }}; border-bottom: 8px solid {{ $buttonColor }}; border-left: 18px solid {{ $buttonColor }}; border-right: 18px solid {{ $buttonColor }}; border-top: 8px solid {{ $buttonColor }}; border-radius: 4px; color: {{ $buttonTextColor }}; display: inline-block; overflow: hidden; text-decoration: none;">{!! $slot !!}</a>
+<a href="{{ $url }}" class="button button-{{ $color }}" target="_blank" rel="noopener" style="background-color: {{ $buttonColor }}; border-bottom: 8px solid {{ $buttonColor }}; border-left: 18px solid {{ $buttonColor }}; border-right: 18px solid {{ $buttonColor }}; border-top: 8px solid {{ $buttonColor }}; border-radius: 4px; color: {{ $buttonTextColor }}; display: inline-block; font-weight: 600; overflow: hidden; text-decoration: none;">{!! $slot !!}</a>
 </td>
 </tr>
 </table>
