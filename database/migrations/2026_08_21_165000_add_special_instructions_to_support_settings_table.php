@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('support_settings', function (Blueprint $table): void {
-            $table->text('special_instructions')->nullable()->after('agent_avatar');
+            $table->text('special_instructions')->nullable();
         });
     }
 
