@@ -24,6 +24,13 @@ return [
         'up',
     ],
 
+    // IP addresses that bypass the IP/device blocklist and threat detectors.
+    // Useful for local development; do not expose public addresses here.
+    'exempt_ips' => [
+        '127.0.0.1',
+        '::1',
+    ],
+
     // Name of the cookie holding the FingerprintJS visitor id. Must stay in
     // sync with resources/js/fingerprint.js and the encryptCookies exception
     // in bootstrap/app.php.

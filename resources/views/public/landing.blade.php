@@ -4,7 +4,9 @@
     <section class="py-20 sm:py-28">
         <div class="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div class="text-center lg:text-left">
-                <flux:badge icon="check" color="amber" size="sm" class="mb-6">Bitcoin, USDT (TRC20), and USDT (ERC20)</flux:badge>
+                <div class="mb-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+                    <flux:badge icon="check" color="amber" size="sm">No invoices, No expiring links.</flux:badge>
+                </div>
 
                 <flux:heading size="xl" level="1" class="text-4xl sm:text-5xl font-semibold tracking-tight">
                     Same customer,<br />
@@ -21,69 +23,83 @@
                     <flux:button href="{{ route('public.api-docs') }}" variant="ghost" wire:navigate>Read the API docs</flux:button>
                 </div>
 
-                <div class="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-zinc-500 lg:justify-start">
-                    <span class="inline-flex items-center gap-1.5"><flux:icon.check variant="micro" class="text-(--color-accent)" /> No invoices</span>
-                    <span class="inline-flex items-center gap-1.5"><flux:icon.check variant="micro" class="text-(--color-accent)" /> No expiring links</span>
-                    <span class="inline-flex items-center gap-1.5"><flux:icon.check variant="micro" class="text-(--color-accent)" /> Signed webhooks</span>
-                </div>
             </div>
 
-            <div class="animate-float rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/40 overflow-hidden">
-                <div class="flex items-center gap-1.5 px-4 py-3 border-b border-zinc-800">
+            <div class="animate-float overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/40">
+                <div class="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-3">
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
-                    <flux:text size="sm" class="ml-3 font-mono text-zinc-500">register-customer.sh</flux:text>
                 </div>
-                <pre class="p-5 text-sm font-mono leading-relaxed overflow-x-auto"><code><span class="text-zinc-500"># Register once, get three permanent addresses</span>
-<span class="text-(--color-accent) font-medium">curl</span> -X POST {{ url('/api/v1/customers') }} \
+                <pre class="overflow-x-auto p-5 text-xs font-mono leading-6 text-zinc-300 sm:p-6 sm:text-sm"><code><span class="text-(--color-accent)">curl</span> -X POST {{ url('/api/v1/customers') }} \
   -H "Authorization: Bearer sk_live_..." \
-  -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{"reference": "cus_482"}'
 
 <span class="text-zinc-500"># Response · 201 Created</span>
 {
-  <span class="text-zinc-300">"data"</span>: {
-    <span class="text-zinc-300">"customer_reference"</span>: "cus_482",
-    <span class="text-zinc-300">"addresses"</span>: [
-      { <span class="text-zinc-300">"network"</span>: "bitcoin", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"bc1qxy2k...hx0wlh"</span> },
-      { <span class="text-zinc-300">"network"</span>: "usdt_trc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"TXn9YbZ...v4mQ2"</span> },
-      { <span class="text-zinc-300">"network"</span>: "usdt_erc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"0x4f2A1c...B9cE1"</span> }
-    ]
+  <span class="text-zinc-300">"reference"</span>: "cus_482",
+  <span class="text-zinc-300">"addresses"</span>: {
+    <span class="text-zinc-300">"bitcoin"</span>: <span class="text-(--color-accent)">"bc1qxy2k...hx0wlh"</span>,
+    <span class="text-zinc-300">"usdt_trc20"</span>: <span class="text-(--color-accent)">"TXn9YbZ...v4mQ2"</span>,
+    <span class="text-zinc-300">"usdt_erc20"</span>: <span class="text-(--color-accent)">"0x4f2A1c...B9cE1"</span>
   }
 }
-<span class="text-zinc-500"># That's it. Seriously.</span></code></pre>
+<span class="text-zinc-500"># That's it. Really.</span></code></pre>
             </div>
         </div>
     </section>
 
     {{-- How it works --}}
     <section id="how-it-works" class="py-20 sm:py-24 scroll-mt-20">
-        <div class="max-w-xl">
-            <flux:heading size="xl" level="2">Three steps between you and a credited balance.</flux:heading>
-            <flux:text size="lg" class="mt-3 text-zinc-400">Register once. Keep the addresses. Let samedepo watch the chains.</flux:text>
+        <div class="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
+            <div class="max-w-lg">
+                <flux:text size="sm" class="font-medium text-(--color-accent)">How it works</flux:text>
+                <flux:heading size="xl" level="2" class="mt-2">One setup. Every deposit after that is automatic.</flux:heading>
+                <flux:text size="lg" class="mt-3 text-zinc-400">Your server identifies the customer once. samedepo handles the address and deposit lifecycle from there.</flux:text>
+            </div>
+
+            <flux:timeline size="lg" class="[--flux-timeline-item-gap:2rem]">
+                @foreach ([
+                    ['Your server registers the customer', 'You send', 'A reference from your own system, such as cus_482.'],
+                    ['samedepo returns permanent addresses', 'You receive', 'One Bitcoin, one USDT (TRC20), and one USDT (ERC20) deposit address.'],
+                    ['We credit confirmed deposits', 'Automatic', 'We watch the network, wait for confirmations, credit your balance, and send the webhook.'],
+                ] as [$heading, $label, $copy])
+                    <flux:timeline.item>
+                        <flux:timeline.indicator>{{ $loop->iteration }}</flux:timeline.indicator>
+                        <flux:timeline.content>
+                            <flux:heading size="lg">{{ $heading }}</flux:heading>
+                            <div class="mt-2 flex items-start gap-3">
+                                <flux:badge size="sm" color="amber" class="shrink-0">{{ $label }}</flux:badge>
+                                <flux:text class="text-zinc-400">{{ $copy }}</flux:text>
+                            </div>
+                        </flux:timeline.content>
+                    </flux:timeline.item>
+                @endforeach
+            </flux:timeline>
         </div>
 
-        <div class="mt-12 grid gap-8 md:grid-cols-3 md:gap-10">
-            @foreach ([
-                ['Register a customer', 'Send your customer reference. Repeating it returns the same customer.'],
-                ['Get permanent addresses', 'One reusable address for each supported network. Nothing to regenerate.'],
-                ['Get credited automatically', 'We confirm the deposit, credit your balance, and send the webhook.'],
-            ] as [$heading, $copy])
-                <div>
-                    <span class="flex size-8 items-center justify-center rounded-full bg-amber-400 font-mono text-sm font-semibold text-zinc-950">{{ $loop->iteration }}</span>
-                    <flux:heading size="lg" class="mt-5">{{ $heading }}</flux:heading>
-                    <flux:text class="mt-2 max-w-xs text-zinc-400">{{ $copy }}</flux:text>
+        <div class="mt-16">
+            <flux:heading size="sm" level="3" class="mb-4 text-zinc-400">Supported networks</flux:heading>
+            <flux:card variant="soft" class="flex flex-col gap-5 bg-zinc-800 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="flex -space-x-2">
+                        @foreach (['bitcoin.svg', 'usdt-trc20.svg', 'usdt-erc20.svg'] as $icon)
+                            <img src="{{ asset('crypto/'.$icon) }}" alt="" class="size-10 rounded-full ring-2 ring-zinc-800" />
+                        @endforeach
+                    </div>
+                    <div>
+                        <flux:heading>Three networks. One integration.</flux:heading>
+                        <flux:text size="sm" variant="subtle">Permanent deposit addresses across Bitcoin and USDT.</flux:text>
+                    </div>
                 </div>
-            @endforeach
-        </div>
 
-        <div class="mt-12 flex items-center gap-3">
-            <img src="{{ asset('crypto/bitcoin.svg') }}" alt="Bitcoin" class="size-7" />
-            <img src="{{ asset('crypto/usdt-trc20.svg') }}" alt="USDT (TRC20)" class="size-7" />
-            <img src="{{ asset('crypto/usdt-erc20.svg') }}" alt="USDT (ERC20)" class="size-7" />
-            <flux:text size="sm" class="text-zinc-500">Bitcoin · USDT (TRC20) · USDT (ERC20)</flux:text>
+                <div class="flex flex-wrap gap-2 sm:justify-end">
+                    @foreach (['Bitcoin', 'USDT (TRC20)', 'USDT (ERC20)'] as $network)
+                        <flux:badge size="sm">{{ $network }}</flux:badge>
+                    @endforeach
+                </div>
+            </flux:card>
         </div>
     </section>
 

@@ -11,24 +11,34 @@ test('clean requests pass through the threat detector', function () {
 });
 
 test('requests from a blocked ip get a plain 403', function () {
+    IpBlocklist::block('192.0.2.50', 'test block');
+
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.50'])
+        ->get('/signin')
+        ->assertForbidden();
+});
+
+test('requests from an exempt local ip bypass the blocklist', function () {
     IpBlocklist::block('127.0.0.1', 'test block');
 
-    $this->get('/signin')->assertForbidden();
+    $this->get('/signin')->assertOk();
 });
 
 test('requests from a blocked device get a plain 403', function () {
     DeviceBlocklist::block('abcdef1234567890', 'test block');
 
-    $this->withUnencryptedCookie('device_fp', 'abcdef1234567890')
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.52'])
+        ->withUnencryptedCookie('device_fp', 'abcdef1234567890')
         ->get('/signin')
         ->assertForbidden();
 });
 
 test('a sql injection attempt is blocked and the ip is blocklisted', function () {
-    $this->get('/signin?q='.urlencode("1' UNION SELECT password FROM users"))
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.52'])
+        ->get('/signin?q='.urlencode("1' UNION SELECT password FROM users"))
         ->assertForbidden();
 
-    expect(IpBlocklist::isBlocked('127.0.0.1'))->toBeTrue();
+    expect(IpBlocklist::isBlocked('192.0.2.52'))->toBeTrue();
 
     $event = ThreatEvent::query()->firstOrFail();
     expect($event->blocked)->toBeTrue()
@@ -37,18 +47,21 @@ test('a sql injection attempt is blocked and the ip is blocklisted', function ()
 });
 
 test('a threat with a device fingerprint blocks the device too', function () {
-    $this->withUnencryptedCookie('device_fp', 'fingerprint1234')
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.52'])
+        ->withUnencryptedCookie('device_fp', 'fingerprint1234')
         ->get('/signin?q='.urlencode('<script>alert(1)</script>'))
         ->assertForbidden();
 
     expect(DeviceBlocklist::isBlocked('fingerprint1234'))->toBeTrue()
-        ->and(IpBlocklist::isBlocked('127.0.0.1'))->toBeTrue();
+        ->and(IpBlocklist::isBlocked('192.0.2.52'))->toBeTrue();
 });
 
 test('recon probes for sensitive files are blocked', function () {
-    $this->get('/.env')->assertForbidden();
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.52'])
+        ->get('/.env')
+        ->assertForbidden();
 
-    expect(IpBlocklist::isBlocked('127.0.0.1'))->toBeTrue()
+    expect(IpBlocklist::isBlocked('192.0.2.52'))->toBeTrue()
         ->and(ThreatEvent::query()->where('threat_type', 'sensitive_file_access')->exists())->toBeTrue();
 });
 
@@ -63,9 +76,11 @@ test('a disabled detector no longer detects', function () {
 test('the exempt health check path skips payload detection but blocked ips still 403', function () {
     $this->get('/up?q='.urlencode("1' UNION SELECT password FROM users"))->assertOk();
 
-    IpBlocklist::block('127.0.0.1', 'test block');
+    IpBlocklist::block('192.0.2.51', 'test block');
 
-    $this->get('/up')->assertForbidden();
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.51'])
+        ->get('/up')
+        ->assertForbidden();
 });
 
 test('threat detection can be disabled by config', function () {

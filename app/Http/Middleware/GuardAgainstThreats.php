@@ -42,6 +42,10 @@ class GuardAgainstThreats
 
         $fingerprint = $this->fingerprint($request);
 
+        if ($this->isExemptIp($request)) {
+            return $next($request);
+        }
+
         if (rescue(fn (): bool => IpBlocklist::isBlocked($request->ip()) || DeviceBlocklist::isBlocked($fingerprint), false, false)) {
             abort(403);
         }
@@ -125,5 +129,10 @@ class GuardAgainstThreats
         $name = data_get($request->json('components'), '0.name', '');
 
         return is_string($name) && str_starts_with($name, 'admin.');
+    }
+
+    private function isExemptIp(Request $request): bool
+    {
+        return in_array($request->ip(), (array) config('security.exempt_ips'), true);
     }
 }

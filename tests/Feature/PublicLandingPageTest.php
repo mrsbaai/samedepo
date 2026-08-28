@@ -51,9 +51,19 @@ test('the landing page shows an accurate customer registration example', functio
         ->assertOk()
         ->assertSee(url('/api/v1/customers'))
         ->assertSee('"reference": "cus_482"', false)
-        ->assertSee('"data"', false)
-        ->assertSee('"network"', false)
-        ->assertSee('"bitcoin"', false);
+        ->assertSee('"addresses"', false)
+        ->assertSee('201 Created')
+        ->assertSeeText("# That's it. Really.", false);
+});
+
+test('the landing page explains the deposit flow as three connected stages', function () {
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('Your server registers the customer')
+        ->assertSee('samedepo returns permanent addresses')
+        ->assertSee('We credit confirmed deposits')
+        ->assertSee('You send')
+        ->assertSee('You receive');
 });
 
 test('the landing page links to sign up and api docs', function () {
