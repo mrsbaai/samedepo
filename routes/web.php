@@ -302,7 +302,11 @@ Route::get('/security/delete/recover', function (Request $request): mixed {
 |--------------------------------------------------------------------------
 */
 
-Route::view('/', 'public.landing')->name('public.landing');
+Route::get('/', function () {
+    return view('public.landing', [
+        'faqs' => \App\Models\Faq::orderBy('position')->orderBy('id')->get(),
+    ]);
+})->name('public.landing');
 
 Route::get('/api-docs', ApiDocsController::class)->name('public.api-docs');
 

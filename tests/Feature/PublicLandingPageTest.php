@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\PlatformSettings;
 use App\Models\User;
 
 test('guests can view the public landing page', function () {
@@ -73,11 +72,16 @@ test('the landing page links to sign up and api docs', function () {
         ->assertSee(route('public.api-docs'));
 });
 
-test('the landing page discloses the platform fee', function () {
-    PlatformSettings::instance(); // ensure singleton exists with default fee
+test('the landing page shows the FAQs section with managed questions', function () {
+    $faq = \App\Models\Faq::create([
+        'question' => 'What does the platform fee cover?',
+        'answer' => 'There is no monthly or setup cost. We deduct a flat percentage from each confirmed deposit, and withdrawal network fees are shown before and after the transaction.',
+        'position' => 1,
+    ]);
 
     $this->get('/')
         ->assertOk()
-        ->assertSee('Free for website owners')
-        ->assertSee('flat percentage');
+        ->assertSee('FAQs')
+        ->assertSee($faq->question)
+        ->assertSee($faq->answer);
 });

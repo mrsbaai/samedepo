@@ -138,14 +138,15 @@
         </div>
     </section>
 
-    <section class="grid gap-10 py-20 md:grid-cols-2 md:gap-16">
-        <div>
-            <flux:heading size="lg" level="2">Free for website owners</flux:heading>
-            <flux:text class="mt-3 text-zinc-400">No monthly fee or setup cost. We deduct a flat percentage from each confirmed deposit before crediting your balance. Withdrawal network fees are shown before and after the transaction.</flux:text>
-        </div>
-        <div>
-            <flux:heading size="lg" level="2">Clear limits</flux:heading>
-            <flux:text class="mt-3 text-zinc-400">This isn't an invoicing tool or customer account system. It supports Bitcoin, USDT (TRC20), and USDT (ERC20), with real blockchain transactions from the first request.</flux:text>
+    {{-- FAQs --}}
+    <section class="py-20 sm:py-24">
+        <div class="mx-auto max-w-3xl">
+            <flux:heading size="xl" level="2" class="text-center">FAQs</flux:heading>
+            <flux:text class="mt-3 text-center text-zinc-400">Answers to common questions about fees, networks, and limits.</flux:text>
+
+            <div class="mt-8">
+                @include('livewire.support.partials.faq-accordion')
+            </div>
         </div>
     </section>
 
