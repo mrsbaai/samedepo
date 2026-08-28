@@ -10,8 +10,6 @@ use App\Fraud\Contracts\NullIpIntelProvider;
 use App\Fraud\Contracts\NullPaymentSignalProvider;
 use App\Fraud\Contracts\PaymentSignalProvider;
 use App\Models\User;
-use App\Models\Withdrawal;
-use App\Observers\WithdrawalObserver;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\NullBlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
@@ -95,8 +93,6 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Withdrawal::observe(WithdrawalObserver::class);
-
         $this->configureRateLimiting();
         $this->configureRememberDuration();
         $this->configureAuthenticatedGuestRedirect();

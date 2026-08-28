@@ -47,7 +47,7 @@ test('desktop dashboard shows the sidebar and hides the mobile hamburger toggle'
 
         $browser->assertMissing('[data-flux-sidebar-toggle]')
             ->assertVisible('[data-flux-sidebar]')
-            ->assertSee('Dashboard Home')
+            ->assertSee('Dashboard')
             ->assertSee('Security');
     });
 });

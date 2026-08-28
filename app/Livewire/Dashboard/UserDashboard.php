@@ -15,7 +15,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('components.dashboard.layout', ['title' => 'Dashboard Home'])]
+#[Layout('components.dashboard.layout', ['title' => 'Dashboard'])]
 class UserDashboard extends Component
 {
     use WithPagination;
@@ -80,24 +80,16 @@ class UserDashboard extends Component
     }
 
     #[Computed]
-    public function totalUsd(): string
-    {
-        $total = collect($this->balances)->sum(fn (array $balance) => (float) $balance['usdValue']);
-
-        return number_format($total, 2, '.', '');
-    }
-
-    #[Computed]
     public function stats(): array
     {
         $balances = $this->balances;
 
-        return [
-            ['label' => 'Estimated total USD value', 'value' => '$'.$this->totalUsd, 'network' => null],
-            ['label' => 'Bitcoin balance', 'value' => ($balances[0]['amount'] ?? '0.00000000').' BTC', 'network' => 'bitcoin'],
-            ['label' => 'USDT (TRC20) balance', 'value' => ($balances[1]['amount'] ?? '0.00').' USDT', 'network' => 'usdt-trc20'],
-            ['label' => 'USDT (ERC20) balance', 'value' => ($balances[2]['amount'] ?? '0.00').' USDT', 'network' => 'usdt-erc20'],
-        ];
+        return collect($balances)->map(fn (array $balance) => [
+            'label' => $balance['networkLabel'],
+            'value' => '$'.$balance['usdValue'],
+            'amount' => $balance['amount'].' '.$balance['symbol'],
+            'network' => $balance['networkSlug'],
+        ])->all();
     }
 
     #[Computed]

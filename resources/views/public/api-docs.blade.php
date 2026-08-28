@@ -19,14 +19,14 @@
                             <flux:heading size="lg" level="2" class="mb-4">1. Get an API key</flux:heading>
                             <flux:text>
                                 Sign in to your owner account and visit the
-                                <flux:link href="{{ route('signin') }}" wire:navigate>API Keys</flux:link>
+                                <flux:link href="{{ route('api-keys') }}" wire:navigate>API Keys</flux:link>
                                 section to create a key. Keep it secret.
                             </flux:text>
                         </flux:card>
 
                         <flux:card>
                             <flux:heading size="lg" level="2" class="mb-4">2. Base URL</flux:heading>
-                            <code class="block rounded-lg bg-zinc-900 px-4 py-3 text-sm font-mono text-zinc-100">
+                            <code class="block rounded-lg bg-zinc-900 px-4 py-3 text-sm font-mono text-zinc-300">
                                 {{ $baseUrl }}
                             </code>
                         </flux:card>
@@ -34,14 +34,14 @@
                         <flux:card>
                             <flux:heading size="lg" level="2" class="mb-4">3. Authentication</flux:heading>
                             <flux:text class="mb-3">Send your API key in the Authorization header on every request.</flux:text>
-                            <code class="block rounded-lg bg-zinc-900 px-4 py-3 text-sm font-mono text-zinc-100">
+                            <code class="block rounded-lg bg-zinc-900 px-4 py-3 text-sm font-mono text-zinc-300">
                                 Authorization: Bearer &lt;your-api-key&gt;
                             </code>
                         </flux:card>
 
                         <flux:card>
                             <flux:heading size="lg" level="2" class="mb-4">4. Example request</flux:heading>
-                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>curl -X POST {{ $baseUrl }}/customers \\
+                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code><span class="text-(--color-accent)">curl</span> -X POST {{ $baseUrl }}/customers \\
   -H "Authorization: Bearer &lt;your-api-key&gt;" \\
   -H "Accept: application/json" \\
   -d '{"reference": "customer-123"}'</code></pre>
@@ -72,18 +72,18 @@
                                             <div class="mt-4 grid gap-4">
                                                 <div>
                                                     <flux:heading size="sm" class="mb-2">Request body</flux:heading>
-                                                    <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>{
-  "reference": "customer-123"
+                                                    <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
+  "<span class="text-(--color-accent)">reference</span>": "customer-123"
 }</code></pre>
                                                 </div>
                                                 <div>
                                                     <flux:heading size="sm" class="mb-2">Response (200 existing, 201 created)</flux:heading>
-                                                    <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>{
-  "customer_reference": "customer-123",
-  "addresses": [
-    { "network": "bitcoin", "address": "bc1q..." },
-    { "network": "usdt_trc20", "address": "T..." },
-    { "network": "usdt_erc20", "address": "0x..." }
+                                                    <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
+  "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
+  "<span class="text-(--color-accent)">addresses</span>": [
+    { "<span class="text-(--color-accent)">network</span>": "bitcoin", "<span class="text-(--color-accent)">address</span>": "bc1q..." },
+    { "<span class="text-(--color-accent)">network</span>": "usdt_trc20", "<span class="text-(--color-accent)">address</span>": "T..." },
+    { "<span class="text-(--color-accent)">network</span>": "usdt_erc20", "<span class="text-(--color-accent)">address</span>": "0x..." }
   ]
 }</code></pre>
                                                 </div>
@@ -93,12 +93,12 @@
                                         @if ($endpoint['uri'] === '/api/v1/customers/{reference}' && $endpoint['method'] === 'GET')
                                             <div class="mt-4">
                                                 <flux:heading size="sm" class="mb-2">Response</flux:heading>
-                                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>{
-  "customer_reference": "customer-123",
-  "addresses": [
-    { "network": "bitcoin", "address": "bc1q..." },
-    { "network": "usdt_trc20", "address": "T..." },
-    { "network": "usdt_erc20", "address": "0x..." }
+                                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
+  "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
+  "<span class="text-(--color-accent)">addresses</span>": [
+    { "<span class="text-(--color-accent)">network</span>": "bitcoin", "<span class="text-(--color-accent)">address</span>": "bc1q..." },
+    { "<span class="text-(--color-accent)">network</span>": "usdt_trc20", "<span class="text-(--color-accent)">address</span>": "T..." },
+    { "<span class="text-(--color-accent)">network</span>": "usdt_erc20", "<span class="text-(--color-accent)">address</span>": "0x..." }
   ]
 }</code></pre>
                                             </div>
@@ -107,14 +107,14 @@
                                         @if ($endpoint['uri'] === '/api/v1/balances' && $endpoint['method'] === 'GET')
                                             <div class="mt-4">
                                                 <flux:heading size="sm" class="mb-2">Response</flux:heading>
-                                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>{
-  "balances": [
-    { "network": "Bitcoin", "amount": 0.50000000, "usd_value": 12345.67 },
-    { "network": "USDT (TRC20)", "amount": 100.00000000, "usd_value": 100.00 },
-    { "network": "USDT (ERC20)", "amount": 50.00000000, "usd_value": 50.00 }
+                                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
+  "<span class="text-(--color-accent)">balances</span>": [
+    { "<span class="text-(--color-accent)">network</span>": "Bitcoin", "<span class="text-(--color-accent)">amount</span>": 0.50000000, "<span class="text-(--color-accent)">usd_value</span>": 12345.67 },
+    { "<span class="text-(--color-accent)">network</span>": "USDT (TRC20)", "<span class="text-(--color-accent)">amount</span>": 100.00000000, "<span class="text-(--color-accent)">usd_value</span>": 100.00 },
+    { "<span class="text-(--color-accent)">network</span>": "USDT (ERC20)", "<span class="text-(--color-accent)">amount</span>": 50.00000000, "<span class="text-(--color-accent)">usd_value</span>": 50.00 }
   ],
-  "total_usd": 12495.67,
-  "last_updated_at": "2026-08-27T12:00:00+07:00"
+  "<span class="text-(--color-accent)">total_usd</span>": 12495.67,
+  "<span class="text-(--color-accent)">last_updated_at</span>": "2026-08-27T12:00:00+07:00"
 }</code></pre>
                                             </div>
                                         @endif
@@ -128,89 +128,70 @@
                 </flux:tab.panel>
 
                 <flux:tab.panel name="webhooks" class="pt-8">
-                    <div class="grid gap-6 md:grid-cols-2">
-                        <flux:card>
-                            <flux:heading size="lg" level="2" class="mb-4">How webhooks are delivered</flux:heading>
+                    <flux:card class="max-w-4xl">
+                        <flux:heading size="2xl" level="2" class="mb-8">Webhooks</flux:heading>
 
+                        <div class="space-y-8">
                             <div class="space-y-4">
                                 <flux:text>
-                                    When a deposit is credited or a withdrawal status changes, samedepo sends a signed POST request to the webhook URL you configure in your dashboard.
+                                    When a deposit is credited, samedepo sends a signed POST request to the webhook URL you configure in your dashboard.
                                 </flux:text>
 
-                                <div>
-                                    <flux:text class="font-medium">Request headers</flux:text>
-                                    <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>X-Samedepo-Event: deposit.credited
-X-Samedepo-Signature: &lt;hmac-sha256-hex&gt;
-Content-Type: application/json</code></pre>
-                                </div>
+                                <flux:text>
+                                    Your endpoint must return any HTTP 2xx status code. The response body is ignored. If a test or real delivery does not receive a 2xx response, samedepo will notify you by email.
+                                </flux:text>
+                            </div>
 
+                            <div>
+                                <flux:heading size="md" class="mb-3">Request headers</flux:heading>
+                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code><span class="text-(--color-accent)">X-Samedepo-Event</span>: deposit.credited
+<span class="text-(--color-accent)">X-Samedepo-Signature</span>: &lt;hmac-sha256-hex&gt;
+<span class="text-(--color-accent)">Content-Type</span>: application/json</code></pre>
+                            </div>
+
+                            <div class="grid gap-6 md:grid-cols-2">
                                 <div>
-                                    <flux:text class="font-medium">Retry schedule</flux:text>
+                                    <flux:heading size="md" class="mb-3">Retry schedule</flux:heading>
                                     <flux:text>Up to 5 attempts with a 60s, 5m, 15m backoff. Failed deliveries are retried automatically.</flux:text>
                                 </div>
+                                <div>
+                                    <flux:heading size="md" class="mb-3">Verification</flux:heading>
+                                    <flux:text>Always verify the signature using your webhook secret before trusting the payload.</flux:text>
+                                </div>
                             </div>
-                        </flux:card>
 
-                        <flux:card>
-                            <flux:heading size="lg" level="2" class="mb-4">Verify the signature</flux:heading>
-
-                            <div class="space-y-4">
-                                <flux:text>Always verify the signature using your webhook secret before trusting the payload.</flux:text>
-
-                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>$payload = file_get_contents('php://input');
-$expected = hash_hmac('sha256', $payload, $yourSecret);
+                            <div>
+                                <flux:heading size="md" class="mb-3">Verify the signature</flux:heading>
+                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>$payload = file_get_contents(<span class="text-(--color-accent)">'php://input'</span>);
+$expected = hash_hmac(<span class="text-(--color-accent)">'sha256'</span>, $payload, $yourSecret);
 
 if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPo_SIGNATURE'] ?? '')) {
-    http_response_code(401);
-    exit('Invalid signature');
+    http_response_code(<span class="text-(--color-accent)">401</span>);
+    exit(<span class="text-(--color-accent)">'Invalid signature'</span>);
 }</code></pre>
                             </div>
-                        </flux:card>
 
-                        <flux:card>
-                            <flux:heading size="lg" level="2" class="mb-4">Example: deposit.credited</flux:heading>
-
-                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>{
-  "event": "deposit.credited",
-  "id": "6a3f...",
-  "created_at": "2026-08-27T12:00:00+07:00",
-  "data": {
-    "id": 1,
-    "customer_id": 1,
-    "network": "bitcoin",
-    "tx_hash": "abc123...",
-    "gross_amount": "0.10000000",
-    "fee_amount": "0.00050000",
-    "credited_amount": "0.09950000",
-    "status": "credited",
-    "credited_at": "2026-08-27T12:00:00+07:00"
+                            <div>
+                                <flux:heading size="md" class="mb-3">Example: deposit.credited</flux:heading>
+                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
+  "<span class="text-(--color-accent)">event</span>": "deposit.credited",
+  "<span class="text-(--color-accent)">id</span>": "6a3f...",
+  "<span class="text-(--color-accent)">created_at</span>": "2026-08-27T12:00:00+07:00",
+  "<span class="text-(--color-accent)">data</span>": {
+    "<span class="text-(--color-accent)">id</span>": 1,
+    "<span class="text-(--color-accent)">customer_id</span>": 1,
+    "<span class="text-(--color-accent)">network</span>": "bitcoin",
+    "<span class="text-(--color-accent)">tx_hash</span>": "abc123...",
+    "<span class="text-(--color-accent)">gross_amount</span>": "0.10000000",
+    "<span class="text-(--color-accent)">fee_amount</span>": "0.00050000",
+    "<span class="text-(--color-accent)">credited_amount</span>": "0.09950000",
+    "<span class="text-(--color-accent)">status</span>": "credited",
+    "<span class="text-(--color-accent)">credited_at</span>": "2026-08-27T12:00:00+07:00"
   }
 }</code></pre>
-                        </flux:card>
-
-                        <flux:card>
-                            <flux:heading size="lg" level="2" class="mb-4">Example: withdrawal.status</flux:heading>
-
-                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-100"><code>{
-  "event": "withdrawal.status",
-  "id": "7b8e...",
-  "created_at": "2026-08-27T12:00:00+07:00",
-  "data": {
-    "id": 1,
-    "network": "usdt_trc20",
-    "gross_amount": "150.00000000",
-    "network_fee": "1.00000000",
-    "amount_sent": "149.00000000",
-    "destination_address": "T...",
-    "mode": "instant",
-    "status": "broadcasted",
-    "tx_hash": "def456...",
-    "decided_at": "2026-08-27T11:50:00+07:00",
-    "sent_at": "2026-08-27T11:55:00+07:00"
-  }
-}</code></pre>
-                        </flux:card>
-                    </div>
+                            </div>
+                        </div>
+                    </flux:card>
                 </flux:tab.panel>
             </flux:tab.group>
         </div>

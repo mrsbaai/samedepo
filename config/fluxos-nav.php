@@ -25,7 +25,7 @@ return [
                 'icon' => 'home',
                 'route' => 'dashboard',
                 'path' => '/dashboard',
-                'label' => 'Dashboard Home',
+                'label' => 'Dashboard',
             ],
             [
                 'icon' => 'users',
@@ -46,6 +46,14 @@ return [
                 'label' => 'Transaction History',
             ],
             [
+                'icon' => 'code-bracket',
+                'route' => 'public.api-docs',
+                'path' => '/api-docs',
+                'label' => 'API Documentation',
+            ],
+        ],
+        'settings' => [
+            [
                 'icon' => 'key',
                 'route' => 'api-keys',
                 'path' => '/api-keys',
@@ -63,14 +71,7 @@ return [
                 'path' => '/withdrawal-settings',
                 'label' => 'Withdrawal Settings',
             ],
-            [
-                'icon' => 'lifebuoy',
-                'route' => 'support',
-                'path' => '/support',
-                'label' => 'Support',
-            ],
         ],
-        'settings' => [],
     ],
 
 ];

@@ -7,14 +7,27 @@ namespace App\Services\Webhooks;
 use App\Jobs\DeliverWebhook;
 use App\Models\Deposit;
 use App\Models\WebhookEndpoint;
-use App\Models\Withdrawal;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class WebhookDispatcher
 {
     public function depositCredited(Deposit $deposit): void
     {
-        $this->dispatch($deposit->user_id, 'deposit.credited', [
+        $endpoint = WebhookEndpoint::query()
+            ->withoutGlobalScope('owner')
+            ->where('user_id', $deposit->user_id)
+            ->first();
+
+        if ($endpoint === null) {
+            Log::info('Webhook skipped: no endpoint configured', ['user_id' => $deposit->user_id]);
+
+            return;
+        }
+
+        DeliverWebhook::dispatch($endpoint->id, 'deposit.credited', $this->wrapPayload('deposit.credited', [
             'id' => $deposit->id,
             'customer_id' => $deposit->customer_id,
             'network' => $deposit->network,
@@ -24,42 +37,48 @@ class WebhookDispatcher
             'credited_amount' => $deposit->credited_amount,
             'status' => $deposit->status,
             'credited_at' => $deposit->credited_at?->toIso8601String(),
-        ]);
+        ]));
     }
 
-    public function withdrawalStatus(Withdrawal $withdrawal): void
+    public function test(WebhookEndpoint $endpoint): bool
     {
-        $this->dispatch($withdrawal->user_id, 'withdrawal.status', [
-            'id' => $withdrawal->id,
-            'network' => $withdrawal->network,
-            'gross_amount' => $withdrawal->gross_amount,
-            'network_fee' => $withdrawal->network_fee,
-            'amount_sent' => $withdrawal->amount_sent,
-            'destination_address' => $withdrawal->destination_address,
-            'mode' => $withdrawal->mode,
-            'status' => $withdrawal->status,
-            'tx_hash' => $withdrawal->tx_hash,
-            'decided_at' => $withdrawal->decided_at?->toIso8601String(),
-            'sent_at' => $withdrawal->sent_at?->toIso8601String(),
-        ]);
+        return $this->deliver($endpoint, 'deposit.credited', $this->wrapPayload('deposit.credited', [
+            'id' => 0,
+            'customer_id' => 0,
+            'network' => 'bitcoin',
+            'tx_hash' => 'test-tx',
+            'gross_amount' => '0.10000000',
+            'fee_amount' => '0.00050000',
+            'credited_amount' => '0.09950000',
+            'status' => 'credited',
+            'credited_at' => now()->toIso8601String(),
+            'test' => true,
+        ]));
     }
 
-    private function dispatch(int $userId, string $event, array $data): void
+    public function deliver(WebhookEndpoint $endpoint, string $event, array $payload): bool
     {
-        $endpoint = WebhookEndpoint::query()
-            ->withoutGlobalScope('owner')
-            ->where('user_id', $userId)
-            ->first();
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
-        if ($endpoint === null || ! in_array($event, $endpoint->enabled_events ?? [], true)) {
-            return;
+        try {
+            $response = Http::withHeaders([
+                'X-Samedepo-Event' => $event,
+                'X-Samedepo-Signature' => hash_hmac('sha256', $json, $endpoint->secret),
+            ])->withBody($json, 'application/json')->post($endpoint->url);
+
+            return $response->successful();
+        } catch (Throwable) {
+            return false;
         }
+    }
 
-        DeliverWebhook::dispatch($endpoint->id, $event, [
+    private function wrapPayload(string $event, array $data): array
+    {
+        return [
             'event' => $event,
             'id' => (string) Str::uuid(),
             'created_at' => now()->toIso8601String(),
             'data' => $data,
-        ]);
+        ];
     }
 }

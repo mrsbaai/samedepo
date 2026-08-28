@@ -1,6 +1,6 @@
 <div class="py-8">
     <div class="mb-6">
-        <flux:heading size="xl">Dashboard Home</flux:heading>
+        <flux:heading size="xl">Dashboard</flux:heading>
         <flux:subheading class="mt-2">Overview of your separate balances, estimated USD values, and recent activity.</flux:subheading>
     </div>
 
@@ -19,11 +19,18 @@
             <flux:skeleton class="h-7 w-20" />
             <flux:skeleton class="h-7 w-20" />
         </div>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            @foreach (range(1, 4) as $i)
-                <flux:card variant="soft" class="py-3 px-4">
-                    <flux:skeleton class="h-3 w-1/2 mb-2" />
-                    <flux:skeleton class="h-6 w-2/3" />
+        <div class="grid lg:grid-cols-3 gap-4 mb-6">
+            @foreach (range(1, 3) as $i)
+                <flux:card variant="soft" class="p-5">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <flux:skeleton class="size-10 rounded-full" />
+                            <flux:skeleton class="h-4 w-24" />
+                        </div>
+                        <flux:skeleton class="h-8 w-20" />
+                    </div>
+                    <flux:skeleton class="mt-6 h-8 w-32" />
+                    <flux:skeleton class="mt-2 h-4 w-28" />
                 </flux:card>
             @endforeach
         </div>
@@ -67,11 +74,18 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div class="grid lg:grid-cols-3 gap-4 mb-6">
             @foreach ($this->stats as $stat)
-                <flux:card variant="soft" class="py-3 px-4">
-                    <flux:text size="sm">{{ $stat['label'] }}</flux:text>
-                    <flux:heading size="lg" class="mt-1 font-ledger">{{ $stat['value'] }}</flux:heading>
+                <flux:card variant="soft" class="p-5">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <img src="{{ asset('crypto/' . $stat['network'] . '.svg') }}" alt="" class="size-10 shrink-0" />
+                            <flux:text class="truncate font-medium">{{ $stat['label'] }}</flux:text>
+                        </div>
+                        <flux:button size="sm" variant="ghost" href="{{ route('withdraw', ['network' => $stat['network']]) }}" wire:navigate>Withdraw</flux:button>
+                    </div>
+                    <flux:heading size="xl" class="mt-6 font-ledger">{{ $stat['value'] }}</flux:heading>
+                    <flux:text size="sm" class="mt-1 font-ledger">{{ $stat['amount'] }}</flux:text>
                 </flux:card>
             @endforeach
         </div>

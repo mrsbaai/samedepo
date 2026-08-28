@@ -28,7 +28,7 @@
                 <div class="space-y-4">
                     @foreach ($this->networks as $key => $net)
                         <div class="flex items-start gap-3">
-                            <img src="{{ asset('img/crypto/' . $net['slug'] . '.svg') }}" alt="" class="size-5 mt-2.5 shrink-0" />
+                            <img src="{{ asset('crypto/' . $net['slug'] . '.svg') }}" alt="" class="size-5 mt-2.5 shrink-0" />
                             <div class="flex-1 min-w-0">
                                 <flux:text size="sm" class="font-medium mb-1">{{ $net['network'] }}</flux:text>
                                 @if ($editingNetwork === $key)

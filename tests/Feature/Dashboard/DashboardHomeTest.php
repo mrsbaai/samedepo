@@ -27,20 +27,30 @@ test('an authenticated owner can access the dashboard home', function () {
     $this->actingAs($owner)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('Dashboard Home', false);
+        ->assertSee('Dashboard', false);
 });
 
-test('balance cards and total usd display correctly formatted values', function () {
+test('balance cards display each network usd value above its crypto amount and logo', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     seedBalances($owner);
 
     $this->actingAs($owner)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('$30150.00', false)
+        ->assertSee('$30000.00', false)
+        ->assertSee('$100.00', false)
+        ->assertSee('$50.00', false)
         ->assertSee('0.50000000 BTC', false)
         ->assertSee('100.00 USDT', false)
-        ->assertSee('50.00 USDT', false);
+        ->assertSee('50.00 USDT', false)
+        ->assertSee('crypto/bitcoin.svg', false)
+        ->assertSee('crypto/usdt-trc20.svg', false)
+        ->assertSee('crypto/usdt-erc20.svg', false)
+        ->assertSee(route('withdraw', ['network' => 'bitcoin']), false)
+        ->assertSee(route('withdraw', ['network' => 'usdt-trc20']), false)
+        ->assertSee(route('withdraw', ['network' => 'usdt-erc20']), false)
+        ->assertSee('Withdraw', false)
+        ->assertDontSee('$30150.00', false);
 });
 
 test('recent activity table renders deposits and withdrawals', function () {

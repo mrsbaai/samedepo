@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\WebhookEndpoint;
+use App\Notifications\WebhookEndpointFailing;
+use App\Services\Webhooks\WebhookDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
 
 class DeliverWebhook implements ShouldQueue
 {
@@ -28,7 +29,7 @@ class DeliverWebhook implements ShouldQueue
         return [60, 300, 900];
     }
 
-    public function handle(): void
+    public function handle(WebhookDispatcher $dispatcher): void
     {
         $endpoint = WebhookEndpoint::query()
             ->withoutGlobalScope('owner')
@@ -38,11 +39,12 @@ class DeliverWebhook implements ShouldQueue
             return;
         }
 
-        $json = json_encode($this->payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        if (! $dispatcher->deliver($endpoint, $this->event, $this->payload)) {
+            if ($this->attempts() === 1) {
+                $endpoint->user->notify(new WebhookEndpointFailing($endpoint->url));
+            }
 
-        Http::withHeaders([
-            'X-Samedepo-Event' => $this->event,
-            'X-Samedepo-Signature' => hash_hmac('sha256', $json, $endpoint->secret),
-        ])->withBody($json, 'application/json')->post($endpoint->url)->throw();
+            throw new \RuntimeException("Webhook delivery failed for event {$this->event}");
+        }
     }
 }

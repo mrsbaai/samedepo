@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Models\WebhookEndpoint;
+use App\Notifications\WebhookEndpointFailing;
+use App\Services\Webhooks\WebhookDispatcher;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -17,11 +19,13 @@ class WebhookSettings extends Component
 
     public string $webhookUrl = '';
 
-    public bool $eventCreditedDeposit = false;
-
-    public bool $eventWithdrawalStatus = false;
+    public bool $showSetupNotice = false;
 
     public ?string $successMessage = null;
+
+    public ?string $testResult = null;
+
+    public ?string $testError = null;
 
     public function mount(): void
     {
@@ -40,17 +44,14 @@ class WebhookSettings extends Component
 
         if ($endpoint === null) {
             $this->webhookUrl = '';
-            $this->eventCreditedDeposit = false;
-            $this->eventWithdrawalStatus = false;
+            $this->showSetupNotice = true;
 
             return;
         }
 
+        $this->showSetupNotice = false;
         $url = $endpoint->url;
         $this->webhookUrl = str_starts_with($url, 'https://') ? substr($url, 8) : $url;
-        $events = $endpoint->enabled_events ?? [];
-        $this->eventCreditedDeposit = in_array('deposit.credited', $events, true);
-        $this->eventWithdrawalStatus = in_array('withdrawal.status', $events, true);
     }
 
     #[Computed]
@@ -78,37 +79,74 @@ class WebhookSettings extends Component
             return;
         }
 
-        $enabledEvents = [];
-        if ($this->eventCreditedDeposit) {
-            $enabledEvents[] = 'deposit.credited';
-        }
-        if ($this->eventWithdrawalStatus) {
-            $enabledEvents[] = 'withdrawal.status';
-        }
-
         $endpoint = WebhookEndpoint::query()->first();
 
         if ($endpoint === null) {
             WebhookEndpoint::create([
                 'user_id' => Auth::id(),
                 'url' => $url,
-                'enabled_events' => $enabledEvents,
+                'enabled_events' => ['deposit.credited'],
                 'secret' => bin2hex(random_bytes(32)),
             ]);
         } else {
             $endpoint->update([
                 'url' => $url,
-                'enabled_events' => $enabledEvents,
+                'enabled_events' => ['deposit.credited'],
             ]);
         }
 
-        $this->successMessage = 'Webhook endpoint saved. Future events will be sent to this URL.';
+        $this->successMessage = 'Webhook endpoint saved. Credited deposits will be sent to this URL.';
+        $this->testResult = null;
+        $this->testError = null;
+        $this->showSetupNotice = false;
+    }
+
+    public function test(WebhookDispatcher $dispatcher): void
+    {
+        $this->resetErrorBag();
+        $this->successMessage = null;
+        $this->testResult = null;
+
+        if ($this->webhookUrl === '') {
+            $this->addError('webhookUrl', 'Webhook URL must use https://');
+
+            return;
+        }
+
+        $path = preg_replace('#^https?://#', '', $this->webhookUrl);
+        $url = 'https://'.$path;
+
+        if (! str_starts_with($url, 'https://') || filter_var($url, FILTER_VALIDATE_URL) === false) {
+            $this->addError('webhookUrl', 'Webhook URL must use https://');
+
+            return;
+        }
+
+        $endpoint = WebhookEndpoint::query()->first();
+        $secret = $endpoint?->secret ?? bin2hex(random_bytes(32));
+
+        $testEndpoint = new WebhookEndpoint([
+            'url' => $url,
+            'secret' => $secret,
+        ]);
+
+        if ($dispatcher->test($testEndpoint)) {
+            $this->testResult = 'success';
+            $this->testError = null;
+        } else {
+            $this->testResult = 'failure';
+            $this->testError = 'The test delivery failed. Check that your endpoint responds with any HTTP 2xx status code.';
+
+            Auth::user()?->notify(new WebhookEndpointFailing($url));
+        }
     }
 
     public function retry(): void
     {
         $this->uiState = request()->query('state', 'normal');
         $this->successMessage = null;
+        $this->testResult = null;
+        $this->testError = null;
         $this->resetErrorBag();
         $this->loadEndpoint();
     }

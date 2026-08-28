@@ -11,7 +11,11 @@ test('an owner can view the withdrawal settings page', function () {
     $this->actingAs($owner)
         ->get(route('withdrawal-settings'))
         ->assertOk()
-        ->assertSee('Withdrawal Settings', false);
+        ->assertSee('Withdrawal Settings', false)
+        ->assertSee('crypto/bitcoin.svg', false)
+        ->assertSee('crypto/usdt-trc20.svg', false)
+        ->assertSee('crypto/usdt-erc20.svg', false)
+        ->assertDontSee('img/crypto/', false);
 });
 
 test('an owner can set a withdrawal address', function () {

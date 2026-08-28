@@ -111,6 +111,17 @@
                         {{ $item['label'] }}
                     </flux:navbar.item>
                 @endforeach
+
+                <flux:dropdown>
+                    <flux:navbar.item icon:trailing="chevron-down" :current="collect($ownerNav['settings'])->contains(fn (array $item) => $ownerNavCurrent($item))">Settings</flux:navbar.item>
+                    <flux:navmenu class="dark">
+                        @foreach ($ownerNav['settings'] as $item)
+                            <flux:navmenu.item href="{{ $ownerNavHref($item) }}" :current="$ownerNavCurrent($item)" wire:navigate>
+                                {{ $item['label'] }}
+                            </flux:navmenu.item>
+                        @endforeach
+                    </flux:navmenu>
+                </flux:dropdown>
             @endif
         </flux:navbar>
 

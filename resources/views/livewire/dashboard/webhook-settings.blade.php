@@ -19,16 +19,30 @@
         <div class="space-y-8 max-w-lg">
             <div>
                 <flux:heading size="xl">Webhook Settings</flux:heading>
-                <flux:subheading class="mt-2">Configure the webhook endpoint for deposit and withdrawal events.</flux:subheading>
+                <flux:subheading class="mt-2">Configure the endpoint where credited-deposit webhooks are delivered.</flux:subheading>
             </div>
+
+            @if ($showSetupNotice)
+                <flux:callout variant="warning" icon="exclamation-triangle" heading="No webhook endpoint configured">
+                    <flux:callout.text>Credited deposit webhooks will not be sent until you save an endpoint URL.</flux:callout.text>
+                </flux:callout>
+            @endif
 
             @if ($successMessage)
                 <flux:callout variant="success" icon="check-circle" heading="{{ $successMessage }}" />
             @endif
 
+            @if ($testResult === 'success')
+                <flux:callout variant="success" icon="check-circle" heading="Test delivery succeeded" />
+            @elseif ($testResult === 'failure')
+                <flux:callout variant="danger" icon="x-circle" heading="Test delivery failed">
+                    <flux:callout.text>{{ $testError }}</flux:callout.text>
+                </flux:callout>
+            @endif
+
             <flux:field>
                 <flux:label>Endpoint URL</flux:label>
-                <flux:description>Must use https://</flux:description>
+                <flux:description>Must use https://. Your endpoint should respond with any HTTP 2xx status code on a successful delivery. The response body is ignored.</flux:description>
                 <flux:input.group>
                     <flux:input.group.prefix>https://</flux:input.group.prefix>
                     <flux:input wire:model="webhookUrl" placeholder="example.com/webhooks/samedepo" />
@@ -36,16 +50,10 @@
                 <flux:error name="webhookUrl" />
             </flux:field>
 
-            <flux:fieldset>
-                <flux:legend>Enabled events</flux:legend>
-                <div class="space-y-4">
-                    <flux:switch wire:model="eventCreditedDeposit" label="Credited deposit" description="Fires when a confirmed deposit is credited to a customer balance." />
-                    <flux:separator variant="subtle" />
-                    <flux:switch wire:model="eventWithdrawalStatus" label="Withdrawal status" description="Fires when a withdrawal request is approved, denied, or sent." />
-                </div>
-            </flux:fieldset>
-
-            <flux:button variant="primary" wire:click="save">Save Webhook Endpoint</flux:button>
+            <div class="flex gap-4">
+                <flux:button variant="primary" wire:click="save">Save Webhook Endpoint</flux:button>
+                <flux:button wire:click="test" icon="paper-airplane">Test Endpoint</flux:button>
+            </div>
         </div>
     @endif
 </div>

@@ -3,6 +3,9 @@
 use App\Livewire\Dashboard\WebhookSettings;
 use App\Models\User;
 use App\Models\WebhookEndpoint;
+use App\Notifications\WebhookEndpointFailing;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 
 test('an owner can view the webhook settings page', function () {
@@ -12,7 +15,8 @@ test('an owner can view the webhook settings page', function () {
         ->get(route('webhook-settings'))
         ->assertOk()
         ->assertSee('Webhook Settings', false)
-        ->assertSee('Save Webhook Endpoint', false);
+        ->assertSee('Save Webhook Endpoint', false)
+        ->assertSee('Test Endpoint', false);
 });
 
 test('an owner can save webhook settings', function () {
@@ -21,8 +25,6 @@ test('an owner can save webhook settings', function () {
     Livewire::actingAs($owner)
         ->test(WebhookSettings::class)
         ->set('webhookUrl', 'example.com/webhooks/samedepo')
-        ->set('eventCreditedDeposit', true)
-        ->set('eventWithdrawalStatus', true)
         ->call('save')
         ->assertHasNoErrors()
         ->assertSee('Webhook endpoint saved', false);
@@ -33,7 +35,7 @@ test('an owner can save webhook settings', function () {
     ]);
 
     $endpoint = WebhookEndpoint::where('user_id', $owner->id)->first();
-    expect($endpoint->enabled_events)->toContain('deposit.credited', 'withdrawal.status');
+    expect($endpoint->enabled_events)->toBe(['deposit.credited']);
 });
 
 test('webhook url must use https', function () {
@@ -59,9 +61,32 @@ test('existing webhook settings are loaded', function () {
 
     Livewire::actingAs($owner)
         ->test(WebhookSettings::class)
-        ->assertSet('webhookUrl', 'existing.example.com/webhook')
-        ->assertSet('eventCreditedDeposit', true)
-        ->assertSet('eventWithdrawalStatus', false);
+        ->assertSet('webhookUrl', 'existing.example.com/webhook');
+});
+
+test('an owner can test a webhook endpoint', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    Http::fake(['https://example.test/webhooks' => Http::response(status: 200)]);
+    Livewire::actingAs($owner)
+        ->test(WebhookSettings::class)
+        ->set('webhookUrl', 'example.test/webhooks')
+        ->call('test')
+        ->assertHasNoErrors()
+        ->assertSee('Test delivery succeeded', false);
+});
+
+test('a failing webhook test shows an error and notifies the owner', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    Notification::fake();
+    Http::fake(['https://example.test/webhooks' => Http::response(status: 500)]);
+
+    Livewire::actingAs($owner)
+        ->test(WebhookSettings::class)
+        ->set('webhookUrl', 'example.test/webhooks')
+        ->call('test')
+        ->assertSee('Test delivery failed', false);
+
+    Notification::assertSentTo($owner, WebhookEndpointFailing::class);
 });
 
 test('error state renders a callout and retry resets to normal', function () {
