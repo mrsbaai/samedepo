@@ -62,13 +62,13 @@ return [
     ],
 
     'security_notifications' => [
-        'new_device_signin' => true,
-        'suspicious_signin' => true,
-        'password_changed' => true,
-        'two_factor_changed' => true,
-        'email_changed' => true,
-        'session_revoked' => true,
-        'account_deleted' => true,
+        'new_device_signin' => (bool) env('SECURITY_NEW_DEVICE_SIGNIN', true),
+        'suspicious_signin' => (bool) env('SECURITY_SUSPICIOUS_SIGNIN', true),
+        'password_changed' => (bool) env('SECURITY_PASSWORD_CHANGED', true),
+        'two_factor_changed' => (bool) env('SECURITY_TWO_FACTOR_CHANGED', true),
+        'email_changed' => (bool) env('SECURITY_EMAIL_CHANGED', true),
+        'session_revoked' => (bool) env('SECURITY_SESSION_REVOKED', true),
+        'account_deleted' => (bool) env('SECURITY_ACCOUNT_DELETED', true),
     ],
 
     'social' => [
