@@ -39,4 +39,8 @@ return [
     'umani' => [
         'website_id' => env('UMANI_WEBSITE_ID'),
     ],
+
+    'resend' => [
+        'key' => env('RESEND_API_KEY'),
+    ],
 ];
