@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Middleware\ApiKeyAuthentication;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsOwner;
 use App\Http\Middleware\GuardAgainstThreats;
 use App\Http\Middleware\IdentifyDevice;
 use App\Http\Middleware\SetUserAppearance;
 use Illuminate\Foundation\Application;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
@@ -27,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureUserIsAdmin::class,
             'owner' => EnsureUserIsOwner::class,
         ]);
+        $middleware->prependToPriorityList(ThrottleRequests::class, ApiKeyAuthentication::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

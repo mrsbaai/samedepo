@@ -40,6 +40,7 @@ class ApiKeyAuthentication
 
         Auth::guard()->setUser($user);
         $request->setUserResolver(fn () => $user);
+        $request->attributes->set('api_key', $apiKey);
 
         $apiKey->update(['last_used_at' => now()]);
 

@@ -9,6 +9,7 @@ use App\Fraud\Contracts\IpIntelProvider;
 use App\Fraud\Contracts\NullIpIntelProvider;
 use App\Fraud\Contracts\NullPaymentSignalProvider;
 use App\Fraud\Contracts\PaymentSignalProvider;
+use App\Models\PlatformSettings;
 use App\Models\User;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\NullBlockchainBroadcaster;
@@ -166,6 +167,30 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute((int) config('authentication.rate_limits.two_factor'))
                 ->by('two-factor|'.$id.'|'.$request->ip());
+        });
+
+        RateLimiter::for('api-key', function (Request $request): Limit {
+            $apiKey = $request->attributes->get('api_key');
+
+            if (! $apiKey instanceof \App\Models\ApiKey) {
+                return Limit::none();
+            }
+
+            $key = 'api-key|'.$apiKey->getKey();
+
+            return Limit::perMinute(PlatformSettings::instance()->api_requests_per_minute)
+                ->by($key)
+                ->response(function () use ($key): \Illuminate\Http\JsonResponse {
+                    $limit = PlatformSettings::instance()->api_requests_per_minute;
+
+                    return response()->json([
+                        'message' => 'API rate limit exceeded. Please retry after the time indicated by the Retry-After header.',
+                    ], 429, [
+                        'X-RateLimit-Limit' => (string) $limit,
+                        'X-RateLimit-Remaining' => '0',
+                        'Retry-After' => (string) RateLimiter::availableIn($key),
+                    ]);
+                });
         });
     }
 
