@@ -54,6 +54,7 @@ use App\Livewire\Support\SupportCenter;
 use App\Livewire\Support\TicketCreate;
 use App\Livewire\Support\TicketThread;
 use App\Models\EmailChangeRequest;
+use App\Models\Faq;
 use App\Models\PublicContentPage;
 use App\Models\User;
 use App\Notifications\Authentication\SecurityAlertNotification;
@@ -304,7 +305,7 @@ Route::get('/security/delete/recover', function (Request $request): mixed {
 
 Route::get('/', function () {
     return view('public.landing', [
-        'faqs' => \App\Models\Faq::orderBy('position')->orderBy('id')->get(),
+        'faqs' => Faq::orderBy('position')->orderBy('id')->get(),
     ]);
 })->name('public.landing');
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Faq;
 use App\Models\User;
 
 test('guests can view the public landing page', function () {
@@ -73,7 +74,7 @@ test('the landing page links to sign up and api docs', function () {
 });
 
 test('the landing page shows the FAQs section with managed questions', function () {
-    $faq = \App\Models\Faq::create([
+    $faq = Faq::create([
         'question' => 'What does the platform fee cover?',
         'answer' => 'There is no monthly or setup cost. We deduct a flat percentage from each confirmed deposit, and withdrawal network fees are shown before and after the transaction.',
         'position' => 1,

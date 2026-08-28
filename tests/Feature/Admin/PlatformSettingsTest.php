@@ -15,7 +15,8 @@ test('an admin can view the platform settings page', function () {
         ->assertSee('Platform Settings', false)
         ->assertSee('Deposit Fee', false)
         ->assertSee('Minimum Deposits', false)
-        ->assertSee('Default Withdrawal Mode', false);
+        ->assertSee('Default Withdrawal Mode', false)
+        ->assertSee('API Request Limit', false);
 });
 
 test('owners cannot access admin platform settings', function () {
@@ -92,6 +93,41 @@ test('platform settings validation rejects invalid deposit fee', function () {
         ->call('saveFee')
         ->assertHasErrors(['depositFee']);
 });
+
+test('an admin can update the api request limit', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    PlatformSettingsModel::instance()->update(['global_deposit_fee_percent' => 2.5]);
+
+    Livewire::actingAs($admin)
+        ->test(PlatformSettings::class)
+        ->set('apiRequestsPerMinute', '120')
+        ->call('confirmSaveApiRequests')
+        ->call('saveApiRequests')
+        ->assertHasNoErrors()
+        ->assertSee('API request limit updated', false);
+
+    $this->assertDatabaseHas('platform_settings', ['api_requests_per_minute' => 120]);
+
+    $settings = PlatformSettingsModel::instance();
+    expect($settings->global_deposit_fee_percent)->toBe('2.50');
+});
+
+test('platform settings validation rejects invalid api request limit values', function ($value) {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    PlatformSettingsModel::instance();
+
+    Livewire::actingAs($admin)
+        ->test(PlatformSettings::class)
+        ->set('apiRequestsPerMinute', (string) $value)
+        ->call('confirmSaveApiRequests')
+        ->call('saveApiRequests')
+        ->assertHasErrors(['apiRequestsPerMinute']);
+})->with([
+    'zero' => 0,
+    'negative' => -10,
+    'fractional' => 10.5,
+    'non-numeric' => 'abc',
+]);
 
 test('error state renders a callout and retry resets to normal', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);

@@ -99,6 +99,28 @@
                     </div>
                 </div>
             </flux:card>
+
+            <flux:separator variant="subtle" class="my-6" />
+
+            {{-- API Request Limit --}}
+            <flux:card>
+                <div class="flex flex-col lg:flex-row gap-4 lg:gap-8">
+                    <div class="lg:w-72 shrink-0">
+                        <flux:heading>API Request Limit</flux:heading>
+                        <flux:subheading class="mt-1">Per-minute cap for each API key.</flux:subheading>
+                        <flux:text size="sm" class="mt-2 text-zinc-500">This limit applies to each API key independently. Lowering it may cause integrations to receive 429 responses.</flux:text>
+                    </div>
+                    <div class="flex-1 max-w-sm">
+                        <div class="flex items-center gap-2">
+                            <flux:input type="number" wire:model="apiRequestsPerMinute" min="1" step="1" size="sm" class="w-24" />
+                            <flux:text class="text-sm">requests / minute</flux:text>
+                            <flux:spacer />
+                            <flux:button variant="primary" size="sm" wire:click="confirmSaveApiRequests">Save</flux:button>
+                        </div>
+                        <flux:error name="apiRequestsPerMinute" />
+                    </div>
+                </div>
+            </flux:card>
         </div>
     @endif
 
@@ -143,6 +165,21 @@
                 <flux:spacer />
                 <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
                 <flux:button variant="primary" wire:click="saveMode">Confirm</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    {{-- API request limit modal --}}
+    <flux:modal wire:model.self="showApiRequestsModal" class="min-w-[22rem]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Update API request limit?</flux:heading>
+                <flux:text class="mt-2">This limit applies to each API key independently. Lowering it may cause integrations to receive 429 responses.</flux:text>
+            </div>
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
+                <flux:button variant="primary" wire:click="saveApiRequests">Confirm</flux:button>
             </div>
         </div>
     </flux:modal>

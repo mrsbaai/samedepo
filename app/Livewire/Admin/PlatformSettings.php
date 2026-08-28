@@ -24,11 +24,15 @@ class PlatformSettings extends Component
 
     public string $defaultWithdrawalMode = 'approval';
 
+    public string $apiRequestsPerMinute = '';
+
     public bool $showFeeModal = false;
 
     public bool $showMinDepositModal = false;
 
     public bool $showModeModal = false;
+
+    public bool $showApiRequestsModal = false;
 
     public ?string $successMessage = null;
 
@@ -50,6 +54,7 @@ class PlatformSettings extends Component
         $this->minDepositTrc20 = (string) $settings->min_deposit_usdt_trc20;
         $this->minDepositErc20 = (string) $settings->min_deposit_usdt_erc20;
         $this->defaultWithdrawalMode = $settings->default_withdrawal_mode;
+        $this->apiRequestsPerMinute = (string) $settings->api_requests_per_minute;
     }
 
     #[Computed]
@@ -122,6 +127,25 @@ class PlatformSettings extends Component
         $this->showModeModal = false;
         $label = $validated['defaultWithdrawalMode'] === 'instant' ? 'Instant' : 'Administrator Approval';
         $this->successMessage = "Default withdrawal mode set to {$label} for new accounts.";
+    }
+
+    public function confirmSaveApiRequests(): void
+    {
+        $this->showApiRequestsModal = true;
+    }
+
+    public function saveApiRequests(): void
+    {
+        $validated = $this->validate([
+            'apiRequestsPerMinute' => ['required', 'integer', 'min:1'],
+        ]);
+
+        PlatformSettingsModel::instance()->update([
+            'api_requests_per_minute' => $validated['apiRequestsPerMinute'],
+        ]);
+
+        $this->showApiRequestsModal = false;
+        $this->successMessage = 'API request limit updated.';
     }
 
     public function retry(): void

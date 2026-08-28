@@ -14,6 +14,7 @@ class PlatformSettings extends Model
     protected $fillable = [
         'global_deposit_fee_percent',
         'default_withdrawal_mode',
+        'api_requests_per_minute',
         'min_deposit_bitcoin',
         'min_deposit_usdt_trc20',
         'min_deposit_usdt_erc20',
@@ -29,6 +30,7 @@ class PlatformSettings extends Model
     {
         return [
             'global_deposit_fee_percent' => 'decimal:2',
+            'api_requests_per_minute' => 'integer',
             'min_deposit_bitcoin' => 'decimal:8',
             'min_deposit_usdt_trc20' => 'decimal:8',
             'min_deposit_usdt_erc20' => 'decimal:8',
@@ -43,6 +45,7 @@ class PlatformSettings extends Model
         return static::firstOrCreate([], [
             'global_deposit_fee_percent' => 1.00,
             'default_withdrawal_mode' => 'approval',
+            'api_requests_per_minute' => 60,
             'min_deposit_bitcoin' => 0.00010000,
             'min_deposit_usdt_trc20' => 10.00000000,
             'min_deposit_usdt_erc20' => 10.00000000,

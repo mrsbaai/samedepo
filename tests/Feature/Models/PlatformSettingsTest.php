@@ -19,6 +19,7 @@ test('the platform settings row has sensible defaults', function () {
 
     expect($settings->global_deposit_fee_percent)->toBe('1.00')
         ->and($settings->default_withdrawal_mode)->toBe('approval')
+        ->and($settings->api_requests_per_minute)->toBe(60)
         ->and($settings->confirmations_bitcoin)->toBeGreaterThan(0)
         ->and($settings->confirmations_usdt_trc20)->toBeGreaterThan(0)
         ->and($settings->confirmations_usdt_erc20)->toBeGreaterThan(0);

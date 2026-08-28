@@ -19,6 +19,7 @@ class PlatformSettingsFactory extends Factory
         return [
             'global_deposit_fee_percent' => 1.00,
             'default_withdrawal_mode' => 'approval',
+            'api_requests_per_minute' => 60,
             'min_deposit_bitcoin' => 0.00010000,
             'min_deposit_usdt_trc20' => 10.00000000,
             'min_deposit_usdt_erc20' => 10.00000000,
