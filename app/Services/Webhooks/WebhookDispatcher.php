@@ -6,6 +6,7 @@ namespace App\Services\Webhooks;
 
 use App\Jobs\DeliverWebhook;
 use App\Models\Deposit;
+use App\Models\UsdValuation;
 use App\Models\WebhookEndpoint;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -35,6 +36,7 @@ class WebhookDispatcher
             'gross_amount' => $deposit->gross_amount,
             'fee_amount' => $deposit->fee_amount,
             'credited_amount' => $deposit->credited_amount,
+            'credited_usd_value' => $this->calculateCreditedUsdValue($deposit->network, (string) $deposit->credited_amount),
             'status' => $deposit->status,
             'credited_at' => $deposit->credited_at?->toIso8601String(),
         ]));
@@ -50,6 +52,7 @@ class WebhookDispatcher
             'gross_amount' => '0.10000000',
             'fee_amount' => '0.00050000',
             'credited_amount' => '0.09950000',
+            'credited_usd_value' => '2985.00',
             'status' => 'credited',
             'credited_at' => now()->toIso8601String(),
             'test' => true,
@@ -70,6 +73,22 @@ class WebhookDispatcher
         } catch (Throwable) {
             return false;
         }
+    }
+
+    private function calculateCreditedUsdValue(string $network, string $creditedAmount): string
+    {
+        $valuation = UsdValuation::query()
+            ->where('network', $network)
+            ->latest('created_at')
+            ->first();
+
+        if ($valuation === null) {
+            return '0.00';
+        }
+
+        $value = bcmul($creditedAmount, (string) $valuation->conversion_value, 8);
+
+        return number_format((float) $value, 2, '.', '');
     }
 
     private function wrapPayload(string $event, array $data): array
