@@ -46,6 +46,21 @@
   -H "Accept: application/json" \\
   -d '{"reference": "customer-123"}'</code></pre>
                         </flux:card>
+
+                        <flux:card class="md:col-span-2">
+                            <flux:heading size="lg" level="2" class="mb-4">5. Rate limits</flux:heading>
+                            <flux:text class="mb-3">
+                                Each API key is limited to <strong>{{ $rateLimit }} requests per minute</strong>, applied independently per key. Successful responses include <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Remaining</code> headers. If you exceed the limit, the API returns HTTP <code>429 Too Many Requests</code> with a <code>Retry-After</code> header. Back off and retry after the number of seconds indicated by <code>Retry-After</code>.
+                            </flux:text>
+                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>HTTP/1.1 <span class="text-(--color-accent)">429 Too Many Requests</span>
+X-RateLimit-Limit: {{ $rateLimit }}
+X-RateLimit-Remaining: 0
+Retry-After: 47
+
+{
+  "message": "API rate limit exceeded. Please retry after the time indicated by the Retry-After header."
+}</code></pre>
+                        </flux:card>
                     </div>
                 </flux:tab.panel>
 
@@ -77,15 +92,19 @@
 }</code></pre>
                                                 </div>
                                                 <div>
-                                                    <flux:heading size="sm" class="mb-2">Response (200 existing, 201 created)</flux:heading>
+                                                    <flux:heading size="sm" class="mb-2">Response (201 created / 200 existing)</flux:heading>
                                                     <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
-  "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
-  "<span class="text-(--color-accent)">addresses</span>": [
-    { "<span class="text-(--color-accent)">network</span>": "bitcoin", "<span class="text-(--color-accent)">address</span>": "bc1q..." },
-    { "<span class="text-(--color-accent)">network</span>": "usdt_trc20", "<span class="text-(--color-accent)">address</span>": "T..." },
-    { "<span class="text-(--color-accent)">network</span>": "usdt_erc20", "<span class="text-(--color-accent)">address</span>": "0x..." }
-  ]
+  "<span class="text-(--color-accent)">status</span>": "created",
+  "<span class="text-(--color-accent)">data</span>": {
+    "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
+    "<span class="text-(--color-accent)">addresses</span>": [
+      { "<span class="text-(--color-accent)">network</span>": "bitcoin", "<span class="text-(--color-accent)">address</span>": "bc1q..." },
+      { "<span class="text-(--color-accent)">network</span>": "usdt_trc20", "<span class="text-(--color-accent)">address</span>": "T..." },
+      { "<span class="text-(--color-accent)">network</span>": "usdt_erc20", "<span class="text-(--color-accent)">address</span>": "0x..." }
+    ]
+  }
 }</code></pre>
+                                                    <flux:text class="mt-2 text-sm"><code>status</code> is <code>created</code> on first registration (HTTP 201) and <code>existing</code> when the owner/reference is already registered (HTTP 200).</flux:text>
                                                 </div>
                                             </div>
                                         @endif
@@ -173,6 +192,9 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPo_SIGNATURE'] ?? '')) {
 
                             <div>
                                 <flux:heading size="md" class="mb-3">Example: deposit.credited</flux:heading>
+                                <flux:text class="mb-3">
+                                    <code>credited_usd_value</code> is the USD value of <code>credited_amount</code> at the latest stored conversion rate for the deposit network.
+                                </flux:text>
                                 <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
   "<span class="text-(--color-accent)">event</span>": "deposit.credited",
   "<span class="text-(--color-accent)">id</span>": "6a3f...",
@@ -185,6 +207,7 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPo_SIGNATURE'] ?? '')) {
     "<span class="text-(--color-accent)">gross_amount</span>": "0.10000000",
     "<span class="text-(--color-accent)">fee_amount</span>": "0.00050000",
     "<span class="text-(--color-accent)">credited_amount</span>": "0.09950000",
+    "<span class="text-(--color-accent)">credited_usd_value</span>": "2985.00",
     "<span class="text-(--color-accent)">status</span>": "credited",
     "<span class="text-(--color-accent)">credited_at</span>": "2026-08-27T12:00:00+07:00"
   }

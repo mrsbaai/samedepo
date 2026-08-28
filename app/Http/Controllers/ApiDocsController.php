@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\PlatformSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Collection;
@@ -19,6 +20,7 @@ class ApiDocsController
         return view('public.api-docs', [
             'baseUrl' => url('/api/v1'),
             'endpoints' => $this->endpoints(),
+            'rateLimit' => PlatformSettings::instance()->api_requests_per_minute,
         ]);
     }
 
