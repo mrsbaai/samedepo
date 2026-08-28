@@ -13,6 +13,11 @@ class StoreCustomerRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['reference' => $this->route('reference')]);
+    }
+
     public function rules(): array
     {
         return [

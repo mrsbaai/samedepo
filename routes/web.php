@@ -6,6 +6,7 @@ use App\Actions\Authentication\ResolvePostSigninRedirect;
 use App\Events\Authentication\AuthenticationEvent;
 use App\Http\Controllers\Admin\UserSummaryController;
 use App\Http\Controllers\ApiDocsController;
+use App\Http\Controllers\QrController;
 use App\Http\Controllers\Authentication\SocialiteController;
 use App\Livewire\Account\AccountSettings;
 use App\Livewire\Admin\AnnouncementEditor;
@@ -310,6 +311,8 @@ Route::get('/', function () {
 })->name('public.landing');
 
 Route::get('/api-docs', ApiDocsController::class)->name('public.api-docs');
+
+Route::get('/qr/{address}', [QrController::class, 'show'])->name('qr');
 
 Route::get('/privacy', function () {
     $page = PublicContentPage::query()->firstOrCreate(

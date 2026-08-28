@@ -41,7 +41,7 @@ test('customer registration only provisions the three supported networks', funct
     $owner = User::factory()->create(['role' => 'owner']);
 
     $response = $this->withHeaders(noBaseApiKeyHeader($owner))
-        ->postJson('/api/v1/customers', ['reference' => 'NO-BASE'])
+        ->getJson('/api/v1/customers/NO-BASE')
         ->assertCreated();
 
     $networks = collect($response->json('data.addresses'))->pluck('network')->values()->all();

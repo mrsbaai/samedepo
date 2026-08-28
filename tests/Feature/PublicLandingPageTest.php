@@ -49,9 +49,11 @@ test('the landing page explains its network cost and signing technology', functi
 test('the landing page shows an accurate customer registration example', function () {
     $this->get('/')
         ->assertOk()
-        ->assertSee(url('/api/v1/customers'))
-        ->assertSee('"reference": "cus_482"', false)
+        ->assertSee(url('/api/v1/customers/cus_482'))
+        ->assertSee('customer_reference')
         ->assertSee('"addresses"', false)
+        ->assertSee('"status"', false)
+        ->assertSee('created')
         ->assertSee('201 Created')
         ->assertSeeText("# That's it. Really.", false);
 });
@@ -59,7 +61,7 @@ test('the landing page shows an accurate customer registration example', functio
 test('the landing page explains the deposit flow as three connected stages', function () {
     $this->get('/')
         ->assertOk()
-        ->assertSee('Your server registers the customer')
+        ->assertSee('Your server requests the customer')
         ->assertSee('samedepo returns permanent addresses')
         ->assertSee('We credit confirmed deposits')
         ->assertSee('You send')

@@ -36,10 +36,12 @@
                         </li>
                         <li class="grid gap-3 py-5 sm:grid-cols-[12rem_1fr] sm:gap-8">
                             <flux:heading level="2">4. Make a request</flux:heading>
-                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 font-mono text-xs text-zinc-300"><code><span class="text-(--color-accent)">curl</span> -X POST {{ $baseUrl }}/customers \\
+                            <div>
+                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 font-mono text-xs text-zinc-300"><code><span class="text-(--color-accent)">curl</span> {{ $baseUrl }}/customers/customer-123 \\
   -H "Authorization: Bearer &lt;your-api-key&gt;" \\
-  -H "Accept: application/json" \\
-  -d '{"reference": "customer-123"}'</code></pre>
+  -H "Accept: application/json"</code></pre>
+                                <flux:text size="sm" class="mt-3">The first request returns <code>"status": "created"</code>. Later requests return the same addresses with <code>"status": "existing"</code>.</flux:text>
+                            </div>
                         </li>
                     </ol>
                 </flux:tab.panel>
@@ -110,50 +112,28 @@
                                             <flux:badge color="{{ $endpoint['method'] === 'GET' ? 'blue' : 'emerald' }}" size="sm">
                                                 {{ $endpoint['method'] }}
                                             </flux:badge>
-                                            <flux:heading size="md" level="3" class="font-mono text-base">{{ $endpoint['uri'] }}</flux:heading>
+                                            <flux:heading size="md" level="3" class="font-mono text-base">{{ str_replace('{reference}', 'customer-123', $endpoint['uri']) }}</flux:heading>
                                         </div>
 
                                         @if ($endpoint['description'])
                                             <flux:text class="mt-3">{{ $endpoint['description'] }}</flux:text>
                                         @endif
 
-                                        @if ($endpoint['uri'] === '/api/v1/customers' && $endpoint['method'] === 'POST')
-                                            <div class="mt-4 grid gap-4">
-                                                <div>
-                                                    <flux:heading size="sm" class="mb-2">Request body</flux:heading>
-                                                    <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
-  "<span class="text-(--color-accent)">reference</span>": "customer-123"
-}</code></pre>
-                                                </div>
-                                                <div>
-                                                    <flux:heading size="sm" class="mb-2">Response (201 created / 200 existing)</flux:heading>
-                                                    <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
+                                        @if ($endpoint['uri'] === '/api/v1/customers/{reference}' && $endpoint['method'] === 'GET')
+                                            <div class="mt-4">
+                                                <flux:heading size="sm" class="mb-2">Response</flux:heading>
+                                                <pre class="overflow-hidden whitespace-pre-wrap break-words rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
   "<span class="text-(--color-accent)">status</span>": "created",
   "<span class="text-(--color-accent)">data</span>": {
     "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
     "<span class="text-(--color-accent)">addresses</span>": [
-      { "<span class="text-(--color-accent)">network</span>": "bitcoin", "<span class="text-(--color-accent)">address</span>": "bc1q..." },
-      { "<span class="text-(--color-accent)">network</span>": "usdt_trc20", "<span class="text-(--color-accent)">address</span>": "T..." },
-      { "<span class="text-(--color-accent)">network</span>": "usdt_erc20", "<span class="text-(--color-accent)">address</span>": "0x..." }
+      { "<span class="text-(--color-accent)">network</span>": "bitcoin", "<span class="text-(--color-accent)">address</span>": "bc1q...", "<span class="text-(--color-accent)">qr</span>": "{{ url('/qr/bc1q...') }}", "<span class="text-(--color-accent)">minimum_deposit</span>": "{{ number_format((float) $settings->min_deposit_bitcoin, 8, '.', '') }}" },
+      { "<span class="text-(--color-accent)">network</span>": "usdt_trc20", "<span class="text-(--color-accent)">address</span>": "T...", "<span class="text-(--color-accent)">qr</span>": "{{ url('/qr/T...') }}", "<span class="text-(--color-accent)">minimum_deposit</span>": "{{ number_format((float) $settings->min_deposit_usdt_trc20, 2, '.', '') }}" },
+      { "<span class="text-(--color-accent)">network</span>": "usdt_erc20", "<span class="text-(--color-accent)">address</span>": "0x...", "<span class="text-(--color-accent)">qr</span>": "{{ url('/qr/0x...') }}", "<span class="text-(--color-accent)">minimum_deposit</span>": "{{ number_format((float) $settings->min_deposit_usdt_erc20, 2, '.', '') }}" }
     ]
   }
 }</code></pre>
-                                                    <flux:text class="mt-2 text-sm"><code>status</code> is <code>created</code> on first registration (HTTP 201) and <code>existing</code> when the owner/reference is already registered (HTTP 200).</flux:text>
-                                                </div>
-                                            </div>
-                                        @endif
-
-                                        @if ($endpoint['uri'] === '/api/v1/customers/{reference}' && $endpoint['method'] === 'GET')
-                                            <div class="mt-4">
-                                                <flux:heading size="sm" class="mb-2">Response</flux:heading>
-                                                <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>{
-  "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
-  "<span class="text-(--color-accent)">addresses</span>": [
-    { "<span class="text-(--color-accent)">network</span>": "bitcoin", "<span class="text-(--color-accent)">address</span>": "bc1q..." },
-    { "<span class="text-(--color-accent)">network</span>": "usdt_trc20", "<span class="text-(--color-accent)">address</span>": "T..." },
-    { "<span class="text-(--color-accent)">network</span>": "usdt_erc20", "<span class="text-(--color-accent)">address</span>": "0x..." }
-  ]
-}</code></pre>
+                                            <flux:text class="mt-2 text-sm"><code>status</code> is <code>created</code> on the first request (HTTP 201) and <code>existing</code> on later requests (HTTP 200). All addresses include a <code>qr</code> URL for the deposit address and a <code>minimum_deposit</code> in the network's native currency — deposits below this amount are not credited.</flux:text>
                                             </div>
                                         @endif
 

@@ -14,8 +14,8 @@
                 </flux:heading>
 
                 <flux:text size="lg" class="mt-6 text-zinc-400">
-                    Register a customer once and get permanent Bitcoin, USDT (TRC20), and USDT (ERC20) deposit
-                    addresses. We watch each network, wait for confirmations, credit the deposit, and send the webhook.
+                    Send a customer reference and get permanent Bitcoin, USDT (TRC20), and USDT (ERC20) deposit
+                    addresses. The same GET request returns the same addresses every time.
                 </flux:text>
 
                 <div class="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
@@ -31,19 +31,22 @@
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
                 </div>
-                <pre class="overflow-x-auto p-5 text-xs font-mono leading-6 text-zinc-300 sm:p-6 sm:text-sm"><code><span class="text-(--color-accent)">curl</span> -X POST {{ url('/api/v1/customers') }} \
+                <pre class="overflow-hidden whitespace-pre-wrap break-words p-5 font-mono leading-6 text-zinc-300 sm:p-6 text-[clamp(0.65rem,1.6vw,0.8rem)]"><code><span class="text-(--color-accent)">curl</span> {{ url('/api/v1/customers/cus_482') }} \
   -H "Authorization: Bearer sk_live_..." \
-  -H "Content-Type: application/json" \
-  -d '{"reference": "cus_482"}'
+  -H "Accept: application/json"
 
 <span class="text-zinc-500"># Response · 201 Created</span>
 {
-  <span class="text-zinc-300">"reference"</span>: "cus_482",
-  <span class="text-zinc-300">"addresses"</span>: {
-    <span class="text-zinc-300">"bitcoin"</span>: <span class="text-(--color-accent)">"bc1qxy2k...hx0wlh"</span>,
-    <span class="text-zinc-300">"usdt_trc20"</span>: <span class="text-(--color-accent)">"TXn9YbZ...v4mQ2"</span>,
-    <span class="text-zinc-300">"usdt_erc20"</span>: <span class="text-(--color-accent)">"0x4f2A1c...B9cE1"</span>
-  }
+  <span class="text-zinc-300">"status"</span>: "created",
+  <span class="text-zinc-300">"data"</span>: {
+    <span class="text-zinc-300">"customer_reference"</span>: "cus_482",
+    <span class="text-zinc-300">"addresses"</span>: [
+      { <span class="text-zinc-300">"network"</span>: "bitcoin", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"1A1z...DivfNa"</span> },
+      { <span class="text-zinc-300">"network"</span>: "usdt_trc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"TXn9...v4mQ2"</span> },
+      { <span class="text-zinc-300">"network"</span>: "usdt_erc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"0x4f...B9cE1"</span> }
+    ]
+  },
+  
 }
 <span class="text-zinc-500"># That's it. Really.</span></code></pre>
             </div>
@@ -61,7 +64,7 @@
 
             <flux:timeline size="lg" class="[--flux-timeline-item-gap:2rem]">
                 @foreach ([
-                    ['Your server registers the customer', 'You send', 'A reference from your own system, such as cus_482.'],
+                    ['Your server requests the customer', 'You send', 'A GET request with a reference from your own system, such as cus_482.'],
                     ['samedepo returns permanent addresses', 'You receive', 'One Bitcoin, one USDT (TRC20), and one USDT (ERC20) deposit address.'],
                     ['We credit confirmed deposits', 'Automatic', 'We watch the network, wait for confirmations, credit your balance, and send the webhook.'],
                 ] as [$heading, $label, $copy])

@@ -9,7 +9,6 @@ use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\DepositAddress;
 use App\Services\Blockchain\AddressGenerator;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class CustomerController
@@ -17,12 +16,10 @@ class CustomerController
     private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
 
     /**
-     * Register or return an existing customer and generate permanent deposit addresses.
+     * Return a customer and their permanent deposit addresses, creating them when missing.
      */
-    public function store(StoreCustomerRequest $request)
+    public function show(StoreCustomerRequest $request, string $reference)
     {
-        $reference = $request->validated('reference');
-
         $customer = Customer::query()
             ->where('user_id', $request->user()->id)
             ->where('customer_reference', $reference)
@@ -45,26 +42,10 @@ class CustomerController
             $statusCode = 201;
         }
 
-        $status = $statusCode === 201 ? 'created' : 'existing';
-
         return (new CustomerResource($customer->load('depositAddresses')))
-            ->additional(['status' => $status])
+            ->additional(['status' => $statusCode === 201 ? 'created' : 'existing'])
             ->response()
             ->setStatusCode($statusCode);
-    }
-
-    /**
-     * Retrieve a customer and their permanent deposit addresses.
-     */
-    public function show(Request $request, string $reference)
-    {
-        $customer = Customer::query()
-            ->where('user_id', $request->user()->id)
-            ->where('customer_reference', $reference)
-            ->with('depositAddresses')
-            ->firstOrFail();
-
-        return new CustomerResource($customer);
     }
 
     private function generateDepositAddresses(Customer $customer): void

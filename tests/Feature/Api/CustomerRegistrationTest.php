@@ -3,6 +3,7 @@
 use App\Models\ApiKey;
 use App\Models\Customer;
 use App\Models\DepositAddress;
+use App\Models\PlatformSettings;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
@@ -29,11 +30,11 @@ function apiKeyHeader(User $owner): array
     return ['Authorization' => 'Bearer '.$key];
 }
 
-test('an owner can register a customer and receives three deposit addresses', function () {
+test('an owner can request a customer and receives three deposit addresses', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
     $response = $this->withHeaders(apiKeyHeader($owner))
-        ->postJson('/api/v1/customers', ['reference' => 'CUST-ABC123'])
+        ->getJson('/api/v1/customers/CUST-ABC123')
         ->assertCreated();
 
     $response->assertJsonPath('status', 'created');
@@ -53,17 +54,17 @@ test('an owner can register a customer and receives three deposit addresses', fu
     expect($customer->depositAddresses)->toHaveCount(3);
 });
 
-test('registering the same customer reference returns existing addresses', function () {
+test('requesting the same customer reference returns existing addresses', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
     $first = $this->withHeaders(apiKeyHeader($owner))
-        ->postJson('/api/v1/customers', ['reference' => 'CUST-ABC123'])
+        ->getJson('/api/v1/customers/CUST-ABC123')
         ->assertCreated()
         ->assertJsonPath('status', 'created')
         ->json('data.addresses');
 
     $second = $this->withHeaders(apiKeyHeader($owner))
-        ->postJson('/api/v1/customers', ['reference' => 'CUST-ABC123'])
+        ->getJson('/api/v1/customers/CUST-ABC123')
         ->assertOk()
         ->assertJsonPath('status', 'existing')
         ->json('data.addresses');
@@ -95,29 +96,24 @@ test('an owner can retrieve an existing customer by reference', function () {
         ->assertJsonPath('data.customer_reference', 'CUST-ABC123')
         ->assertJsonCount(1, 'data.addresses');
 
-    expect($response->json())->not->toHaveKey('status');
+    $response->assertJsonPath('status', 'existing');
+});
+
+test('the customer post endpoint is not available', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    $this->withHeaders(apiKeyHeader($owner))
+        ->postJson('/api/v1/customers', ['reference' => 'CUST-ABC123'])
+        ->assertMethodNotAllowed();
 });
 
 test('requests without a valid api key are unauthorized', function () {
-    $this->postJson('/api/v1/customers', ['reference' => 'CUST-ABC123'])
-        ->assertUnauthorized()
-        ->assertJson(['message' => 'Unauthorized.']);
-
     $this->getJson('/api/v1/customers/CUST-ABC123')
         ->assertUnauthorized()
         ->assertJson(['message' => 'Unauthorized.']);
 });
 
-test('invalid input returns json validation errors', function () {
-    $owner = User::factory()->create(['role' => 'owner']);
-
-    $this->withHeaders(apiKeyHeader($owner))
-        ->postJson('/api/v1/customers', ['reference' => ''])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['reference']);
-});
-
-test('an owner cannot retrieve another owners customer', function () {
+test('the same reference creates a separate customer for another owner', function () {
     $ownerA = User::factory()->create(['role' => 'owner']);
     $ownerB = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create([
@@ -127,5 +123,29 @@ test('an owner cannot retrieve another owners customer', function () {
 
     $this->withHeaders(apiKeyHeader($ownerB))
         ->getJson('/api/v1/customers/CUST-ABC123')
-        ->assertNotFound();
+        ->assertCreated()
+        ->assertJsonPath('status', 'created');
+
+    expect(Customer::withoutGlobalScopes()->where('customer_reference', 'CUST-ABC123')->count())->toBe(2);
+});
+
+test('each address includes minimum_deposit in the native currency', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    $settings = PlatformSettings::instance();
+    $settings->update([
+        'min_deposit_bitcoin' => 0.00050000,
+        'min_deposit_usdt_trc20' => 25.00000000,
+        'min_deposit_usdt_erc20' => 50.00000000,
+    ]);
+
+    $response = $this->withHeaders(apiKeyHeader($owner))
+        ->getJson('/api/v1/customers/CUST-MIN')
+        ->assertCreated();
+
+    $addresses = collect($response->json('data.addresses'));
+
+    expect($addresses->where('network', 'bitcoin')->first()['minimum_deposit'])->toBe('0.00050000');
+    expect($addresses->where('network', 'usdt_trc20')->first()['minimum_deposit'])->toBe('25.00');
+    expect($addresses->where('network', 'usdt_erc20')->first()['minimum_deposit'])->toBe('50.00');
 });
