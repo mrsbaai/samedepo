@@ -36,6 +36,7 @@ prompts.txt
 laravel_dusk
 php
 *.tmp
+.playwright-mcp/
 
 database/database.sqlite
 database/*.sqlite
