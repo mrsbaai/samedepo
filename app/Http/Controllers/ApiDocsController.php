@@ -17,10 +17,18 @@ class ApiDocsController
 {
     public function __invoke(): View
     {
+        $settings = PlatformSettings::instance();
+        $user = auth()->user();
+        $depositFee = $user?->role === 'owner' && ! $user->is_admin && $user->deposit_fee_override !== null
+            ? $user->deposit_fee_override
+            : $settings->global_deposit_fee_percent;
+
         return view('public.api-docs', [
             'baseUrl' => url('/api/v1'),
             'endpoints' => $this->endpoints(),
-            'rateLimit' => PlatformSettings::instance()->api_requests_per_minute,
+            'rateLimit' => $settings->api_requests_per_minute,
+            'settings' => $settings,
+            'depositFee' => $depositFee,
         ]);
     }
 

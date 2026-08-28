@@ -1,77 +1,111 @@
 <x-layouts.public :title="'API Documentation'" :description="'Integrate samedepo with our live, automatically-generated API reference.'">
+    @php($activeTab = in_array(request('tab'), ['limits', 'endpoints', 'webhooks'], true) ? request('tab') : 'quick-start')
+
     <section class="py-12">
         <div class="max-w-5xl mx-auto px-6">
             <flux:heading size="2xl" level="1" class="mb-2">API Documentation</flux:heading>
             <flux:text size="lg" class="text-zinc-400">
-                Everything you need to integrate samedepo. The endpoint list below updates automatically as the API changes.
             </flux:text>
 
             <flux:tab.group class="mt-10" findable>
                 <flux:tabs variant="pills">
-                    <flux:tab name="quick-start" icon="bolt" selected>Quick start</flux:tab>
-                    <flux:tab name="endpoints" icon="code-bracket">Endpoints</flux:tab>
-                    <flux:tab name="webhooks" icon="signal">Webhooks</flux:tab>
+                    <flux:tab name="quick-start" icon="bolt" :selected="$activeTab === 'quick-start'">Quick start</flux:tab>
+                    <flux:tab name="limits" icon="adjustments-horizontal" :selected="$activeTab === 'limits'">Limits & fees</flux:tab>
+                    <flux:tab name="endpoints" icon="code-bracket" :selected="$activeTab === 'endpoints'">Endpoints</flux:tab>
+                    <flux:tab name="webhooks" icon="signal" :selected="$activeTab === 'webhooks'">Webhooks</flux:tab>
                 </flux:tabs>
 
-                <flux:tab.panel name="quick-start" selected class="pt-8">
-                    <div class="grid gap-6 md:grid-cols-2">
-                        <flux:card>
-                            <flux:heading size="lg" level="2" class="mb-4">1. Get an API key</flux:heading>
+                <flux:tab.panel name="quick-start" :selected="$activeTab === 'quick-start'" class="pt-8">
+                    <ol class="divide-y divide-white/10 border-y border-white/10">
+                        <li class="grid gap-3 py-5 sm:grid-cols-[12rem_1fr] sm:gap-8">
+                            <flux:heading level="2">1. Get an API key</flux:heading>
                             <flux:text>
-                                Sign in to your owner account and visit the
-                                <flux:link href="{{ route('api-keys') }}" wire:navigate>API Keys</flux:link>
-                                section to create a key. Keep it secret.
+                                Sign in and create a key from <flux:link href="{{ route('api-keys') }}" wire:navigate>API Keys</flux:link>. Keep it secret.
                             </flux:text>
-                        </flux:card>
-
-                        <flux:card>
-                            <flux:heading size="lg" level="2" class="mb-4">2. Base URL</flux:heading>
-                            <code class="block rounded-lg bg-zinc-900 px-4 py-3 text-sm font-mono text-zinc-300">
-                                {{ $baseUrl }}
-                            </code>
-                        </flux:card>
-
-                        <flux:card>
-                            <flux:heading size="lg" level="2" class="mb-4">3. Authentication</flux:heading>
-                            <flux:text class="mb-3">Send your API key in the Authorization header on every request.</flux:text>
-                            <code class="block rounded-lg bg-zinc-900 px-4 py-3 text-sm font-mono text-zinc-300">
-                                Authorization: Bearer &lt;your-api-key&gt;
-                            </code>
-                        </flux:card>
-
-                        <flux:card>
-                            <flux:heading size="lg" level="2" class="mb-4">4. Example request</flux:heading>
-                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code><span class="text-(--color-accent)">curl</span> -X POST {{ $baseUrl }}/customers \\
+                        </li>
+                        <li class="grid gap-3 py-5 sm:grid-cols-[12rem_1fr] sm:gap-8">
+                            <flux:heading level="2">2. Base URL</flux:heading>
+                            <code class="overflow-auto rounded-lg bg-zinc-950 px-4 py-3 font-mono text-sm text-zinc-300">{{ $baseUrl }}</code>
+                        </li>
+                        <li class="grid gap-3 py-5 sm:grid-cols-[12rem_1fr] sm:gap-8">
+                            <flux:heading level="2">3. Authenticate</flux:heading>
+                            <div>
+                                <flux:text class="mb-3">Send your API key with every request.</flux:text>
+                                <code class="block overflow-auto rounded-lg bg-zinc-950 px-4 py-3 font-mono text-sm text-zinc-300">Authorization: Bearer &lt;your-api-key&gt;</code>
+                            </div>
+                        </li>
+                        <li class="grid gap-3 py-5 sm:grid-cols-[12rem_1fr] sm:gap-8">
+                            <flux:heading level="2">4. Make a request</flux:heading>
+                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 font-mono text-xs text-zinc-300"><code><span class="text-(--color-accent)">curl</span> -X POST {{ $baseUrl }}/customers \\
   -H "Authorization: Bearer &lt;your-api-key&gt;" \\
   -H "Accept: application/json" \\
   -d '{"reference": "customer-123"}'</code></pre>
-                        </flux:card>
+                        </li>
+                    </ol>
+                </flux:tab.panel>
 
-                        <flux:card class="md:col-span-2">
-                            <flux:heading size="lg" level="2" class="mb-4">5. Rate limits</flux:heading>
-                            <flux:text class="mb-3">
-                                Each API key is limited to <strong>{{ $rateLimit }} requests per minute</strong>, applied independently per key. Successful responses include <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Remaining</code> headers. If you exceed the limit, the API returns HTTP <code>429 Too Many Requests</code> with a <code>Retry-After</code> header. Back off and retry after the number of seconds indicated by <code>Retry-After</code>.
-                            </flux:text>
-                            <pre class="overflow-auto rounded-lg bg-zinc-950 p-4 text-xs font-mono text-zinc-300"><code>HTTP/1.1 <span class="text-(--color-accent)">429 Too Many Requests</span>
-X-RateLimit-Limit: {{ $rateLimit }}
-X-RateLimit-Remaining: 0
-Retry-After: 47
+                <flux:tab.panel name="limits" :selected="$activeTab === 'limits'" class="pt-8">
+                    <div class="mb-6 flex items-start justify-between gap-6">
+                        <flux:text>
+                            @auth
+                                These are the live values for your account. Processing a higher volume? <flux:link href="{{ route('support') }}" wire:navigate>Ask support</flux:link> about custom limits.
+                            @else
+                                These are the current standard values. Higher-volume accounts can request custom limits after <flux:link href="{{ route('signin') }}" wire:navigate>signing in</flux:link>.
+                            @endauth
+                        </flux:text>
+                    </div>
 
-{
-  "message": "API rate limit exceeded. Please retry after the time indicated by the Retry-After header."
-}</code></pre>
-                        </flux:card>
+                    <div class="divide-y divide-white/10 border-y border-white/10">
+                        <section class="grid gap-3 py-5 sm:grid-cols-[12rem_1fr] sm:gap-8">
+                            <div>
+                                <flux:heading level="2">Deposit fee</flux:heading>
+                                @if (auth()->user()?->role === 'owner' && ! auth()->user()?->is_admin)
+                                    <flux:text size="sm" class="mt-1">Your account's deposit fee</flux:text>
+                                @endif
+                            </div>
+                            <div>
+                                <p class="font-ledger text-sm font-medium tabular-nums text-white">{{ number_format((float) $depositFee, 2) }}%</p>
+                                <flux:text class="mt-1">@auth Your live rate. @else Current standard rate. @endauth Deducted before confirmed deposits are credited.</flux:text>
+                            </div>
+                        </section>
+
+                        <section class="grid gap-4 py-5 sm:grid-cols-[12rem_1fr] sm:gap-8">
+                            <flux:heading level="2">Minimum deposits</flux:heading>
+                            <dl class="grid gap-4 sm:grid-cols-3">
+                                <div>
+                                    <dt><flux:text size="sm">Bitcoin</flux:text></dt>
+                                    <dd class="mt-1 font-ledger text-sm font-medium tabular-nums text-white">{{ number_format((float) $settings->min_deposit_bitcoin, 8, '.', '') }} BTC</dd>
+                                </div>
+                                <div>
+                                    <dt><flux:text size="sm">USDT (TRC20)</flux:text></dt>
+                                    <dd class="mt-1 font-ledger text-sm font-medium tabular-nums text-white">{{ number_format((float) $settings->min_deposit_usdt_trc20, 2, '.', '') }} USDT</dd>
+                                </div>
+                                <div>
+                                    <dt><flux:text size="sm">USDT (ERC20)</flux:text></dt>
+                                    <dd class="mt-1 font-ledger text-sm font-medium tabular-nums text-white">{{ number_format((float) $settings->min_deposit_usdt_erc20, 2, '.', '') }} USDT</dd>
+                                </div>
+                            </dl>
+                        </section>
+
+                        <section class="grid gap-3 py-5 sm:grid-cols-[12rem_1fr] sm:gap-8">
+                            <flux:heading level="2">API request limit</flux:heading>
+                            <div>
+                                <p class="font-ledger text-sm font-medium tabular-nums text-white">{{ $rateLimit }} requests per minute</p>
+                                <flux:text class="mt-1">@auth Your live limit. @else Current standard limit. @endauth Each API key has its own counter.</flux:text>
+                                <flux:text size="sm" class="mt-2">Successful responses include <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Remaining</code>. Over the limit, the API returns <code>429 Too Many Requests</code> with <code>Retry-After</code>.</flux:text>
+                            </div>
+                        </section>
                     </div>
                 </flux:tab.panel>
 
-                <flux:tab.panel name="endpoints" class="pt-8">
+                <flux:tab.panel name="endpoints" :selected="$activeTab === 'endpoints'" class="pt-8">
                     @forelse ($endpoints as $group => $items)
                         <div class="mb-10">
                             <flux:heading size="xl" level="2" class="mb-4">{{ $group }}</flux:heading>
 
                             <div class="grid gap-6">
                                 @foreach ($items as $endpoint)
-                                    <flux:card>
+                                    <article class="border-t border-white/10 py-5 first:border-t-0">
                                         <div class="flex flex-wrap items-center gap-3">
                                             <flux:badge color="{{ $endpoint['method'] === 'GET' ? 'blue' : 'emerald' }}" size="sm">
                                                 {{ $endpoint['method'] }}
@@ -137,7 +171,7 @@ Retry-After: 47
 }</code></pre>
                                             </div>
                                         @endif
-                                    </flux:card>
+                                    </article>
                                 @endforeach
                             </div>
                         </div>
@@ -146,8 +180,8 @@ Retry-After: 47
                     @endforelse
                 </flux:tab.panel>
 
-                <flux:tab.panel name="webhooks" class="pt-8">
-                    <flux:card class="max-w-4xl">
+                <flux:tab.panel name="webhooks" :selected="$activeTab === 'webhooks'" class="pt-8">
+                    <div class="max-w-4xl border-y border-white/10 py-6">
                         <flux:heading size="2xl" level="2" class="mb-8">Webhooks</flux:heading>
 
                         <div class="space-y-8">
@@ -214,7 +248,7 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPo_SIGNATURE'] ?? '')) {
 }</code></pre>
                             </div>
                         </div>
-                    </flux:card>
+                    </div>
                 </flux:tab.panel>
             </flux:tab.group>
         </div>

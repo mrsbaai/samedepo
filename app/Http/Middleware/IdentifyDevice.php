@@ -27,7 +27,7 @@ class IdentifyDevice
             return $next($request);
         }
 
-        if ($user->fraud_status === 'blocked' && ! $user->is_admin) {
+        if ($user->fraud_status === 'blocked' && ! $user->is_admin && ! in_array($request->ip(), (array) config('security.exempt_ips'), true)) {
             auth()->guard('web')->logout();
             $request->session()->invalidate();
             abort(403);

@@ -114,8 +114,18 @@ test('a fraud-blocked user is signed out and forbidden', function () {
     $user = User::factory()->create();
     $user->forceFill(['fraud_status' => 'blocked'])->save();
 
-    $this->actingAs($user)->get(route('dashboard'))->assertForbidden();
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.50'])
+        ->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertForbidden();
     $this->assertGuest();
+});
+
+test('a fraud-blocked user can access the dashboard from an exempt local ip', function () {
+    $user = User::factory()->create();
+    $user->forceFill(['fraud_status' => 'blocked'])->save();
+
+    $this->actingAs($user)->get(route('dashboard'))->assertOk();
 });
 
 test('fraud level policies have sane defaults', function () {

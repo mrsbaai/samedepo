@@ -36,7 +36,7 @@
 
             {!! preg_replace(
                 ['/<svg\b/', '/<rect[^>]*fill="#ffffff"[^>]*\/>/i'],
-                ['<svg class="mx-auto text-accent [&_*]:fill-current"', ''],
+                ['<svg class="mx-auto text-white [&_*]:fill-current"', ''],
                 $qrCodeSvg
             ) !!}
 

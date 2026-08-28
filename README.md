@@ -18,6 +18,7 @@ Website owners who want customers to repeatedly top up a crypto balance.
 - **Signed webhooks** — configure an HTTPS endpoint and receive queued, HMAC-signed deposit-credit and withdrawal-status events with automatic retries.
 - **Withdrawals** — set per-network withdrawal addresses, request instant or approval-mode full-balance withdrawals, estimate network fees, and track on-chain sends.
 - **Admin console** — manage platform settings, withdrawal approvals, website owners, treasury balances, gas reserves, automatic top-up policies, network pauses, and public content.
+- **Public API documentation** — live endpoints, webhooks, deposit fees, per-network minimum deposits, and per-key request limits at `/api-docs`.
 
 ## Getting started
 
