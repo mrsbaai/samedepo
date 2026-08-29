@@ -6,11 +6,13 @@ use App\Http\Middleware\EnsureUserIsOwner;
 use App\Http\Middleware\GuardAgainstThreats;
 use App\Http\Middleware\IdentifyDevice;
 use App\Http\Middleware\SetUserAppearance;
+use App\Http\Middleware\TrustCloudflare;
 use App\Security\ForbiddenEventRecorder;
 use Illuminate\Foundation\Application;
-use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -21,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: null,
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->prepend(TrustCloudflare::class);
         $middleware->redirectGuestsTo('/signin');
         $middleware->web(append: GuardAgainstThreats::class);
         $middleware->api(append: GuardAgainstThreats::class);
@@ -34,7 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(ThrottleRequests::class, ApiKeyAuthentication::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->renderable(function (HttpExceptionInterface $e): ?\Symfony\Component\HttpFoundation\Response {
+        $exceptions->renderable(function (HttpExceptionInterface $e): ?Response {
             app(ForbiddenEventRecorder::class)->record($e, request());
 
             return null;
