@@ -43,11 +43,7 @@
     <body class="min-h-screen bg-zinc-900 text-zinc-100 antialiased">
         <div>
             <flux:header container class="bg-zinc-900/80 backdrop-blur-xl">
-                <flux:brand href="{{ url('/') }}" name="{{ config('app.name') }}" wire:navigate>
-                    <x-slot name="logo">
-                        <x-logo />
-                    </x-slot>
-                </flux:brand>
+                <x-brand :href="url('/')" />
 
                 <flux:navbar class="ml-6 max-lg:hidden">
                     <flux:navbar.item href="{{ url('/#how-it-works') }}">How it works</flux:navbar.item>

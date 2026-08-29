@@ -99,9 +99,10 @@
    Bump the logo wordmark up to text-xl / bold with a tight line-height so it
    reads as a brand mark rather than a small UI label. */
 [data-flux-brand].font-logo > div:last-child {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 700;
     line-height: 1;
+    transform: translateY(-2px);
 }
 
 /* Subtle continuous float for a single hero showpiece element (e.g. the

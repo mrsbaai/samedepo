@@ -13,11 +13,7 @@
     <div class="flex min-h-screen items-center justify-center p-6">
         <div class="w-full max-w-80 space-y-6">
             <div class="flex justify-center">
-                <flux:brand href="{{ url('/') }}" name="{{ config('app.name') }}" wire:navigate>
-                    <x-slot name="logo">
-                        <x-logo />
-                    </x-slot>
-                </flux:brand>
+                <x-brand :href="url('/')" />
             </div>
 
             @if (! empty($title))

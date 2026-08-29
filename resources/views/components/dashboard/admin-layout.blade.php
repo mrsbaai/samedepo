@@ -21,11 +21,7 @@
 <body class="min-h-screen bg-zinc-50 text-zinc-800 antialiased dark:bg-zinc-900 dark:text-white">
     <flux:sidebar sticky collapsible="mobile" class="dark bg-zinc-50 border-r border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
         <flux:sidebar.header>
-            <a href="{{ route('admin.dashboard') }}" wire:navigate class="group flex items-center gap-3">
-                <x-logo class="h-5 w-auto" />
-
-                <flux:text style="line-height: 1; transform: translateY(-2px)" class="text-xl font-semibold text-white">{{ config('app.name') }}</flux:text>
-            </a>
+            <x-brand :href="route('admin.dashboard')" />
 
             <flux:sidebar.collapse class="lg:hidden" />
         </flux:sidebar.header>
