@@ -22,7 +22,7 @@
     <flux:sidebar sticky collapsible="mobile" class="dark bg-zinc-50 border-r border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
         <flux:sidebar.header>
             <a href="{{ route('admin.dashboard') }}" wire:navigate class="group flex items-center gap-3">
-                <x-lucide-box class="h-5 w-5 text-white" />
+                <x-logo class="h-5 w-auto" />
 
                 <flux:text style="line-height: 1; transform: translateY(-2px)" class="text-xl font-semibold text-white">{{ config('app.name') }}</flux:text>
             </a>
