@@ -13,6 +13,7 @@ use App\Livewire\Admin\AnnouncementEditor;
 use App\Livewire\Admin\ContentManagement;
 use App\Livewire\Admin\EnvironmentEditor;
 use App\Livewire\Admin\FaqManager;
+use App\Livewire\Admin\ForbiddenLog;
 use App\Livewire\Admin\FraudIntelligence;
 use App\Livewire\Admin\LegalPageEditor;
 use App\Livewire\Admin\LogViewer;
@@ -192,6 +193,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function (): void {
     Route::get('/announcement', AnnouncementEditor::class)->name('admin.announcement');
     Route::get('/security/threats', ThreatProtection::class)->name('admin.security.threats');
     Route::get('/security/fraud', FraudIntelligence::class)->name('admin.security.fraud');
+    Route::get('/security/forbidden-log', ForbiddenLog::class)->name('admin.security.forbidden-log');
     Route::get('/platform-settings', PlatformSettings::class)->name('admin.platform-settings');
     Route::get('/withdrawal-settings', AdminWithdrawalSettings::class)->name('admin.withdrawal-settings');
     Route::get('/owners', WebsiteOwners::class)->name('admin.owners');

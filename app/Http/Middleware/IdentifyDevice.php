@@ -30,6 +30,8 @@ class IdentifyDevice
         if ($user->fraud_status === 'blocked' && ! $user->is_admin && ! in_array($request->ip(), (array) config('security.exempt_ips'), true)) {
             auth()->guard('web')->logout();
             $request->session()->invalidate();
+            $request->attributes->set('forbidden.source', 'identify_device');
+            $request->attributes->set('forbidden.reason', 'User fraud status is blocked');
             abort(403);
         }
 

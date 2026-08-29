@@ -6,10 +6,12 @@ use App\Http\Middleware\EnsureUserIsOwner;
 use App\Http\Middleware\GuardAgainstThreats;
 use App\Http\Middleware\IdentifyDevice;
 use App\Http\Middleware\SetUserAppearance;
+use App\Security\ForbiddenEventRecorder;
 use Illuminate\Foundation\Application;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,6 +33,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->prependToPriorityList(ThrottleRequests::class, ApiKeyAuthentication::class);
     })
-    ->withExceptions(function (Exceptions $exceptions) {
-        //
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->renderable(function (HttpExceptionInterface $e): ?\Symfony\Component\HttpFoundation\Response {
+            app(ForbiddenEventRecorder::class)->record($e, request());
+
+            return null;
+        });
     })->create();

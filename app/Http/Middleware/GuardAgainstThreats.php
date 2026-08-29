@@ -47,6 +47,8 @@ class GuardAgainstThreats
         }
 
         if (rescue(fn (): bool => IpBlocklist::isBlocked($request->ip()) || DeviceBlocklist::isBlocked($fingerprint), false, false)) {
+            $request->attributes->set('forbidden.source', 'blocklist');
+            $request->attributes->set('forbidden.reason', 'IP or device is blocklisted');
             abort(403);
         }
 
@@ -61,11 +63,17 @@ class GuardAgainstThreats
         if ($findings !== []) {
             $blocked = max(array_column($findings, 'severity')) >= (int) config('security.block_threshold');
 
-            rescue(function () use ($request, $findings, $fingerprint, $blocked): void {
-                $this->record($request, $findings, $fingerprint, $blocked);
-            }, report: false);
+            $threatEvent = rescue(function () use ($request, $findings, $fingerprint, $blocked): ?ThreatEvent {
+                return $this->record($request, $findings, $fingerprint, $blocked);
+            }, null, false);
 
             if ($blocked) {
+                if ($threatEvent !== null) {
+                    $request->attributes->set('forbidden.source', 'threat_detector');
+                    $request->attributes->set('forbidden.reason', $threatEvent->description);
+                    $request->attributes->set('forbidden.threat_event_id', $threatEvent->id);
+                }
+
                 abort(403);
             }
         }
@@ -85,11 +93,11 @@ class GuardAgainstThreats
     /**
      * @param  array<int, array{detector: string, type: string, description: string, payload: string, severity: int}>  $findings
      */
-    private function record(Request $request, array $findings, ?string $fingerprint, bool $blocked): void
+    private function record(Request $request, array $findings, ?string $fingerprint, bool $blocked): ThreatEvent
     {
         $worst = collect($findings)->sortByDesc('severity')->first();
 
-        ThreatEvent::query()->create([
+        $threatEvent = ThreatEvent::query()->create([
             'detector' => $worst['detector'],
             'threat_type' => $worst['type'],
             'severity' => $worst['severity'],
@@ -111,6 +119,8 @@ class GuardAgainstThreats
                 DeviceBlocklist::block($fingerprint, $reason, 'threat_detector');
             }
         }
+
+        return $threatEvent;
     }
 
     private function fingerprint(Request $request): ?string

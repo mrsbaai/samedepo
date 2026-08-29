@@ -86,6 +86,7 @@
                     <flux:navmenu class="dark">
                         <flux:navmenu.item href="{{ route('admin.security.threats') }}" :current="request()->routeIs('admin.security.threats')" wire:navigate>Threats</flux:navmenu.item>
                         <flux:navmenu.item href="{{ route('admin.security.fraud') }}" :current="request()->routeIs('admin.security.fraud')" wire:navigate>Fraud</flux:navmenu.item>
+                        <flux:navmenu.item href="{{ route('admin.security.forbidden-log') }}" :current="request()->routeIs('admin.security.forbidden-log')" wire:navigate>Forbidden Log</flux:navmenu.item>
                     </flux:navmenu>
                 </flux:dropdown>
 
@@ -211,6 +212,7 @@
                 <flux:navlist.group heading="Security" expandable>
                     <flux:navlist.item href="{{ route('admin.security.threats') }}" :current="request()->routeIs('admin.security.threats')" wire:navigate>Threats</flux:navlist.item>
                     <flux:navlist.item href="{{ route('admin.security.fraud') }}" :current="request()->routeIs('admin.security.fraud')" wire:navigate>Fraud</flux:navlist.item>
+                    <flux:navlist.item href="{{ route('admin.security.forbidden-log') }}" :current="request()->routeIs('admin.security.forbidden-log')" wire:navigate>Forbidden Log</flux:navlist.item>
                 </flux:navlist.group>
 
                 <flux:navlist.group heading="Finance" expandable>

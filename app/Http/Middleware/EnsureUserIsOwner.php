@@ -13,6 +13,8 @@ class EnsureUserIsOwner
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()?->role !== 'owner') {
+            $request->attributes->set('forbidden.source', 'ensure_owner');
+            $request->attributes->set('forbidden.reason', 'Owner role required');
             abort(403);
         }
 
