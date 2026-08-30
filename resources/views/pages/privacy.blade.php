@@ -1,7 +1,9 @@
 <x-layouts.public :title="$page->title">
     <flux:heading size="xl" level="1">{{ $page->title }}</flux:heading>
 
-    <div class="prose prose-zinc mt-6 dark:prose-invert">
-        {!! $page->content !!}
-    </div>
+    <flux:card class="mt-6">
+        <div class="prose prose-zinc dark:prose-invert">
+            {!! $page->content !!}
+        </div>
+    </flux:card>
 </x-layouts.public>
