@@ -83,6 +83,7 @@
                             @else
                                 These are the current standard values. Higher-volume accounts can request custom limits after <flux:link href="{{ route('signin') }}" wire:navigate>signing in</flux:link>.
                             @endauth
+                            No hidden fees.
                         </flux:text>
                     </div>
 

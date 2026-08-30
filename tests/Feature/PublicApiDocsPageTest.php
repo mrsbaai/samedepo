@@ -24,6 +24,7 @@ test('guests can view the api docs page with instructions', function () {
         ->assertSee('12.50 USDT')
         ->assertSee('15.00 USDT')
         ->assertSeeText('These are the current standard values.')
+        ->assertSeeText('No hidden fees.')
         ->assertSeeText('Higher-volume accounts can request custom limits')
         ->assertSee('Authorization: Bearer')
         ->assertSee('v1/customers/customer-123')
