@@ -13,7 +13,7 @@
     <div class="flex min-h-screen items-center justify-center p-6">
         <div class="w-full max-w-80 space-y-6">
             <div class="flex justify-center">
-                <x-brand :href="url('/')" />
+                <x-brand :href="url('/')" variant="auth" />
             </div>
 
             @if (! empty($title))

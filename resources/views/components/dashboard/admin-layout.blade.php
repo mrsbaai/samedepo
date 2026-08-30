@@ -21,7 +21,7 @@
 <body class="min-h-screen bg-zinc-50 text-zinc-800 antialiased dark:bg-zinc-900 dark:text-white">
     <flux:sidebar sticky collapsible="mobile" class="dark bg-zinc-50 border-r border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
         <flux:sidebar.header>
-            <x-brand :href="route('admin.dashboard')" />
+            <x-brand :href="route('admin.dashboard')" variant="authenticated" />
 
             <flux:sidebar.collapse class="lg:hidden" />
         </flux:sidebar.header>

@@ -13,5 +13,6 @@ BLADE);
         ->toContain('Sign in')
         ->toContain('Authentication content')
         ->toContain('dark:bg-zinc-900')
+        ->toContain('data-brand-variant="auth"')
         ->toContain(config('app.name'));
 });

@@ -1,8 +1,8 @@
 <x-layouts.public :title="'Deposit addresses that never change'" :description="'samedepo gives every customer of a website owner the same permanent crypto deposit address and automatic top-up tracking.'">
 
     {{-- Hero --}}
-    <section class="py-20 sm:py-28">
-        <div class="grid gap-12 lg:grid-cols-2 lg:items-center">
+    <section class="py-12 sm:py-28">
+        <div class="grid gap-10 sm:gap-12 lg:grid-cols-2 lg:items-center">
             <div class="text-center lg:text-left">
                 <div class="mb-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
                     <flux:badge icon="check" color="amber" size="sm">No invoices, No expiring links.</flux:badge>
@@ -18,9 +18,9 @@
                     addresses. The same GET request returns the same addresses every time.
                 </flux:text>
 
-                <div class="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-                    <flux:button href="{{ route('signup') }}" variant="primary" wire:navigate>Create a free account</flux:button>
-                    <flux:button href="{{ route('public.api-docs') }}" variant="ghost" wire:navigate>Read the API docs</flux:button>
+                <div class="mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-10 sm:flex-row sm:items-center lg:justify-start">
+                    <flux:button href="{{ route('signup') }}" variant="primary" class="justify-center" wire:navigate>Create a free account</flux:button>
+                    <flux:button href="{{ route('public.api-docs') }}" variant="ghost" class="justify-center" wire:navigate>Read the API docs</flux:button>
                 </div>
 
             </div>
@@ -64,43 +64,35 @@
 
             <flux:timeline size="lg" class="[--flux-timeline-item-gap:2rem]">
                 @foreach ([
-                    ['Your server requests the customer', 'You send', 'A GET request with a reference from your own system, such as cus_482.'],
-                    ['samedepo returns permanent addresses', 'You receive', 'One Bitcoin, one USDT (TRC20), and one USDT (ERC20) deposit address.'],
-                    ['We credit confirmed deposits', 'Automatic', 'We watch the network, wait for confirmations, credit your balance, and send the webhook.'],
-                ] as [$heading, $label, $copy])
+                    ['Send a customer reference', 'Make one GET request with a reference from your system, like cus_482.'],
+                    ['Get permanent deposit addresses', 'samedepo returns one permanent address for Bitcoin, USDT (TRC20), and USDT (ERC20).'],
+                    ['Receive confirmed deposits', 'We watch for deposits, wait for confirmations, credit your balance, and send your webhook.'],
+                ] as [$heading, $copy])
                     <flux:timeline.item>
                         <flux:timeline.indicator>{{ $loop->iteration }}</flux:timeline.indicator>
                         <flux:timeline.content>
                             <flux:heading size="lg">{{ $heading }}</flux:heading>
-                            <div class="mt-2 flex items-start gap-3">
-                                <flux:badge size="sm" color="amber" class="shrink-0">{{ $label }}</flux:badge>
-                                <flux:text class="text-zinc-400">{{ $copy }}</flux:text>
-                            </div>
+                            <flux:text class="mt-2 text-zinc-400">{{ $copy }}</flux:text>
                         </flux:timeline.content>
                     </flux:timeline.item>
                 @endforeach
             </flux:timeline>
         </div>
 
-        <div class="mt-16">
-            <flux:heading size="sm" level="3" class="mb-4 text-zinc-400">Supported networks</flux:heading>
-            <flux:card variant="soft" class="flex flex-col gap-5 bg-zinc-800 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-4">
+        <div class="mx-auto mt-12 max-w-2xl sm:mt-16">
+            <flux:heading size="sm" level="3" class="mb-3 text-center text-zinc-400 sm:mb-4">Deposit networks</flux:heading>
+            <flux:card variant="soft" class="bg-zinc-800 p-4 sm:p-5">
+                <div class="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-center sm:text-left">
                     <div class="flex -space-x-2">
                         @foreach (['bitcoin.svg', 'usdt-trc20.svg', 'usdt-erc20.svg'] as $icon)
                             <img src="{{ asset('crypto/'.$icon) }}" alt="" class="size-10 rounded-full ring-2 ring-zinc-800" />
                         @endforeach
                     </div>
+
                     <div>
                         <flux:heading>Three networks. One integration.</flux:heading>
                         <flux:text size="sm" variant="subtle">Permanent deposit addresses across Bitcoin and USDT.</flux:text>
                     </div>
-                </div>
-
-                <div class="flex flex-wrap gap-2 sm:justify-end">
-                    @foreach (['Bitcoin', 'USDT (TRC20)', 'USDT (ERC20)'] as $network)
-                        <flux:badge size="sm">{{ $network }}</flux:badge>
-                    @endforeach
                 </div>
             </flux:card>
         </div>

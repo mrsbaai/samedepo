@@ -35,7 +35,7 @@
     <flux:header sticky container class="dark border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 flex items-center">
         <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" aria-label="{{ __('Toggle navigation') }}" />
 
-        <x-brand :href="$homeRoute" class="max-lg:hidden" />
+        <x-brand :href="$homeRoute" variant="authenticated" class="max-lg:hidden" />
 
         <flux:navbar class="-mb-px max-lg:hidden ml-6">
             @if ($isAdmin)
@@ -161,7 +161,7 @@
 
     <flux:sidebar collapsible="mobile" sticky class="dark lg:hidden border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
         <flux:sidebar.header>
-            <x-brand :href="$homeRoute" />
+            <x-brand :href="$homeRoute" variant="authenticated" />
 
             <flux:sidebar.collapse class="lg:hidden" />
         </flux:sidebar.header>

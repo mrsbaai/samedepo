@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap');
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
 
@@ -23,7 +24,7 @@
  */
 @theme {
     /* Accent (buttons, links, focus rings, confirmed/success states) */
-    --color-accent: var(--color-amber-400);
+    --color-accent: #ffb900;
     --color-accent-content: var(--color-amber-600);
     --color-accent-foreground: var(--color-amber-950);
 
@@ -49,10 +50,8 @@
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         'Liberation Mono', 'Courier New', monospace;
 
-    /* Logo wordmark: Space Grotesk — a distinctive geometric sans with the
-       same technical lineage as Space Mono, giving the samedepo wordmark a
-       slightly more crafted, ownable feel than the body Geist face. */
-    --font-logo: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    /* Logo wordmark: Poppins Semibold for a clean, confident brand mark. */
+    --font-logo: 'Poppins', ui-sans-serif, system-ui, sans-serif;
 
     /* Spacing personality: compact and information-dense (treasury/ledger
        console), not airy marketing whitespace, except on public pages
@@ -64,7 +63,7 @@
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-amber-400);
+        --color-accent: #ffb900;
         --color-accent-content: var(--color-amber-400);
         --color-accent-foreground: var(--color-amber-950);
     }
@@ -99,7 +98,6 @@
    Bump the logo wordmark up to text-xl / bold with a tight line-height so it
    reads as a brand mark rather than a small UI label. */
 [data-brand] {
-    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     height: 1.5rem;
@@ -113,13 +111,37 @@
 }
 
 [data-brand] > [data-brand-name] {
-    color: var(--color-accent);
+    color: #fff;
     font-family: var(--font-logo);
     font-size: 1.125rem;
-    font-weight: 500;
+    font-weight: 600;
     line-height: 1.5rem;
     letter-spacing: -0.03em;
     white-space: nowrap;
+}
+
+[data-brand-variant='auth'] {
+    height: 2.5rem;
+}
+
+[data-brand-variant='auth'] > img {
+    width: 2.5rem;
+    height: 2.5rem;
+    filter: brightness(0);
+}
+
+.dark [data-brand-variant='auth'] > img {
+    filter: brightness(0) invert(1);
+}
+
+[data-brand-variant='authenticated'] {
+    height: 1.75rem;
+}
+
+[data-brand-variant='authenticated'] > img {
+    width: 1.75rem;
+    height: 1.75rem;
+    filter: brightness(0) invert(1);
 }
 
 /* Subtle continuous float for a single hero showpiece element (e.g. the
