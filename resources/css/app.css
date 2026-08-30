@@ -101,28 +101,24 @@
 [data-brand] {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem; /* 8px */
-    flex: none;
-    height: 24px;
+    gap: 0.5rem;
+    height: 1.5rem;
     text-decoration: none;
 }
 
 [data-brand] > img {
-    display: block;
-    width: 24px;
-    height: 24px;
-    flex: 0 0 24px;
+    width: 1.5rem;
+    height: 1.5rem;
     object-fit: contain;
 }
 
 [data-brand] > [data-brand-name] {
-    display: block;
-    color: #ffb900;
+    color: var(--color-accent);
     font-family: var(--font-logo);
-    font-size: 20px;
-    font-weight: 450;
-    line-height: 24px;
-    letter-spacing: -0.025em;
+    font-size: 1.125rem;
+    font-weight: 500;
+    line-height: 1.5rem;
+    letter-spacing: -0.03em;
     white-space: nowrap;
 }
 

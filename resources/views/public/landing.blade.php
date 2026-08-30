@@ -1,4 +1,4 @@
-<x-layouts.public :title="'Permanent crypto deposit addresses for your customers'" :description="'samedepo gives every customer of a website owner the same permanent crypto deposit address and automatic top-up tracking.'">
+<x-layouts.public :title="'Deposit addresses that never change'" :description="'samedepo gives every customer of a website owner the same permanent crypto deposit address and automatic top-up tracking.'">
 
     {{-- Hero --}}
     <section class="py-20 sm:py-28">

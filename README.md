@@ -29,6 +29,10 @@ Website owners who want customers to repeatedly top up a crypto balance.
 5. `php artisan migrate`
 6. `npm run build` (or `npm run dev` for active development)
 
+## Deployment
+
+Use the project `/deploy` workflow. It builds Vite assets locally, uploads the build archive, applies web-readable permissions, verifies manifest hashes, and requires every deployed CSS/JS asset to return HTTP 200.
+
 ## Tech stack
 
 Built with [Laravel](https://laravel.com), [Livewire](https://livewire.laravel.com), [Flux Pro](https://fluxui.dev), and [Tailwind CSS](https://tailwindcss.com).
