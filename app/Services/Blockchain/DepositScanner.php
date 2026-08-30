@@ -73,7 +73,7 @@ class DepositScanner
 
             $status = $transaction->confirmations >= $confirmationRequirement ? 'pending' : 'detected';
 
-            Deposit::updateOrCreate(
+            $deposit = Deposit::firstOrCreate(
                 [
                     'deposit_address_id' => $addressRecord->id,
                     'tx_hash' => $transaction->txHash,
@@ -88,6 +88,13 @@ class DepositScanner
                     'detected_at' => now(),
                 ]
             );
+
+            if (! in_array($deposit->status, ['credited', 'ignored'], true)) {
+                $deposit->update([
+                    'confirmation_count' => $transaction->confirmations,
+                    'status' => $status,
+                ]);
+            }
         }
     }
 }
