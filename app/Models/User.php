@@ -38,6 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'is_admin',
         'appearance',
         'deletion_requested_at',
+        'terms_accepted_at',
     ];
 
     protected $hidden = [
@@ -58,6 +59,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_admin' => 'boolean',
             'is_active' => 'boolean',
             'deletion_requested_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
             'two_factor_secret' => 'encrypted',
         ];
     }

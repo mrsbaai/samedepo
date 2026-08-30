@@ -18,6 +18,8 @@ class Signup extends Component
 
     public string $passwordConfirmation = '';
 
+    public bool $acceptedTerms = false;
+
     public function signup(SignupUser $signupUser): void
     {
         $this->email = mb_strtolower(trim($this->email));
@@ -28,6 +30,7 @@ class Signup extends Component
             email: $validated['email'],
             password: $validated['password'],
             request: request(),
+            acceptedTerms: $validated['acceptedTerms'],
         );
 
         $this->redirectRoute('verification.notice', navigate: true);
@@ -47,6 +50,7 @@ class Signup extends Component
                     ->numbers()
                     ->uncompromised(),
             ],
+            'acceptedTerms' => ['required', 'accepted'],
         ];
     }
 

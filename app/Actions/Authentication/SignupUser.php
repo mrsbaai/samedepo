@@ -13,12 +13,13 @@ class SignupUser
 {
     public function __construct(private readonly StatefulGuard $guard) {}
 
-    public function execute(string $email, string $password, Request $request): User
+    public function execute(string $email, string $password, Request $request, bool $acceptedTerms = false): User
     {
         $user = User::query()->create([
             'email' => mb_strtolower(trim($email)),
             'password' => $password,
             'is_active' => false,
+            'terms_accepted_at' => $acceptedTerms ? now() : null,
         ]);
 
         $this->guard->login($user);

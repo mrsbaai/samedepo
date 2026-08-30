@@ -16,6 +16,7 @@ it('validates signup fields', function (): void {
         ->set('email', 'not-an-email')
         ->set('password', 'weak')
         ->set('passwordConfirmation', 'different')
+        ->set('acceptedTerms', true)
         ->call('signup')
         ->assertHasErrors([
             'email' => 'email',
@@ -28,8 +29,19 @@ it('rejects a password that matches the email', function (): void {
         ->set('email', 'taylor@example.test')
         ->set('password', 'taylor@example.test')
         ->set('passwordConfirmation', 'taylor@example.test')
+        ->set('acceptedTerms', true)
         ->call('signup')
         ->assertHasErrors(['password' => 'different']);
+});
+
+it('requires accepting the terms of service and privacy policy', function (): void {
+    Livewire::test(Signup::class)
+        ->set('email', 'taylor@example.test')
+        ->set('password', 'VioletRidge4829')
+        ->set('passwordConfirmation', 'VioletRidge4829')
+        ->set('acceptedTerms', false)
+        ->call('signup')
+        ->assertHasErrors(['acceptedTerms' => 'accepted']);
 });
 
 it('signs up an inactive unverified user and sends a queued verification notification', function (): void {
@@ -40,6 +52,7 @@ it('signs up an inactive unverified user and sends a queued verification notific
         ->set('email', '  TAYLOR@EXAMPLE.TEST ')
         ->set('password', 'VioletRidge4829')
         ->set('passwordConfirmation', 'VioletRidge4829')
+        ->set('acceptedTerms', true)
         ->call('signup')
         ->assertRedirect(route('verification.notice'));
 
@@ -47,6 +60,7 @@ it('signs up an inactive unverified user and sends a queued verification notific
 
     expect($user->is_active)->toBeFalse()
         ->and($user->email_verified_at)->toBeNull()
+        ->and($user->terms_accepted_at)->not->toBeNull()
         ->and(auth()->id())->toBe($user->id);
 
     Notification::assertSentTo($user, VerifyEmailNotification::class);
@@ -61,6 +75,7 @@ it('rejects a duplicate email regardless of casing', function (): void {
         ->set('email', 'TAYLOR@EXAMPLE.TEST')
         ->set('password', 'VioletRidge4829')
         ->set('passwordConfirmation', 'VioletRidge4829')
+        ->set('acceptedTerms', true)
         ->call('signup')
         ->assertHasErrors(['email' => 'unique']);
 });
