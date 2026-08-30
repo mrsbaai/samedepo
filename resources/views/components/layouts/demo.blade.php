@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? 'Demo' }} · {{ config('app.name') }}</title>
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <x-favicon />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @fluxAppearance
 </head>
