@@ -1,7 +1,6 @@
 @props(['href'])
 
-<flux:brand :href="$href" :name="config('app.name')" {{ $attributes->class('font-logo') }} wire:navigate>
-    <x-slot name="logo">
-        <x-logo />
-    </x-slot>
-</flux:brand>
+<a href="{{ $href }}" {{ $attributes->class('font-logo') }} data-brand wire:navigate>
+    <x-logo alt="" />
+    <span data-brand-name>{{ config('app.name') }}</span>
+</a>

@@ -98,11 +98,32 @@
 /* The Flux brand component renders the wordmark in a text-sm font-medium div.
    Bump the logo wordmark up to text-xl / bold with a tight line-height so it
    reads as a brand mark rather than a small UI label. */
-[data-flux-brand].font-logo > div:last-child {
-    font-size: 1.1rem;
-    font-weight: 700;
-    line-height: 1;
-    transform: translateY(-2px);
+[data-brand] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem; /* 8px */
+    flex: none;
+    height: 24px;
+    text-decoration: none;
+}
+
+[data-brand] > img {
+    display: block;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    object-fit: contain;
+}
+
+[data-brand] > [data-brand-name] {
+    display: block;
+    color: #ffb900;
+    font-family: var(--font-logo);
+    font-size: 20px;
+    font-weight: 450;
+    line-height: 24px;
+    letter-spacing: -0.025em;
+    white-space: nowrap;
 }
 
 /* Subtle continuous float for a single hero showpiece element (e.g. the

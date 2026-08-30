@@ -1,3 +1,3 @@
-@props(['class' => 'h-5 w-auto'])
+@props(['class' => 'h-5 w-auto', 'alt' => null])
 
-<img src="{{ asset('logo.svg') }}" alt="{{ config('app.name') }} logo" {{ $attributes->merge(['class' => $class]) }}>
+<img src="{{ asset('logo.svg') }}" alt="{{ $alt ?? config('app.name').' logo' }}" {{ $attributes->merge(['class' => $class]) }}>
