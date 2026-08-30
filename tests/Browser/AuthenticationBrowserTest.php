@@ -65,7 +65,7 @@ test('guest can recover password by otp', function () {
             ->waitFor('input[name="email"]')
             ->type('input[name="email"]', $user->email)
             ->press('Send recovery code')
-            ->waitForText('If an account exists, we sent a recovery code.');
+            ->waitForLocation('/verify-otp');
 
         $challenge = OtpChallenge::query()
             ->where('email', $user->email)
@@ -77,8 +77,7 @@ test('guest can recover password by otp', function () {
             $challenge->forceFill(['code' => Hash::make('123456')])->save();
         }
 
-        $browser->visit('/verify-otp?email='.urlencode($user->email))
-            ->waitFor('input[aria-label="Verification digit 1"]');
+        $browser->waitFor('input[aria-label="Verification digit 1"]');
 
         $browser->script("
             const el = document.querySelector('form[wire\\\\:submit=\"verify\"]');

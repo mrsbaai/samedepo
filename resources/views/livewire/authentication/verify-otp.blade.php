@@ -22,7 +22,12 @@
         class="mx-auto"
     />
 
-    <flux:button wire:click="resend" variant="ghost" class="w-full" wire:loading.attr="disabled">
+    <flux:button type="submit" variant="primary" class="w-full" wire:loading.attr="disabled">
+        <span wire:loading.remove wire:target="verify">Verify code</span>
+        <span wire:loading wire:target="verify">Verifying…</span>
+    </flux:button>
+
+    <flux:button type="button" wire:click="resend" variant="ghost" class="w-full" wire:loading.attr="disabled">
         <span wire:loading.remove wire:target="resend">Resend code</span>
         <span wire:loading wire:target="resend">Sending code…</span>
     </flux:button>

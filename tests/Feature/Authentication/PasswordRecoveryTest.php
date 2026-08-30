@@ -14,24 +14,22 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
 
-it('acknowledges recovery requests identically whether an account exists', function (): void {
+it('acknowledges recovery requests identically and redirects to OTP verification', function (): void {
     Notification::fake();
     $user = User::factory()->create(['email' => 'taylor@example.test']);
 
-    $existing = Livewire::test(ForgotPassword::class)
+    Livewire::test(ForgotPassword::class)
         ->set('email', $user->email)
         ->call('sendCode')
-        ->get('status');
+        ->assertRedirect(route('password.otp', ['email' => $user->email]));
 
     RateLimiter::clear('password-recovery|unknown@example.test|127.0.0.1');
-    $unknown = Livewire::test(ForgotPassword::class)
+    Livewire::test(ForgotPassword::class)
         ->set('email', 'unknown@example.test')
         ->call('sendCode')
-        ->get('status');
+        ->assertRedirect(route('password.otp', ['email' => 'unknown@example.test']));
 
-    expect($existing)->toBe('If an account exists, we sent a recovery code.')
-        ->and($unknown)->toBe($existing)
-        ->and(OtpChallenge::query()->where('email', $user->email)->count())->toBe(1)
+    expect(OtpChallenge::query()->where('email', $user->email)->count())->toBe(1)
         ->and(OtpChallenge::query()->where('email', 'unknown@example.test')->exists())->toBeFalse();
 
     Notification::assertSentTo($user, PasswordRecoveryCodeNotification::class);
@@ -173,10 +171,19 @@ it('resets the password, consumes the OTP, and records a security event', functi
 it('renders the Flux recovery controls and approved OTP primitive', function (): void {
     Livewire::test(ForgotPassword::class)
         ->assertSee('Email')
-        ->assertSee('Send reset instructions')
+        ->assertSee('Send recovery code')
         ->assertSeeHtml('wire:loading');
 
     Livewire::withQueryParams(['email' => 'taylor@example.test'])->test(VerifyOtp::class)
         ->assertSee('Enter the 6-digit code')
         ->assertSeeHtml('inputmode="numeric"');
+});
+
+it('includes a direct link to the OTP verification page in the recovery email', function (): void {
+    $user = User::factory()->create(['email' => 'recovery-link@example.test']);
+    $notification = new PasswordRecoveryCodeNotification('123456');
+    $mail = $notification->toMail($user);
+
+    expect($mail->actionUrl)->toBe(route('password.otp', ['email' => $user->email]))
+        ->and($mail->actionText)->toBe('Enter recovery code');
 });

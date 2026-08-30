@@ -26,6 +26,7 @@ class PasswordRecoveryCodeNotification extends Notification implements ShouldQue
             ->subject('Your password recovery code')
             ->greeting('Hello,')
             ->line('Use the following code to reset your password: '.$this->code)
+            ->action('Enter recovery code', route('password.otp', ['email' => $notifiable->email]))
             ->line('This code expires in '.config('authentication.otp.expires_after_minutes').' minutes.')
             ->line('If you did not request this, no action is required.');
     }

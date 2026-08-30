@@ -14,6 +14,6 @@
     </flux:button>
 
     <flux:text class="text-center text-sm">
-        Not working for some reason? <flux:link :href="route('password.request')" wire:navigate>Request a new reset link</flux:link>
+        Not working for some reason? <flux:link :href="route('password.request')" wire:navigate>Request a new recovery code</flux:link>
     </flux:text>
 </form>

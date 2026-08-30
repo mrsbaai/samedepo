@@ -23,12 +23,16 @@ class ForgotPassword extends Component
 
         $key = 'password-recovery|'.$this->email.'|'.request()->ip();
 
-        if (! RateLimiter::tooManyAttempts($key, (int) config('authentication.rate_limits.password_recovery'))) {
-            RateLimiter::hit($key, 60);
-            $issuePasswordRecoveryCode->execute($this->email, request());
+        if (RateLimiter::tooManyAttempts($key, (int) config('authentication.rate_limits.password_recovery'))) {
+            $this->status = 'Please wait before requesting another recovery code.';
+
+            return;
         }
 
-        $this->status = 'If an account exists, we sent a recovery code.';
+        RateLimiter::hit($key, 60);
+        $issuePasswordRecoveryCode->execute($this->email, request());
+
+        $this->redirectRoute('password.otp', ['email' => $this->email], navigate: true);
     }
 
     protected function rules(): array

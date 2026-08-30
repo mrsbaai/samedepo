@@ -8,8 +8,8 @@
     <flux:input wire:model="email" label="Email" type="email" autocomplete="email" placeholder="email@example.com" required autofocus />
 
     <flux:button type="submit" variant="primary" class="w-full" wire:loading.attr="disabled">
-        <span wire:loading.remove wire:target="sendCode">Send reset instructions</span>
-        <span wire:loading wire:target="sendCode">Sending instructions…</span>
+        <span wire:loading.remove wire:target="sendCode">Send recovery code</span>
+        <span wire:loading wire:target="sendCode">Sending recovery code…</span>
     </flux:button>
 
     <flux:text class="text-center text-sm">
