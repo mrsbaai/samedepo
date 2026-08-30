@@ -53,6 +53,27 @@
         </div>
     </section>
 
+    {{-- Supported networks --}}
+    <section class="py-12 sm:py-16">
+        <div class="mx-auto max-w-2xl">
+            <flux:heading size="sm" level="3" class="mb-3 text-center text-zinc-400 sm:mb-4">Supported networks</flux:heading>
+            <flux:card variant="soft" class="bg-zinc-800 p-4 sm:p-5">
+                <div class="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-center sm:text-left">
+                    <div class="flex -space-x-2">
+                        @foreach (['bitcoin.svg', 'usdt-trc20.svg', 'usdt-erc20.svg'] as $icon)
+                            <img src="{{ asset('crypto/'.$icon) }}" alt="" class="size-10 rounded-full ring-2 ring-zinc-800" />
+                        @endforeach
+                    </div>
+
+                    <div>
+                        <flux:heading>Three networks. One integration.</flux:heading>
+                        <flux:text size="sm" variant="subtle">Permanent deposit addresses across Bitcoin and USDT.</flux:text>
+                    </div>
+                </div>
+            </flux:card>
+        </div>
+    </section>
+
     {{-- How it works --}}
     <section id="how-it-works" class="py-20 sm:py-24 scroll-mt-20">
         <div class="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
@@ -77,24 +98,6 @@
                     </flux:timeline.item>
                 @endforeach
             </flux:timeline>
-        </div>
-
-        <div class="mx-auto mt-12 max-w-2xl sm:mt-16">
-            <flux:heading size="sm" level="3" class="mb-3 text-center text-zinc-400 sm:mb-4">Deposit networks</flux:heading>
-            <flux:card variant="soft" class="bg-zinc-800 p-4 sm:p-5">
-                <div class="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-center sm:text-left">
-                    <div class="flex -space-x-2">
-                        @foreach (['bitcoin.svg', 'usdt-trc20.svg', 'usdt-erc20.svg'] as $icon)
-                            <img src="{{ asset('crypto/'.$icon) }}" alt="" class="size-10 rounded-full ring-2 ring-zinc-800" />
-                        @endforeach
-                    </div>
-
-                    <div>
-                        <flux:heading>Three networks. One integration.</flux:heading>
-                        <flux:text size="sm" variant="subtle">Permanent deposit addresses across Bitcoin and USDT.</flux:text>
-                    </div>
-                </div>
-            </flux:card>
         </div>
     </section>
 
