@@ -145,6 +145,16 @@
     filter: brightness(0) invert(1);
 }
 
+/* The Flux/Tiptap editor wraps list-item text in <p> tags. Without this, Typography
+   adds paragraph margins inside every <li>, turning compact lists into spaced-out
+   blocks with blank lines between bullets. */
+.prose li > p,
+.prose li > p:first-child,
+.prose li > p:last-child {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
 /* Subtle continuous float for a single hero showpiece element (e.g. the
    landing page's code snippet). Not a mouse-hover effect — the element
    gently bobs on its own to draw the eye without being distracting.
