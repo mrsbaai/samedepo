@@ -11,6 +11,16 @@ test('guests see privacy and terms links in the public footer', function () {
         ->assertSee(route('terms'));
 });
 
+test('authenticated users see privacy and terms links in the public footer', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('public.landing'))
+        ->assertOk()
+        ->assertSee(route('privacy'))
+        ->assertSee(route('terms'));
+});
+
 test('guests can view the privacy page', function () {
     $this->get(route('privacy'))
         ->assertOk()
