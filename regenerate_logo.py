@@ -77,10 +77,10 @@ def add_svg_padding(svg_content: str, padding: int) -> str:
     )
 
 favicon_svg = svg.replace('<title>samedepo logo</title>', '<title>samedepo favicon</title>')
-favicon_svg = add_svg_padding(favicon_svg, 2)
+favicon_svg = add_svg_padding(favicon_svg, 1)
 (PUBLIC / 'favicon.svg').write_text(favicon_svg, encoding='utf-8')
 
-FAVICON_EXTRA_PADDING = 2
+FAVICON_EXTRA_PADDING = 1
 
 for size in (16, 32, 48, 180, 192, 512):
     content_size = size - FAVICON_EXTRA_PADDING * 2
