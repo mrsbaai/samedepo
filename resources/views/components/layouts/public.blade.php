@@ -108,6 +108,10 @@
                 <flux:text size="sm" variant="subtle">&copy; {{ date('Y') }} samedepo. All rights reserved.</flux:text>
                 <flux:navbar class="gap-1">
                     <flux:navbar.item href="{{ route('public.api-docs') }}" wire:navigate>API Docs</flux:navbar.item>
+                    @guest
+                        <flux:navbar.item href="{{ route('privacy') }}" wire:navigate>Privacy</flux:navbar.item>
+                        <flux:navbar.item href="{{ route('terms') }}" wire:navigate>Terms</flux:navbar.item>
+                    @endguest
                 </flux:navbar>
             </div>
         </footer>

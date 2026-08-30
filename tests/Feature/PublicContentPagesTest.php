@@ -4,6 +4,13 @@ use App\Models\Faq;
 use App\Models\PublicContentPage;
 use App\Models\User;
 
+test('guests see privacy and terms links in the public footer', function () {
+    $this->get(route('public.landing'))
+        ->assertOk()
+        ->assertSee(route('privacy'))
+        ->assertSee(route('terms'));
+});
+
 test('guests can view the privacy page', function () {
     $this->get(route('privacy'))
         ->assertOk()
