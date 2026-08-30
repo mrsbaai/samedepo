@@ -50,6 +50,23 @@ test('authenticated users can view the support page with ordered FAQs', function
     $response->assertSeeInOrder(['First question', 'Second question']);
 });
 
+test('FAQ answers render safe anchor tags as Flux links', function () {
+    Faq::create([
+        'question' => 'Where are the current limits?',
+        'answer' => 'See <a href="https://samedepo.com/api-docs?tab=limits">current fees and limits</a>. <script>alert("unsafe")</script>',
+        'position' => 1,
+    ]);
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('support'))
+        ->assertOk()
+        ->assertSee('href="https://samedepo.com/api-docs?tab=limits"', false)
+        ->assertSee('current fees and limits')
+        ->assertDontSee('<script>alert("unsafe")</script>', false);
+});
+
 test('the privacy page reflects edited content', function () {
     LegalPage::query()->updateOrCreate(
         ['slug' => 'privacy'],

@@ -3,7 +3,17 @@
         <flux:accordion.item>
             <flux:accordion.heading>{{ $faq->question }}</flux:accordion.heading>
             <flux:accordion.content>
-                {{ $faq->answer }}
+                @php
+                    $answerParts = preg_split('/(<a href="https?:\/\/[^\"]+">.*?<\/a>)/i', $faq->answer, -1, PREG_SPLIT_DELIM_CAPTURE);
+                @endphp
+
+                @foreach ($answerParts as $answerPart)
+                    @if (preg_match('/^<a href="(https?:\/\/[^\"]+)">(.*?)<\/a>$/is', $answerPart, $link))
+                        <flux:link :href="$link[1]">{{ strip_tags($link[2]) }}</flux:link>
+                    @else
+                        {{ strip_tags($answerPart) }}
+                    @endif
+                @endforeach
 
                 @if ($faq->image_path)
                     <div class="mt-3 flex justify-center">
