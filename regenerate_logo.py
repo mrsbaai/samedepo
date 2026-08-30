@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 
-from PIL import Image
+from PIL import Image, ImageOps
 import vtracer
 
 SOURCE = Path('new logo.png')
@@ -68,14 +68,32 @@ side = max(rgba.size)
 square = Image.new('RGBA', (side, side), (0, 0, 0, 0))
 square.paste(rgba, ((side - rgba.width) // 2, (side - rgba.height) // 2), rgba)
 
-for size in (16, 32, 48, 180, 192, 512):
-    square.resize((size, size), Image.Resampling.LANCZOS).save(PUBLIC / f'favicon-{size}x{size}.png')
+def add_svg_padding(svg_content: str, padding: int) -> str:
+    return re.sub(
+        r'(<svg[^>]*?)viewBox="0 0 (\d+) (\d+)"',
+        lambda m: f'{m.group(1)}viewBox="-{padding} -{padding} {int(m.group(2)) + padding * 2} {int(m.group(3)) + padding * 2}"',
+        svg_content,
+        count=1,
+    )
 
-square.resize((48, 48), Image.Resampling.LANCZOS).save(
+favicon_svg = svg.replace('<title>samedepo logo</title>', '<title>samedepo favicon</title>')
+favicon_svg = add_svg_padding(favicon_svg, 2)
+(PUBLIC / 'favicon.svg').write_text(favicon_svg, encoding='utf-8')
+
+FAVICON_EXTRA_PADDING = 2
+
+for size in (16, 32, 48, 180, 192, 512):
+    content_size = size - FAVICON_EXTRA_PADDING * 2
+    resized = square.resize((content_size, content_size), Image.Resampling.LANCZOS)
+    padded = ImageOps.expand(resized, border=FAVICON_EXTRA_PADDING, fill=(0, 0, 0, 0))
+    padded.save(PUBLIC / f'favicon-{size}x{size}.png')
+
+ico_source_size = 48
+ico_content_size = ico_source_size - FAVICON_EXTRA_PADDING * 2
+ico_source = square.resize((ico_content_size, ico_content_size), Image.Resampling.LANCZOS)
+ico_source = ImageOps.expand(ico_source, border=FAVICON_EXTRA_PADDING, fill=(0, 0, 0, 0))
+ico_source.save(
     PUBLIC / 'favicon.ico', format='ICO', sizes=[(16, 16), (32, 32), (48, 48)]
 )
 
-favicon_svg = svg.replace('<title>samedepo logo</title>', '<title>samedepo favicon</title>')
-(PUBLIC / 'favicon.svg').write_text(favicon_svg, encoding='utf-8')
-
-print(f'Generated assets from {SOURCE}: bbox={bbox}, margin={margin}px')
+print(f'Generated assets from {SOURCE}: bbox={bbox}, margin={margin}px, favicon_padding={FAVICON_EXTRA_PADDING}px')
