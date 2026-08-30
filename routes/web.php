@@ -6,8 +6,8 @@ use App\Actions\Authentication\ResolvePostSigninRedirect;
 use App\Events\Authentication\AuthenticationEvent;
 use App\Http\Controllers\Admin\UserSummaryController;
 use App\Http\Controllers\ApiDocsController;
-use App\Http\Controllers\QrController;
 use App\Http\Controllers\Authentication\SocialiteController;
+use App\Http\Controllers\QrController;
 use App\Livewire\Account\AccountSettings;
 use App\Livewire\Admin\AnnouncementEditor;
 use App\Livewire\Admin\ContentManagement;
@@ -57,7 +57,7 @@ use App\Livewire\Support\TicketCreate;
 use App\Livewire\Support\TicketThread;
 use App\Models\EmailChangeRequest;
 use App\Models\Faq;
-use App\Models\PublicContentPage;
+use App\Models\LegalPage;
 use App\Models\User;
 use App\Notifications\Authentication\SecurityAlertNotification;
 use Illuminate\Auth\Events\Verified;
@@ -317,18 +317,18 @@ Route::get('/api-docs', ApiDocsController::class)->name('public.api-docs');
 Route::get('/qr/{address}', [QrController::class, 'show'])->name('qr');
 
 Route::get('/privacy', function () {
-    $page = PublicContentPage::query()->firstOrCreate(
-        ['type' => 'privacy'],
-        ['content' => '']
+    $page = LegalPage::query()->firstOrCreate(
+        ['slug' => 'privacy'],
+        ['title' => 'Privacy Policy', 'content' => '']
     );
 
     return view('pages.privacy', ['page' => $page]);
 })->name('privacy');
 
 Route::get('/terms', function () {
-    $page = PublicContentPage::query()->firstOrCreate(
-        ['type' => 'terms'],
-        ['content' => '']
+    $page = LegalPage::query()->firstOrCreate(
+        ['slug' => 'terms'],
+        ['title' => 'Terms of Service', 'content' => '']
     );
 
     return view('pages.terms', ['page' => $page]);

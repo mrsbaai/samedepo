@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin;
 
 use App\Models\FaqsContent;
-use App\Models\PublicContentPage;
+use App\Models\LegalPage;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -32,13 +32,13 @@ class ContentManagement extends Component
 
     public function mount(): void
     {
-        $terms = PublicContentPage::query()->firstOrCreate(
-            ['type' => 'terms'],
-            ['content' => '']
+        $terms = LegalPage::query()->firstOrCreate(
+            ['slug' => 'terms'],
+            ['title' => 'Terms of Service', 'content' => '']
         );
-        $privacy = PublicContentPage::query()->firstOrCreate(
-            ['type' => 'privacy'],
-            ['content' => '']
+        $privacy = LegalPage::query()->firstOrCreate(
+            ['slug' => 'privacy'],
+            ['title' => 'Privacy Policy', 'content' => '']
         );
         $faqs = FaqsContent::query()->firstOrCreate(
             ['id' => 1],
@@ -59,8 +59,8 @@ class ContentManagement extends Component
     {
         $this->validateOnly('termsContent');
 
-        PublicContentPage::query()
-            ->where('type', 'terms')
+        LegalPage::query()
+            ->where('slug', 'terms')
             ->update(['content' => $this->termsContent]);
 
         $this->showConfirmTerms = false;
@@ -76,8 +76,8 @@ class ContentManagement extends Component
     {
         $this->validateOnly('privacyContent');
 
-        PublicContentPage::query()
-            ->where('type', 'privacy')
+        LegalPage::query()
+            ->where('slug', 'privacy')
             ->update(['content' => $this->privacyContent]);
 
         $this->showConfirmPrivacy = false;

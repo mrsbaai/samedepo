@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Faq;
-use App\Models\PublicContentPage;
+use App\Models\LegalPage;
 use App\Models\User;
 
 test('guests see privacy and terms links in the public footer', function () {
@@ -51,18 +51,18 @@ test('authenticated users can view the support page with ordered FAQs', function
 });
 
 test('the privacy page reflects edited content', function () {
-    PublicContentPage::query()->updateOrCreate(
-        ['type' => 'privacy'],
-        ['content' => '<p>Custom privacy text.</p>']
+    LegalPage::query()->updateOrCreate(
+        ['slug' => 'privacy'],
+        ['title' => 'Privacy Policy', 'content' => '<p>Custom privacy text.</p>']
     );
 
     $this->get(route('privacy'))->assertSee('Custom privacy text.', false);
 });
 
 test('the terms page reflects edited content', function () {
-    PublicContentPage::query()->updateOrCreate(
-        ['type' => 'terms'],
-        ['content' => '<p>Custom terms text.</p>']
+    LegalPage::query()->updateOrCreate(
+        ['slug' => 'terms'],
+        ['title' => 'Terms of Service', 'content' => '<p>Custom terms text.</p>']
     );
 
     $this->get(route('terms'))->assertSee('Custom terms text.', false);
