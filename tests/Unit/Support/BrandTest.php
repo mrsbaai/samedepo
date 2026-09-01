@@ -16,7 +16,10 @@ it('falls back to the app name when brand name is not configured', function (): 
 });
 
 it('returns brand colors with sensible defaults', function (): void {
-    config(['brand.colors.primary' => '#ff5733']);
+    config([
+        'brand.colors.primary' => '#ff5733',
+        'brand.colors.text' => null,
+    ]);
 
     expect(Brand::color('primary'))->toBe('#ff5733')
         ->and(Brand::color('text'))->toBe('#1e293b')

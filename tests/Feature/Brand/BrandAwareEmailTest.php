@@ -9,6 +9,7 @@ beforeEach(function (): void {
         'brand.name' => 'Acme SaaS',
         'brand.logo.url' => 'https://acme.test/logo.png',
         'brand.colors.primary' => '#ff5733',
+        'brand.colors.secondary' => '#64748b',
         'brand.colors.success' => '#0f9d58',
         'brand.colors.background' => '#f0f0f0',
         'brand.colors.surface' => '#ffffff',
