@@ -63,18 +63,8 @@ class WithdrawalProcessor
             return;
         }
 
-        $chargedFeeNative = $this->feeConverter->bufferedNativeFee($estimatedFeeNative);
-
-        $tokenNetworks = ['usdt_erc20', 'usdt_trc20'];
-        $isToken = in_array($withdrawal->network, $tokenNetworks, true);
-
-        if ($isToken) {
-            if (! $this->gasTreasury->ensureGasForWithdrawal($withdrawal)) {
-                return;
-            }
-        }
-
-        $totalFee = $this->calculateTotalFee($withdrawal, $chargedFeeNative);
+        $networkFeeNative = $this->feeConverter->bufferedNativeFee($estimatedFeeNative);
+        $totalFee = $this->calculateTotalFee($withdrawal, $networkFeeNative);
 
         if ($totalFee === null) {
             return;
@@ -86,8 +76,14 @@ class WithdrawalProcessor
 
         $withdrawal->update([
             'network_fee' => $totalFee,
+            'network_fee_native' => $networkFeeNative,
             'amount_sent' => $amountSent,
         ]);
+
+        $isToken = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true);
+        if ($isToken && ! $this->gasTreasury->ensureGasForWithdrawal($withdrawal)) {
+            return;
+        }
 
         $txHash = $this->broadcaster->broadcastWithdrawal($withdrawal);
 
@@ -101,7 +97,10 @@ class WithdrawalProcessor
             'sent_at' => now(),
         ]);
 
-        $wallet->available_funds = bcsub((string) $wallet->available_funds, $amountSent, 8);
+        $treasurySpend = $withdrawal->network === 'bitcoin'
+            ? bcadd((string) $amountSent, (string) $withdrawal->network_fee_native, 8)
+            : $amountSent;
+        $wallet->available_funds = bcsub((string) $wallet->available_funds, $treasurySpend, 8);
         $wallet->save();
 
         LedgerEntry::create([
@@ -115,9 +114,9 @@ class WithdrawalProcessor
         $this->markSweepsRecovered($withdrawal);
     }
 
-    private function calculateTotalFee(Withdrawal $withdrawal, string $chargedFeeNative): ?string
+    private function calculateTotalFee(Withdrawal $withdrawal, string $networkFeeNative): ?string
     {
-        $networkFee = $this->feeConverter->toNetworkUnits($withdrawal->network, $chargedFeeNative);
+        $networkFee = $this->feeConverter->toNetworkUnits($withdrawal->network, $networkFeeNative);
         $recovery = $this->feeConverter->toNetworkUnits(
             $withdrawal->network,
             $this->feeConverter->unrecoveredSweepGasNative($withdrawal->user_id, $withdrawal->network),

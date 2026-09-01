@@ -44,12 +44,21 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             return null;
         }
 
+        $isBitcoin = $withdrawal->network === 'bitcoin';
+        $amount = (string) $withdrawal->amount_sent;
+        $fee = (string) ($withdrawal->network_fee_native ?? '0.00000000');
+
+        // Bitcoin: BlockCypher subtracts the fee from amount, so we pass the total input value.
+        if ($isBitcoin) {
+            $amount = bcadd($amount, $fee, 8);
+        }
+
         $response = $this->post('/withdraw', [
             'network' => $withdrawal->network,
             'index' => $wallet->derivation_index,
             'destination' => $withdrawal->destination_address,
-            'amount' => (string) $withdrawal->gross_amount,
-            'fee' => (string) $withdrawal->network_fee,
+            'amount' => $amount,
+            'fee' => $fee,
         ]);
 
         if ($response->successful()) {
@@ -79,12 +88,20 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             return null;
         }
 
+        $fee = (string) $fee->json('data.fee');
+        $isBitcoin = $sweep->network === 'bitcoin';
+        $amount = (string) $sweep->amount;
+
+        if ($isBitcoin) {
+            $amount = bcadd($amount, $fee, 8);
+        }
+
         $response = $this->post('/sweep', [
             'network' => $sweep->network,
             'source_index' => $address->derivation_index,
             'destination_index' => $wallet->derivation_index,
-            'amount' => (string) $sweep->amount,
-            'fee' => $fee->json('data.fee'),
+            'amount' => $amount,
+            'fee' => $fee,
         ]);
 
         if ($response->successful()) {
@@ -157,12 +174,20 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             return null;
         }
 
+        $isBitcoin = $payout->network === 'bitcoin';
+        $amount = (string) $payout->amount;
+        $fee = (string) ($payout->network_fee ?? '0.00000000');
+
+        if ($isBitcoin) {
+            $amount = bcadd($amount, $fee, 8);
+        }
+
         $response = $this->post('/withdraw', [
             'network' => $payout->network,
             'index' => $wallet->derivation_index,
             'destination' => $payout->destination_address,
-            'amount' => (string) $payout->amount,
-            'fee' => (string) ($payout->network_fee ?? '0.00000000'),
+            'amount' => $amount,
+            'fee' => $fee,
         ]);
 
         if ($response->successful()) {

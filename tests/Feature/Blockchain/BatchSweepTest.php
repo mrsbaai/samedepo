@@ -223,5 +223,24 @@ test('remote broadcaster resolves a batch sweep source from its deposit address'
     expect($hash)->toBe('remote-batch-tx');
     Http::assertSent(fn ($request) => $request->url() === 'https://signer.test/sweep'
         && $request['source_index'] === 42
-        && $request['amount'] === '2.00000000');
+        && $request['fee'] === '0.00010000'
+        && $request['amount'] === '2.00010000');
+});
+
+test('a deposit credited after a pending batch sweep is not marked swept on confirmation', function () {
+    [$owner, $customer, $address] = batchAddress();
+    $first = batchDeposit($owner, $customer, $address, '2.00000000');
+
+    $broadcaster = new BatchSweepBroadcasterFake;
+    $broadcaster->receiptStatus = 'pending';
+    $service = new TreasurySweepService($broadcaster);
+    $service->sweep();
+
+    $second = batchDeposit($owner, $customer, $address, '1.00000000');
+
+    $broadcaster->receiptStatus = 'confirmed';
+    $service->sweep();
+
+    expect($first->fresh()->swept_at)->not->toBeNull()
+        ->and($second->fresh()->swept_at)->toBeNull();
 });

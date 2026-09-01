@@ -15,6 +15,7 @@ class TreasurySweep extends Model
     protected $fillable = [
         'deposit_id',
         'deposit_address_id',
+        'deposit_ids',
         'network',
         'amount',
         'tx_hash',
@@ -29,6 +30,7 @@ class TreasurySweep extends Model
     {
         return [
             'amount' => 'decimal:8',
+            'deposit_ids' => 'array',
             'confirmed_at' => 'datetime',
             'fee_recovered_at' => 'datetime',
         ];

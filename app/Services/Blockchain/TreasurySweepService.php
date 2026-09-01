@@ -72,6 +72,7 @@ class TreasurySweepService
                     ['deposit_address_id' => $group->deposit_address_id, 'status' => 'pending'],
                     [
                         'deposit_id' => null,
+                        'deposit_ids' => $depositIds->all(),
                         'network' => $group->network,
                         'amount' => (string) $group->amount,
                     ],
@@ -163,7 +164,9 @@ class TreasurySweepService
             ]);
 
             $deposits = Deposit::query()->withoutGlobalScope('owner')->where('status', 'credited')->whereNull('swept_at');
-            if ($sweep->deposit_address_id !== null) {
+            if (! empty($sweep->deposit_ids)) {
+                $deposits->whereIn('id', $sweep->deposit_ids);
+            } elseif ($sweep->deposit_address_id !== null) {
                 $deposits->where('deposit_address_id', $sweep->deposit_address_id);
             } else {
                 $deposits->whereKey($sweep->deposit_id);

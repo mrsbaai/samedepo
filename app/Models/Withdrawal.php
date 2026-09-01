@@ -20,6 +20,7 @@ class Withdrawal extends Model
         'network',
         'gross_amount',
         'network_fee',
+        'network_fee_native',
         'amount_sent',
         'destination_address',
         'mode',
@@ -35,6 +36,7 @@ class Withdrawal extends Model
         return [
             'gross_amount' => 'decimal:8',
             'network_fee' => 'decimal:8',
+            'network_fee_native' => 'decimal:8',
             'amount_sent' => 'decimal:8',
             'decided_at' => 'datetime',
             'sent_at' => 'datetime',

@@ -100,7 +100,7 @@ test('withdrawal is untouched when treasury funds do not cover gross amount', fu
         ->and($broadcaster->broadcasts)->toBe(0);
 });
 
-test('sent withdrawal decrements treasury funds by amount sent', function () {
+test('sent withdrawal decrements treasury funds by amount sent plus network fee for bitcoin', function () {
     [$withdrawal, $wallet] = gatedWithdrawal('15.00000000');
     $broadcaster = new WithdrawalFundsGatingBroadcasterFake;
 
@@ -108,6 +108,6 @@ test('sent withdrawal decrements treasury funds by amount sent', function () {
 
     expect($withdrawal->fresh()->status)->toBe('sent')
         ->and($withdrawal->fresh()->amount_sent)->toBe('9.88000000')
-        ->and($wallet->fresh()->available_funds)->toBe('5.12000000')
+        ->and($wallet->fresh()->available_funds)->toBe('5.00000000')
         ->and($broadcaster->broadcasts)->toBe(1);
 });
