@@ -18,7 +18,7 @@ class CoinGeckoProvider implements PriceFeedProvider
         }
 
         $prices = $request->get(config('blockchain.price_feed.url'), [
-            'ids' => 'bitcoin,tether',
+            'ids' => 'bitcoin,tether,tron,ethereum',
             'vs_currencies' => 'usd',
         ])->throw()->json();
 
@@ -26,6 +26,8 @@ class CoinGeckoProvider implements PriceFeedProvider
             'bitcoin' => $prices['bitcoin']['usd'] ?? 0,
             'usdt_trc20' => $prices['tether']['usd'] ?? 0,
             'usdt_erc20' => $prices['tether']['usd'] ?? 0,
+            'native_trx' => $prices['tron']['usd'] ?? 0,
+            'native_eth' => $prices['ethereum']['usd'] ?? 0,
         ];
     }
 }

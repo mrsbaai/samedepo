@@ -32,24 +32,24 @@ test('it credits a pending deposit and creates ledger entries', function () {
 
     $deposit->refresh();
     expect($deposit->status)->toBe('credited');
-    expect($deposit->fee_amount)->toBe('0.01000000'); // 1% platform default
-    expect($deposit->credited_amount)->toBe('0.99000000');
+    expect($deposit->fee_amount)->toBe('0.02000000'); // 2% platform default
+    expect($deposit->credited_amount)->toBe('0.98000000');
     expect($deposit->credited_at)->not->toBeNull();
 
     $balance = Balance::query()->where('user_id', $owner->id)->where('network', 'bitcoin')->first();
     expect($balance)->not->toBeNull();
-    expect($balance->amount)->toBe('0.99000000');
+    expect($balance->amount)->toBe('0.98000000');
 
     $creditEntry = LedgerEntry::query()->where('deposit_id', $deposit->id)->where('reason', 'deposit_credit')->first();
     $feeEntry = LedgerEntry::query()->where('deposit_id', $deposit->id)->where('reason', 'fee')->first();
 
     expect($creditEntry)->not->toBeNull();
-    expect($creditEntry->amount)->toBe('0.99000000');
+    expect($creditEntry->amount)->toBe('0.98000000');
     expect($creditEntry->network)->toBe('bitcoin');
     expect($creditEntry->user_id)->toBe($owner->id);
 
     expect($feeEntry)->not->toBeNull();
-    expect($feeEntry->amount)->toBe('-0.01000000');
+    expect($feeEntry->amount)->toBe('-0.02000000');
     expect($feeEntry->network)->toBe('bitcoin');
 
     Event::assertDispatched(DepositCredited::class);
@@ -119,6 +119,6 @@ test('it is idempotent and does not credit the same deposit twice', function () 
     expect($deposit->status)->toBe('credited');
 
     $balance = Balance::query()->where('user_id', $owner->id)->where('network', 'bitcoin')->first();
-    expect($balance->amount)->toBe('0.99000000');
+    expect($balance->amount)->toBe('0.98000000');
     expect(LedgerEntry::query()->where('deposit_id', $deposit->id)->count())->toBe(2);
 });

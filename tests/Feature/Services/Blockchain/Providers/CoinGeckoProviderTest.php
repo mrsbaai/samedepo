@@ -10,6 +10,8 @@ it('fetches and maps CoinGecko prices', function () {
         'api.coingecko.com/*' => Http::response([
             'bitcoin' => ['usd' => 65432.12],
             'tether' => ['usd' => 1.001],
+            'tron' => ['usd' => 0.33],
+            'ethereum' => ['usd' => 2000],
         ]),
     ]);
 
@@ -19,9 +21,11 @@ it('fetches and maps CoinGecko prices', function () {
         'bitcoin' => 65432.12,
         'usdt_trc20' => 1.001,
         'usdt_erc20' => 1.001,
+        'native_trx' => 0.33,
+        'native_eth' => 2000,
     ]);
 
-    Http::assertSent(fn ($request) => $request->url() === 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin%2Ctether&vs_currencies=usd');
+    Http::assertSent(fn ($request) => $request->url() === 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin%2Ctether%2Ctron%2Cethereum&vs_currencies=usd');
 });
 
 it('uses the configured API key when present', function () {

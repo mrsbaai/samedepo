@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\GasPolicy;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
+use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
@@ -116,8 +117,8 @@ test('it sends pending instant withdrawals', function () {
     expect($withdrawal->status)->toBe('sent')
         ->and($withdrawal->tx_hash)->toBe('withdrawal-tx-123')
         ->and($withdrawal->sent_at)->not->toBeNull()
-        ->and($withdrawal->network_fee)->toBe('0.25000000')
-        ->and($withdrawal->amount_sent)->toBe('1.00000000');
+        ->and($withdrawal->network_fee)->toBe('0.30000000')
+        ->and($withdrawal->amount_sent)->toBe('0.95000000');
 });
 
 test('it leaves pending approval withdrawals reserved until approved', function () {
@@ -149,18 +150,26 @@ test('it does not send denied or cancelled withdrawals', function (string $statu
     expect($broadcaster->withdrawalIds)->toBe([]);
 })->with(['denied', 'cancelled']);
 
-test('it estimates fees for every supported network', function (string $network, string $gross, string $fee, string $sent) {
+test('it estimates fees for every supported network', function (string $network, string $gross, string $estimate, string $nativeUsd, string $expectedFee, string $sent) {
     $withdrawal = withdrawal(['network' => $network, 'gross_amount' => $gross]);
-    [$processor] = withdrawalProcessor(fee: $fee);
+    [$processor] = withdrawalProcessor(fee: $estimate);
+
+    if (in_array($network, ['usdt_trc20', 'usdt_erc20'], true)) {
+        $nativeKey = $network === 'usdt_trc20' ? 'native_trx' : 'native_eth';
+        UsdValuation::updateOrCreate(['network' => $nativeKey], ['conversion_value' => $nativeUsd]);
+        UsdValuation::updateOrCreate(['network' => $network], ['conversion_value' => '1.000000']);
+    }
 
     $processor->process();
 
-    expect($withdrawal->fresh()->network_fee)->toBe($fee)
+    expect($withdrawal->fresh()->network_fee)->toBe($expectedFee)
         ->and($withdrawal->fresh()->amount_sent)->toBe($sent);
 })->with([
-    ['bitcoin', '1.00000000', '0.00020000', '0.99980000'],
-    ['usdt_trc20', '10.00000000', '1.00000000', '10.00000000'],
-    ['usdt_erc20', '4.00000000', '5.00000000', '4.00000000'],
+    // Bitcoin uses native units directly; charged fee is estimate * 1.2.
+    ['bitcoin', '1.00000000', '0.00020000', '0', '0.00024000', '0.99976000'],
+    // Token networks convert via USD valuations. Native USD is the native coin price.
+    ['usdt_trc20', '10.00000000', '1.00000000', '0.330000', '0.39600000', '9.60400000'],
+    ['usdt_erc20', '100.00000000', '0.00100000', '2000.000000', '2.40000000', '97.60000000'],
 ]);
 
 test('it leaves a withdrawal retryable when fee estimation fails', function () {
@@ -182,8 +191,8 @@ test('it leaves a withdrawal ready for retry when broadcasting fails', function 
     $processor->process();
 
     expect($withdrawal->fresh()->status)->toBe('pending')
-        ->and($withdrawal->fresh()->network_fee)->toBe('0.25000000')
-        ->and($withdrawal->fresh()->amount_sent)->toBe('1.00000000')
+        ->and($withdrawal->fresh()->network_fee)->toBe('0.30000000')
+        ->and($withdrawal->fresh()->amount_sent)->toBe('0.95000000')
         ->and($withdrawal->fresh()->tx_hash)->toBeNull()
         ->and($withdrawal->fresh()->sent_at)->toBeNull();
 });

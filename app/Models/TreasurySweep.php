@@ -14,12 +14,15 @@ class TreasurySweep extends Model
 
     protected $fillable = [
         'deposit_id',
+        'deposit_address_id',
         'network',
         'amount',
         'tx_hash',
         'status',
         'error_message',
         'confirmed_at',
+        'fee_recovered_at',
+        'recovered_withdrawal_id',
     ];
 
     protected function casts(): array
@@ -27,11 +30,22 @@ class TreasurySweep extends Model
         return [
             'amount' => 'decimal:8',
             'confirmed_at' => 'datetime',
+            'fee_recovered_at' => 'datetime',
         ];
     }
 
     public function deposit(): BelongsTo
     {
         return $this->belongsTo(Deposit::class);
+    }
+
+    public function depositAddress(): BelongsTo
+    {
+        return $this->belongsTo(DepositAddress::class);
+    }
+
+    public function recoveredByWithdrawal(): BelongsTo
+    {
+        return $this->belongsTo(Withdrawal::class, 'recovered_withdrawal_id');
     }
 }
