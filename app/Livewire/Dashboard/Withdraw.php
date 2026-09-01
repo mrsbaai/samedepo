@@ -9,8 +9,11 @@ use App\Models\PlatformSettings;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Models\WithdrawalAddress;
+use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\FeeConverter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -110,6 +113,43 @@ class Withdraw extends Component
     public function eligible(): bool
     {
         return $this->usdValue() >= $this->minimumUsd();
+    }
+
+    #[Computed]
+    public function feeEstimate(): ?array
+    {
+        try {
+            $estimatedNative = Cache::remember(
+                'withdraw-fee-estimate:'.$this->networkKey(),
+                300,
+                fn (): ?string => app(BlockchainBroadcaster::class)->estimateFee($this->networkKey(), tokenTransfer: $this->networkKey() !== 'bitcoin'),
+            );
+
+            if ($estimatedNative === null) {
+                return null;
+            }
+
+            $estimate = (new FeeConverter)->estimate($this->networkKey(), $estimatedNative, (int) Auth::id());
+
+            if ($estimate === null) {
+                return null;
+            }
+
+            $estimate['receive'] = bccomp((string) $this->balanceModel()->amount, $estimate['total_fee'], 8) >= 0
+                ? bcsub((string) $this->balanceModel()->amount, $estimate['total_fee'], 8)
+                : '0.00000000';
+
+            return $estimate;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function usdFor(string $amount): string
+    {
+        $valuation = UsdValuation::query()->where('network', $this->networkKey())->value('conversion_value') ?? 0;
+
+        return number_format((float) bcmul($amount, (string) $valuation, 8), 2);
     }
 
     #[Computed]

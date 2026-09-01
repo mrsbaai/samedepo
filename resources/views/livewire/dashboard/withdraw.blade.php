@@ -59,21 +59,43 @@
                 </flux:callout>
             @else
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between text-sm">
-                        <flux:text variant="subtle">Estimated network fee</flux:text>
-                        <flux:text class="font-ledger">— <span class="text-zinc-500 text-xs">(unknown until sent)</span></flux:text>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <flux:text variant="subtle">Estimated amount to be received</flux:text>
-                        <flux:text class="font-ledger font-medium">
-                            {{ $this->formattedAmount((float) $this->balanceModel->amount) }} {{ $this->networkMeta['symbol'] }}
-                        </flux:text>
-                    </div>
+                    @if ($this->feeEstimate)
+                        <div class="flex items-center justify-between gap-4 text-sm">
+                            <flux:text variant="subtle">Estimated network fee</flux:text>
+                            <div class="text-right font-ledger tabular-nums">
+                                <flux:text>−{{ $this->formattedAmount((float) $this->feeEstimate['network_fee']) }} {{ $this->networkMeta['symbol'] }}</flux:text>
+                                <flux:text size="sm" variant="subtle">${{ $this->usdFor($this->feeEstimate['network_fee']) }} USD</flux:text>
+                            </div>
+                        </div>
+                        @if (bccomp($this->feeEstimate['sweep_recovery'], '0', 8) > 0)
+                            <div class="flex items-center justify-between gap-4 text-sm">
+                                <flux:text variant="subtle">Sweep-gas recovery</flux:text>
+                                <div class="text-right font-ledger tabular-nums">
+                                    <flux:text>−{{ $this->formattedAmount((float) $this->feeEstimate['sweep_recovery']) }} {{ $this->networkMeta['symbol'] }}</flux:text>
+                                    <flux:text size="sm" variant="subtle">${{ $this->usdFor($this->feeEstimate['sweep_recovery']) }} USD</flux:text>
+                                </div>
+                            </div>
+                        @endif
+                        <flux:separator variant="subtle" />
+                        <div class="flex items-end justify-between gap-4">
+                            <flux:heading size="lg">Estimated amount you'll receive</flux:heading>
+                            <div class="text-right font-ledger tabular-nums">
+                                <flux:heading size="xl">{{ $this->formattedAmount((float) $this->feeEstimate['receive']) }} {{ $this->networkMeta['symbol'] }}</flux:heading>
+                                <flux:text size="sm" variant="subtle">${{ $this->usdFor($this->feeEstimate['receive']) }} USD</flux:text>
+                            </div>
+                        </div>
+                        <flux:text size="sm" variant="subtle">Estimates — the final fee is locked when the withdrawal is sent.</flux:text>
+                    @else
+                        <flux:callout variant="secondary" icon="information-circle">
+                            <flux:callout.text>Fee estimate unavailable — the exact fee will be deducted at send time.</flux:callout.text>
+                        </flux:callout>
+                    @endif
                     <flux:separator variant="subtle" />
                     <div class="flex items-center justify-between text-sm">
                         <flux:text variant="subtle">Destination</flux:text>
                         <code class="text-xs font-mono truncate max-w-[200px] text-zinc-600 dark:text-zinc-400">{{ $this->withdrawalAddress->address ?? '' }}</code>
                     </div>
+                    <flux:link href="{{ route('fees.calculator') }}" wire:navigate class="text-sm">How fees are calculated</flux:link>
                 </div>
                 <flux:button variant="primary" class="w-full" wire:click="confirmRequest">Withdraw Full Balance</flux:button>
             @endif
@@ -87,8 +109,13 @@
                 <flux:text class="mt-2">
                     This sends your full {{ $this->networkMeta['label'] }} balance —
                     {{ $this->formattedAmount((float) $this->balanceModel->amount) }} {{ $this->networkMeta['symbol'] }},
-                    minus the estimated network fee — to the address ending in {{ $this->addressEnding() }}.
-                    Mode: {{ $this->mode === 'instant' ? 'Instant' : 'Requires approval' }}.
+                    @if ($this->feeEstimate)
+                        minus an estimated total fee of {{ $this->formattedAmount((float) $this->feeEstimate['total_fee']) }} {{ $this->networkMeta['symbol'] }}.
+                        Estimated amount you'll receive: {{ $this->formattedAmount((float) $this->feeEstimate['receive']) }} {{ $this->networkMeta['symbol'] }}.
+                    @else
+                        The exact fee will be deducted when it is sent.
+                    @endif
+                    Destination: {{ $this->addressEnding() }}. Mode: {{ $this->mode === 'instant' ? 'Instant' : 'Requires approval' }}.
                     This can't be undone.
                 </flux:text>
             </div>
