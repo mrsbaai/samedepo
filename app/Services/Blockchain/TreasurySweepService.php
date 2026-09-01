@@ -6,8 +6,11 @@ namespace App\Services\Blockchain;
 
 use App\Models\Deposit;
 use App\Models\GasExpense;
+use App\Models\PlatformSettings;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
+use App\Models\UsdValuation;
+use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use Illuminate\Support\Facades\DB;
 
@@ -22,60 +25,103 @@ class TreasurySweepService
 
     public function sweep(): void
     {
-        Deposit::query()
-            ->with('depositAddress')
-            ->where('status', 'credited')
-            ->whereNull('swept_at')
-            ->chunkById(100, function ($deposits): void {
-                foreach ($deposits as $deposit) {
-                    DB::transaction(function () use ($deposit): void {
-                        $this->sweepDeposit($deposit);
-                    });
+        $settings = PlatformSettings::instance();
+        $valuations = UsdValuation::query()->pluck('conversion_value', 'network');
+
+        $groups = Deposit::query()
+            ->withoutGlobalScope('owner')
+            ->join('deposit_addresses', 'deposit_addresses.id', '=', 'deposits.deposit_address_id')
+            ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
+            ->where('deposits.status', 'credited')
+            ->whereNull('deposits.swept_at')
+            ->groupBy('deposits.deposit_address_id', 'deposit_addresses.network', 'customers.user_id')
+            ->selectRaw('deposits.deposit_address_id, deposit_addresses.network, customers.user_id, SUM(deposits.gross_amount) as amount, MIN(deposits.credited_at) as oldest_credited_at')
+            ->get();
+
+        foreach ($groups as $group) {
+            DB::transaction(function () use ($group, $settings, $valuations): void {
+                $wallet = TreasuryWallet::query()
+                    ->where('network', $group->network)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($wallet === null) {
+                    return;
                 }
+
+                $depositIds = Deposit::query()
+                    ->withoutGlobalScope('owner')
+                    ->where('deposit_address_id', $group->deposit_address_id)
+                    ->where('status', 'credited')
+                    ->whereNull('swept_at')
+                    ->pluck('id');
+
+                $sweep = TreasurySweep::query()
+                    ->whereIn('status', ['pending', 'broadcast'])
+                    ->where(function ($query) use ($group, $depositIds): void {
+                        $query->where('deposit_address_id', $group->deposit_address_id)
+                            ->orWhereIn('deposit_id', $depositIds);
+                    })
+                    ->first();
+
+                if ($sweep === null && ! $this->shouldSweep($group, $wallet, $settings, $valuations)) {
+                    return;
+                }
+
+                $sweep ??= TreasurySweep::query()->firstOrCreate(
+                    ['deposit_address_id' => $group->deposit_address_id, 'status' => 'pending'],
+                    [
+                        'deposit_id' => null,
+                        'network' => $group->network,
+                        'amount' => (string) $group->amount,
+                    ],
+                );
+
+                $this->processSweep($sweep, $wallet);
             });
+        }
     }
 
-    private function sweepDeposit(Deposit $deposit): void
+    private function shouldSweep(object $group, TreasuryWallet $wallet, PlatformSettings $settings, $valuations): bool
     {
-        $wallet = TreasuryWallet::query()
-            ->where('network', $deposit->network)
-            ->lockForUpdate()
-            ->first();
+        $price = (string) ($valuations->get($group->network) ?? '0');
+        $threshold = (string) $settings->{'sweep_min_usd_'.$group->network};
+        $thresholdTriggered = bccomp(bcmul((string) $group->amount, $price, 8), $threshold, 8) >= 0;
+        $ageTriggered = $group->oldest_credited_at !== null
+            && $group->oldest_credited_at <= now()->subDays($settings->sweep_max_age_days)->toDateTimeString();
+        $withdrawalTriggered = Withdrawal::query()
+            ->withoutGlobalScope('owner')
+            ->where('user_id', $group->user_id)
+            ->where('network', $group->network)
+            ->where(function ($query): void {
+                $query->where('status', 'approved')
+                    ->orWhere(fn ($query) => $query->where('status', 'pending')->where('mode', 'instant'));
+            })
+            ->where('gross_amount', '>', $wallet->available_funds)
+            ->exists();
 
-        if ($wallet === null) {
-            return;
-        }
+        return $thresholdTriggered || $ageTriggered || $withdrawalTriggered;
+    }
 
-        if ($deposit->depositAddress === null) {
-            return;
-        }
+    private function processSweep(TreasurySweep $sweep, TreasuryWallet $wallet): void
+    {
+        $address = $sweep->depositAddress ?? $sweep->deposit?->depositAddress;
 
-        $sweep = TreasurySweep::query()->firstOrCreate(
-            ['deposit_id' => $deposit->id],
-            [
-                'network' => $deposit->network,
-                'amount' => $deposit->gross_amount,
-                'status' => 'pending',
-            ]
-        );
-
-        if ($sweep->status === 'confirmed' || $sweep->status === 'failed') {
+        if ($address === null) {
             return;
         }
 
         if ($sweep->tx_hash !== null) {
-            $this->pollSweep($sweep, $wallet, $deposit);
+            $this->pollSweep($sweep, $wallet);
 
             return;
         }
 
-        $tokenNetworks = ['usdt_erc20', 'usdt_trc20'];
-
-        if (in_array($sweep->network, $tokenNetworks, true)) {
+        if (in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true)) {
             $ready = $this->gasTreasury->ensureGasForSweep(
                 $sweep->network,
-                (int) $deposit->depositAddress->derivation_index,
-                $deposit->depositAddress->address,
+                (int) $address->derivation_index,
+                $address->address,
             );
 
             if (! $ready) {
@@ -92,11 +138,10 @@ class TreasurySweepService
         }
 
         $sweep->update(['tx_hash' => $txHash]);
-
-        $this->pollSweep($sweep, $wallet, $deposit);
+        $this->pollSweep($sweep, $wallet);
     }
 
-    private function pollSweep(TreasurySweep $sweep, TreasuryWallet $wallet, Deposit $deposit): void
+    private function pollSweep(TreasurySweep $sweep, TreasuryWallet $wallet): void
     {
         if ($sweep->tx_hash === null) {
             return;
@@ -117,7 +162,13 @@ class TreasurySweepService
                 'confirmed_at' => now(),
             ]);
 
-            $deposit->update(['swept_at' => now()]);
+            $deposits = Deposit::query()->withoutGlobalScope('owner')->where('status', 'credited')->whereNull('swept_at');
+            if ($sweep->deposit_address_id !== null) {
+                $deposits->where('deposit_address_id', $sweep->deposit_address_id);
+            } else {
+                $deposits->whereKey($sweep->deposit_id);
+            }
+            $deposits->update(['swept_at' => now()]);
 
             GasExpense::create([
                 'network' => $sweep->network,

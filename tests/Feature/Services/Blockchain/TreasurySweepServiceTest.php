@@ -6,8 +6,10 @@ use App\Models\DepositAddress;
 use App\Models\GasExpense;
 use App\Models\GasPolicy;
 use App\Models\GasTopup;
+use App\Models\PlatformSettings;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
+use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
@@ -89,6 +91,18 @@ function createSweeper(?string $hash = 'sweep-tx-123'): TreasurySweepService
     return new TreasurySweepService($broadcaster);
 }
 
+beforeEach(function () {
+    PlatformSettings::instance()->update([
+        'sweep_min_usd_bitcoin' => '0.00',
+        'sweep_min_usd_usdt_trc20' => '0.00',
+        'sweep_min_usd_usdt_erc20' => '0.00',
+    ]);
+
+    foreach (['bitcoin', 'usdt_trc20', 'usdt_erc20'] as $network) {
+        UsdValuation::factory()->create(['network' => $network, 'conversion_value' => '1.000000']);
+    }
+});
+
 test('it sweeps a credited deposit into the treasury wallet', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
@@ -116,7 +130,7 @@ test('it sweeps a credited deposit into the treasury wallet', function () {
     $wallet->refresh();
     expect($wallet->available_funds)->toBe('2.00000000');
 
-    $sweep = TreasurySweep::query()->where('deposit_id', $deposit->id)->first();
+    $sweep = TreasurySweep::query()->where('deposit_address_id', $address->id)->first();
     expect($sweep)->not->toBeNull();
     expect($sweep->status)->toBe('confirmed');
     expect($sweep->tx_hash)->toBe('sweep-tx-123');
@@ -143,7 +157,7 @@ test('it does not mark a deposit swept when the broadcaster returns null', funct
 
     $deposit->refresh();
     expect($deposit->swept_at)->toBeNull();
-    expect(TreasurySweep::query()->where('deposit_id', $deposit->id)->count())->toBe(1);
+    expect(TreasurySweep::query()->where('deposit_address_id', $address->id)->count())->toBe(1);
 });
 
 test('it skips deposits that have already been swept', function () {
@@ -165,7 +179,7 @@ test('it skips deposits that have already been swept', function () {
 
     createSweeper()->sweep();
 
-    expect(TreasurySweep::query()->where('deposit_id', $deposit->id)->count())->toBe(0);
+    expect(TreasurySweep::query()->where('deposit_address_id', $address->id)->count())->toBe(0);
 });
 
 test('it skips deposits without a matching treasury wallet', function () {
@@ -233,7 +247,7 @@ test('it records a gas expense when a token sweep is confirmed', function () {
     $sweeper = createSweeper();
     $sweeper->sweep();
 
-    $sweep = TreasurySweep::query()->where('deposit_id', $deposit->id)->first();
+    $sweep = TreasurySweep::query()->where('deposit_address_id', $address->id)->first();
     expect($sweep)->not->toBeNull();
     expect($sweep->status)->toBe('confirmed');
     expect($sweep->tx_hash)->toBe('sweep-tx-123');

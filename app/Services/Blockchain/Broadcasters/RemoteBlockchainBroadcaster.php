@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Blockchain\Broadcasters;
 
 use App\Models\Deposit;
+use App\Models\DepositAddress;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\Withdrawal;
@@ -59,10 +60,12 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
 
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
-        $deposit = Deposit::with('depositAddress')->find($sweep->deposit_id);
+        $address = $sweep->deposit_address_id !== null
+            ? DepositAddress::find($sweep->deposit_address_id)
+            : Deposit::with('depositAddress')->find($sweep->deposit_id)?->depositAddress;
         $wallet = TreasuryWallet::where('network', $sweep->network)->first();
 
-        if ($deposit === null || $deposit->depositAddress === null || $wallet === null) {
+        if ($address === null || $wallet === null) {
             return null;
         }
 
@@ -77,7 +80,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
 
         $response = $this->post('/sweep', [
             'network' => $sweep->network,
-            'source_index' => $deposit->depositAddress->derivation_index,
+            'source_index' => $address->derivation_index,
             'destination_index' => $wallet->derivation_index,
             'amount' => (string) $sweep->amount,
             'fee' => $fee->json('data.fee'),

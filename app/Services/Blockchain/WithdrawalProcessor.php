@@ -8,6 +8,7 @@ use App\Models\GasExpense;
 use App\Models\LedgerEntry;
 use App\Models\PlatformSettings;
 use App\Models\TreasurySweep;
+use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
@@ -45,6 +46,15 @@ class WithdrawalProcessor
             ->find($withdrawalId);
 
         if ($withdrawal === null || ($withdrawal->status !== 'approved' && ! ($withdrawal->mode === 'instant' && $withdrawal->status === 'pending'))) {
+            return;
+        }
+
+        $wallet = TreasuryWallet::query()
+            ->where('network', $withdrawal->network)
+            ->lockForUpdate()
+            ->first();
+
+        if ($wallet === null || bccomp((string) $wallet->available_funds, (string) $withdrawal->gross_amount, 8) < 0) {
             return;
         }
 
@@ -96,6 +106,9 @@ class WithdrawalProcessor
             'tx_hash' => $txHash,
             'sent_at' => now(),
         ]);
+
+        $wallet->available_funds = bcsub((string) $wallet->available_funds, $amountSent, 8);
+        $wallet->save();
 
         LedgerEntry::create([
             'user_id' => $withdrawal->user_id,

@@ -91,7 +91,7 @@ function withdrawal(array $attributes = []): Withdrawal
 
     TreasuryWallet::firstOrCreate(
         ['network' => $network],
-        ['derivation_index' => 0, 'address' => 'treasury-'.$network, 'available_funds' => 0],
+        ['derivation_index' => 0, 'address' => 'treasury-'.$network, 'available_funds' => '1000.00000000'],
     );
 
     return Withdrawal::factory()->create(array_merge([
