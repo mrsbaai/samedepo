@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain\Broadcasters;
 
+use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Fees\WithdrawalFeeEstimator;
@@ -26,6 +27,8 @@ interface BlockchainBroadcaster extends WithdrawalFeeEstimator
     public function getTransactionReceipt(string $network, string $txHash): ?array;
 
     public function estimateFee(string $network, bool $tokenTransfer = true): ?string;
+
+    public function broadcastPayout(TreasuryPayout $payout): ?string;
 
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string;
 }

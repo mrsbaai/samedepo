@@ -6,6 +6,7 @@ namespace App\Services\Blockchain\Broadcasters;
 
 use App\Models\Deposit;
 use App\Models\DepositAddress;
+use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\Withdrawal;
@@ -143,6 +144,29 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
 
         if ($response->successful()) {
             return $response->json('data.fee');
+        }
+
+        return null;
+    }
+
+    public function broadcastPayout(TreasuryPayout $payout): ?string
+    {
+        $wallet = TreasuryWallet::where('network', $payout->network)->first();
+
+        if ($wallet === null) {
+            return null;
+        }
+
+        $response = $this->post('/withdraw', [
+            'network' => $payout->network,
+            'index' => $wallet->derivation_index,
+            'destination' => $payout->destination_address,
+            'amount' => (string) $payout->amount,
+            'fee' => (string) ($payout->network_fee ?? '0.00000000'),
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('data.tx_hash');
         }
 
         return null;

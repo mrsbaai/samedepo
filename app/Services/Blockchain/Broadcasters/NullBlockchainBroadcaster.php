@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain\Broadcasters;
 
+use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\Withdrawal;
 
@@ -40,6 +41,11 @@ class NullBlockchainBroadcaster implements BlockchainBroadcaster
     }
 
     public function estimateFee(string $network, bool $tokenTransfer = true): ?string
+    {
+        return null;
+    }
+
+    public function broadcastPayout(TreasuryPayout $payout): ?string
     {
         return null;
     }

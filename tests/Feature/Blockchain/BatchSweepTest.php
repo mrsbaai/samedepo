@@ -65,6 +65,11 @@ class BatchSweepBroadcasterFake implements BlockchainBroadcaster
     {
         return null;
     }
+
+    public function broadcastPayout(\App\Models\TreasuryPayout $payout): ?string
+    {
+        return null;
+    }
 }
 
 function batchAddress(?User $owner = null, string $network = 'bitcoin'): array

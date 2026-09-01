@@ -17,6 +17,9 @@ Website owners who want customers to repeatedly top up a crypto balance.
 - **API keys** — generate, name, revoke, and replace owner-scoped API keys; only the hash is stored.
 - **Signed webhooks** — configure an HTTPS endpoint and receive queued, HMAC-signed deposit-credit and withdrawal-status events with automatic retries.
 - **Withdrawals** — set per-network withdrawal addresses, request instant or approval-mode full-balance withdrawals, estimate network fees, and track on-chain sends.
+- **Ledger-first, batched settlement** — deposits are credited instantly in the ledger; funds are swept to treasury in gas-efficient batches triggered by threshold, age, or withdrawal need so the platform never loses money on small deposits.
+- **Transparent fee estimates & calculator** — owners see a full withdrawal fee breakdown before confirming, and guests can estimate deposit and withdrawal fees at `/fee-calculator`.
+- **Complete treasury operations** — admin treasury console shows per-network addresses, available/native/unswept balances, revenue, pending withdrawals, recent sweeps, and guarded treasury payouts.
 - **Admin console** — manage platform settings, withdrawal approvals, website owners, treasury balances, gas reserves, automatic top-up policies, network pauses, and public content.
 - **Public API documentation** — live endpoints, webhooks, deposit fees, per-network minimum deposits, and per-key request limits at `/api-docs`.
 

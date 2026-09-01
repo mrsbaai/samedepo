@@ -73,6 +73,11 @@ class WithdrawalBroadcasterFake implements BlockchainBroadcaster
     {
         return null;
     }
+
+    public function broadcastPayout(\App\Models\TreasuryPayout $payout): ?string
+    {
+        return null;
+    }
 }
 
 function withdrawalProcessor(?string $hash = 'withdrawal-tx-123', ?string $fee = '0.25000000'): array

@@ -58,6 +58,11 @@ class WithdrawalFundsGatingBroadcasterFake implements BlockchainBroadcaster
     {
         return null;
     }
+
+    public function broadcastPayout(\App\Models\TreasuryPayout $payout): ?string
+    {
+        return null;
+    }
 }
 
 function gatedWithdrawal(string $funds): array

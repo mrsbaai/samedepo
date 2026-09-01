@@ -88,6 +88,11 @@ class GasTreasuryBroadcasterFake implements BlockchainBroadcaster
     {
         return $this->topupHash;
     }
+
+    public function broadcastPayout(\App\Models\TreasuryPayout $payout): ?string
+    {
+        return null;
+    }
 }
 
 function gasTreasury(array $options = []): array

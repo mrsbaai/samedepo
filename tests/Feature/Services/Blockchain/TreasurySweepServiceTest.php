@@ -81,6 +81,11 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
     {
         return $this->topupHash;
     }
+
+    public function broadcastPayout(\App\Models\TreasuryPayout $payout): ?string
+    {
+        return null;
+    }
 }
 
 function createSweeper(?string $hash = 'sweep-tx-123'): TreasurySweepService
