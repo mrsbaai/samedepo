@@ -94,7 +94,7 @@ test('treasury payout is broadcast and decrements available funds', function () 
         ->and($payout->sent_at)->not->toBeNull();
 
     $wallet->refresh();
-    expect($wallet->available_funds)->toBe('3.50000000');
+    expect($wallet->available_funds)->toBe('3.49900000');
 });
 
 test('treasury payout is rejected when amount exceeds available funds', function () {

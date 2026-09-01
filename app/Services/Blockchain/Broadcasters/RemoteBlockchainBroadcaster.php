@@ -88,20 +88,14 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             return null;
         }
 
-        $fee = (string) $fee->json('data.fee');
-        $isBitcoin = $sweep->network === 'bitcoin';
-        $amount = (string) $sweep->amount;
-
-        if ($isBitcoin) {
-            $amount = bcadd($amount, $fee, 8);
-        }
-
+        // Bitcoin: the deposit address holds exactly the swept amount, so the
+        // miner fee comes out of the amount (the signer sends amount - fee).
         $response = $this->post('/sweep', [
             'network' => $sweep->network,
             'source_index' => $address->derivation_index,
             'destination_index' => $wallet->derivation_index,
-            'amount' => $amount,
-            'fee' => $fee,
+            'amount' => (string) $sweep->amount,
+            'fee' => (string) $fee->json('data.fee'),
         ]);
 
         if ($response->successful()) {

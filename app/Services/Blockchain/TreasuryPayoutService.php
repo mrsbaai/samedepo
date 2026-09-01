@@ -50,6 +50,13 @@ class TreasuryPayoutService
             return false;
         }
 
+        if ($payout->network === 'bitcoin'
+            && bccomp(bcadd((string) $payout->amount, $estimatedFeeNative, 8), (string) $wallet->available_funds, 8) > 0) {
+            $payout->update(['status' => 'failed', 'error_message' => 'Amount plus network fee exceeds available funds']);
+
+            return false;
+        }
+
         $payout->network_fee = $estimatedFeeNative;
 
         $txHash = $this->broadcaster->broadcastPayout($payout);
@@ -65,7 +72,10 @@ class TreasuryPayoutService
         }
 
         DB::transaction(function () use ($payout, $wallet, $txHash, $estimatedFeeNative): void {
-            $wallet->available_funds = bcsub((string) $wallet->available_funds, (string) $payout->amount, 8);
+            $treasurySpend = $payout->network === 'bitcoin'
+                ? bcadd((string) $payout->amount, $estimatedFeeNative, 8)
+                : (string) $payout->amount;
+            $wallet->available_funds = bcsub((string) $wallet->available_funds, $treasurySpend, 8);
             $wallet->save();
 
             $payout->update([

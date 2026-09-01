@@ -155,7 +155,14 @@ class TreasurySweepService
         }
 
         if ($receipt['status'] === 'confirmed') {
-            $wallet->available_funds = bcadd((string) $wallet->available_funds, (string) $sweep->amount, 8);
+            $received = (string) $sweep->amount;
+            if ($sweep->network === 'bitcoin') {
+                $received = bcsub($received, (string) ($receipt['fee'] ?? '0'), 8);
+                if (bccomp($received, '0', 8) < 0) {
+                    $received = '0.00000000';
+                }
+            }
+            $wallet->available_funds = bcadd((string) $wallet->available_funds, $received, 8);
             $wallet->save();
 
             $sweep->update([

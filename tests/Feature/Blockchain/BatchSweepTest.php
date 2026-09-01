@@ -128,7 +128,7 @@ test('threshold batches one address and confirms every covered deposit', functio
         ->and($sweep->status)->toBe('confirmed')
         ->and($first->fresh()->swept_at)->not->toBeNull()
         ->and($second->fresh()->swept_at)->not->toBeNull()
-        ->and(TreasuryWallet::where('network', 'bitcoin')->value('available_funds'))->toBe('2.00000000');
+        ->and(TreasuryWallet::where('network', 'bitcoin')->value('available_funds'))->toBe('1.99900000');
 });
 
 test('age trigger sweeps a lone small deposit', function () {
@@ -200,7 +200,7 @@ test('legacy deposit keyed sweeps still confirm', function () {
 
     expect($deposit->fresh()->swept_at)->not->toBeNull()
         ->and(TreasurySweep::where('tx_hash', 'legacy-tx')->value('status'))->toBe('confirmed')
-        ->and(TreasuryWallet::where('network', 'bitcoin')->value('available_funds'))->toBe('1.00000000');
+        ->and(TreasuryWallet::where('network', 'bitcoin')->value('available_funds'))->toBe('0.99900000');
 });
 
 test('remote broadcaster resolves a batch sweep source from its deposit address', function () {
@@ -224,7 +224,7 @@ test('remote broadcaster resolves a batch sweep source from its deposit address'
     Http::assertSent(fn ($request) => $request->url() === 'https://signer.test/sweep'
         && $request['source_index'] === 42
         && $request['fee'] === '0.00010000'
-        && $request['amount'] === '2.00010000');
+        && $request['amount'] === '2.00000000');
 });
 
 test('a deposit credited after a pending batch sweep is not marked swept on confirmation', function () {

@@ -133,7 +133,7 @@ test('it sweeps a credited deposit into the treasury wallet', function () {
     expect($deposit->swept_at)->not->toBeNull();
 
     $wallet->refresh();
-    expect($wallet->available_funds)->toBe('2.00000000');
+    expect($wallet->available_funds)->toBe('1.99990000');
 
     $sweep = TreasurySweep::query()->where('deposit_address_id', $address->id)->first();
     expect($sweep)->not->toBeNull();
@@ -230,7 +230,7 @@ test('it accumulates multiple sweeps into the treasury wallet balance', function
     createSweeper()->sweep();
 
     $wallet->refresh();
-    expect($wallet->available_funds)->toBe('7.00000000');
+    expect($wallet->available_funds)->toBe('6.99980000');
 });
 
 test('it records a gas expense when a token sweep is confirmed', function () {
