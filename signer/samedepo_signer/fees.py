@@ -73,10 +73,11 @@ def _erc20() -> Optional[str]:
 
 
 def _tron() -> Optional[str]:
-    # TRON USDT TRC-20 fee limit: a small cap is safe when the source has
-    # delegated energy. The treasury stakes TRX and delegates energy before
-    # each sweep, so the actual burn is mostly bandwidth/account-creation.
-    return "5.00000000"
+    # TRON USDT TRC-20 fee limit: without delegated energy the network burns
+    # TRX for the full contract execution — ~6.8 TRX to a recipient that
+    # already holds USDT, ~13.4 TRX to a fresh one. 20 TRX covers the worst
+    # case; the fee limit is a cap, only the actual cost is burned.
+    return "20.00000000"
 
 
 def estimate(network: str, token_transfer: bool = False) -> Optional[str]:

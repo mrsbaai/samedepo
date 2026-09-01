@@ -171,44 +171,13 @@ def _trc20_transfer(source_index: int, destination: str, amount: str, fee_trx: s
     return result.get("txid") or result.get("transaction", {}).get("txID")
 
 
-def _broadcast_trx(builder, private_key: PrivateKey) -> Optional[str]:
-    """Broadcast a tronpy transaction builder and return the txid, or None on failure."""
-    try:
-        tx = builder.build().sign(private_key).broadcast()
-        return tx.get("txid") or tx.txid
-    except Exception:
-        return None
-
-
-def _delegate_energy(client: Tron, source: str, treasury_index: int) -> bool:
-    """Stake 100 TRX for energy from the treasury and delegate it to the source.
-    Returns True only if the delegation transaction is successfully broadcast.
-    If delegation fails because nothing has been staked yet, the treasury is
-    frozen for energy first; the next retry will then delegate.
-    """
-    treasury = keys.derive_address("usdt_trc20", treasury_index)
-    treasury_private = PrivateKey(keys.derive_private_key("usdt_trc20", treasury_index))
-    stake_sun = 100_000_000
-
-    # Try to delegate first. If the treasury has not staked enough energy yet,
-    # the broadcast will fail; freeze 100 TRX for energy and let the next retry delegate.
-    delegate = client.trx.delegate_resource(treasury, source, stake_sun, "ENERGY", lock=False)
-    if _broadcast_trx(delegate.fee_limit(15_000_000), treasury_private):
-        return True
-
-    freeze = client.trx.freeze_balance(treasury, stake_sun, "ENERGY")
-    _broadcast_trx(freeze.fee_limit(15_000_000), treasury_private)
-    return False
-
-
 def _trc20_sweep(source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
-    """Sweep TRC20 USDT. Auto top-up TRX and delegate energy before the token transfer."""
+    """Sweep TRC20 USDT. Auto top-up TRX, then transfer burning TRX for energy."""
     client = _trx_client()
     source = keys.derive_address("usdt_trc20", source_index)
     dest = keys.derive_address("usdt_trc20", destination_index)
     fee_sun = _sun(fee)
-    topup_sun = max(30_000_000, fee_sun * 2)
-    min_energy = 70_000
+    topup_sun = max(30_000_000, fee_sun)
 
     try:
         account = client.get_account(source)
@@ -217,17 +186,6 @@ def _trc20_sweep(source_index: int, destination_index: int, amount: str, fee: st
             return None
     except Exception:
         _trx_transfer(destination_index, source, str(Decimal(topup_sun) / Decimal(10 ** 6)), fee)
-        return None
-
-    try:
-        resource = client.get_account_resource(source)
-        available = resource.get("EnergyLimit", 0) - resource.get("EnergyUsed", 0)
-    except Exception:
-        available = 0
-
-    if available < min_energy:
-        if not _delegate_energy(client, source, destination_index):
-            return None
         return None
 
     return _trc20_transfer(source_index, dest, amount, fee)
