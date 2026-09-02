@@ -18,7 +18,7 @@ class QrController
             return response('Unsupported address type.', 400);
         }
 
-        $logoPath = public_path('crypto/' . str_replace('_', '-', $network) . '.svg');
+        $logoPath = public_path('crypto/'.str_replace('_', '-', $network).'.svg');
 
         if (! file_exists($logoPath)) {
             return response('Logo not found.', 500);
@@ -89,7 +89,7 @@ class QrController
             base64_encode($logo)
         );
 
-        return str_replace('</svg>', $image . '</svg>', $svg);
+        return str_replace('</svg>', $image.'</svg>', $svg);
     }
 
     private function logoCenter(string $svg): array

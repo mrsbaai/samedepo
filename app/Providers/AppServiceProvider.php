@@ -9,6 +9,7 @@ use App\Fraud\Contracts\IpIntelProvider;
 use App\Fraud\Contracts\NullIpIntelProvider;
 use App\Fraud\Contracts\NullPaymentSignalProvider;
 use App\Fraud\Contracts\PaymentSignalProvider;
+use App\Models\ApiKey;
 use App\Models\PlatformSettings;
 use App\Models\User;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
@@ -25,6 +26,7 @@ use App\Services\Blockchain\Providers\TronGridProvider;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
@@ -172,7 +174,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-key', function (Request $request): Limit {
             $apiKey = $request->attributes->get('api_key');
 
-            if (! $apiKey instanceof \App\Models\ApiKey) {
+            if (! $apiKey instanceof ApiKey) {
                 return Limit::none();
             }
 
@@ -180,7 +182,7 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(PlatformSettings::instance()->api_requests_per_minute)
                 ->by($key)
-                ->response(function () use ($key): \Illuminate\Http\JsonResponse {
+                ->response(function () use ($key): JsonResponse {
                     $limit = PlatformSettings::instance()->api_requests_per_minute;
 
                     return response()->json([

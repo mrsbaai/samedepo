@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Models\Customer;
+use App\Models\Deposit;
+use App\Support\DepositRow;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('components.dashboard.layout', ['title' => 'Customer Detail'])]
 class CustomerDetail extends Component
 {
+    use WithPagination;
+
     public string $uiState = 'normal';
 
     public $customer;
@@ -63,6 +69,7 @@ class CustomerDetail extends Component
                 $meta = self::NETWORKS[$address->network] ?? ['slug' => str_replace('_', '-', $address->network), 'label' => $address->network, 'symbol' => ''];
 
                 return [
+                    'network' => $address->network,
                     'networkSlug' => $meta['slug'],
                     'networkLabel' => $meta['label'],
                     'symbol' => $meta['symbol'],
@@ -72,9 +79,21 @@ class CustomerDetail extends Component
             ->all();
     }
 
+    #[Computed]
+    public function deposits(): LengthAwarePaginator
+    {
+        return Deposit::query()
+            ->where('customer_id', $this->customer->id)
+            ->whereIn('status', ['detected', 'pending', 'credited'])
+            ->orderByDesc('detected_at')
+            ->paginate(10)
+            ->through(fn (Deposit $deposit) => DepositRow::present($deposit));
+    }
+
     public function retry(): void
     {
         $this->uiState = 'normal';
+        $this->resetPage();
     }
 
     public function render(): mixed

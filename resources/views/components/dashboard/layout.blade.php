@@ -52,10 +52,6 @@
                     </flux:navmenu>
                 </flux:dropdown>
 
-                <flux:navbar.item href="{{ route('admin.users') }}" :current="request()->routeIs('admin.users*')">
-                    Users
-                </flux:navbar.item>
-
                 <flux:dropdown>
                     <flux:navbar.item icon:trailing="chevron-down" :current="request()->routeIs('admin.announcement') || request()->routeIs('admin.legal.edit')">Content</flux:navbar.item>
                     <flux:navmenu class="dark">
@@ -177,10 +173,6 @@
                     <flux:navlist.item href="{{ route('admin.support.settings') }}" :current="request()->routeIs('admin.support.settings')" wire:navigate>Support Settings</flux:navlist.item>
                     <flux:navlist.item href="{{ route('admin.faqs') }}" :current="request()->routeIs('admin.faqs')" wire:navigate>FAQs</flux:navlist.item>
                 </flux:navlist.group>
-
-                <flux:navlist.item icon="users" href="{{ route('admin.users') }}" :current="request()->routeIs('admin.users*')" wire:navigate>
-                    Users
-                </flux:navlist.item>
 
                 <flux:navlist.group heading="Content" expandable>
                     <flux:navlist.item href="{{ route('admin.announcement') }}" :current="request()->routeIs('admin.announcement')" wire:navigate>Announcement</flux:navlist.item>

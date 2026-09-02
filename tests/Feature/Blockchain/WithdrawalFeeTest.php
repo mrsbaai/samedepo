@@ -7,6 +7,7 @@ use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Models\GasExpense;
 use App\Models\LedgerEntry;
+use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
@@ -74,7 +75,7 @@ class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
         return $this->topupHash;
     }
 
-    public function broadcastPayout(\App\Models\TreasuryPayout $payout): ?string
+    public function broadcastPayout(TreasuryPayout $payout): ?string
     {
         return null;
     }

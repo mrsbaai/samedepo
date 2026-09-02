@@ -8,6 +8,7 @@ use App\Models\GasExpense;
 use App\Models\PlatformSettings;
 use App\Models\TreasurySweep;
 use App\Models\UsdValuation;
+use Illuminate\Database\Eloquent\Builder;
 
 class FeeConverter
 {
@@ -41,14 +42,28 @@ class FeeConverter
         return bcdiv(bcmul($nativeAmount, (string) $nativeUsd, 8), (string) $tokenUsd, 8);
     }
 
+    public function sweepGasNative(int $userId, string $network): string
+    {
+        return $this->sumAttributableSweepGas($this->attributableSweepGasQuery($userId, $network));
+    }
+
     public function unrecoveredSweepGasNative(int $userId, string $network): string
     {
-        $sum = GasExpense::query()
+        return $this->sumAttributableSweepGas(
+            $this->attributableSweepGasQuery($userId, $network)->whereNull('treasury_sweeps.fee_recovered_at')
+        );
+    }
+
+    /**
+     * @return Builder<GasExpense>
+     */
+    private function attributableSweepGasQuery(int $userId, string $network): Builder
+    {
+        return GasExpense::query()
             ->where('gas_expenses.expensable_type', TreasurySweep::class)
             ->join('treasury_sweeps', 'treasury_sweeps.id', '=', 'gas_expenses.expensable_id')
             ->where('treasury_sweeps.network', $network)
             ->where('treasury_sweeps.status', 'confirmed')
-            ->whereNull('treasury_sweeps.fee_recovered_at')
             ->where(function ($query) use ($userId): void {
                 $query->whereExists(function ($sub) use ($userId): void {
                     $sub->selectRaw('1')->from('deposits')
@@ -60,10 +75,14 @@ class FeeConverter
                         ->whereColumn('deposit_addresses.id', 'treasury_sweeps.deposit_address_id')
                         ->where('customers.user_id', $userId);
                 });
-            })
-            ->sum('gas_expenses.amount');
+            });
+    }
 
-        return $sum !== null ? (string) $sum : '0.00000000';
+    private function sumAttributableSweepGas(Builder $query): string
+    {
+        $sum = $query->sum('gas_expenses.amount');
+
+        return bcadd($sum !== null ? (string) $sum : '0', '0', 8);
     }
 
     public function estimate(string $network, string $estimatedFeeNative, int $userId): ?array

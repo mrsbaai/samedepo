@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Models\User;
 
@@ -64,4 +65,91 @@ test('admin users cannot access the customer detail page', function () {
     $this->actingAs($admin)
         ->get(route('customers.show', $customer))
         ->assertForbidden();
+});
+
+test('owner sees detected and pending deposits but not ignored deposits', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
+
+    Deposit::create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'tx_hash' => 'tx-detected',
+        'gross_amount' => '1.00000000',
+        'fee_amount' => null,
+        'credited_amount' => null,
+        'confirmation_count' => 0,
+        'status' => 'detected',
+        'detected_at' => now()->subHour(),
+        'credited_at' => null,
+    ]);
+
+    Deposit::create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'tx_hash' => 'tx-pending',
+        'gross_amount' => '2.00000000',
+        'fee_amount' => null,
+        'credited_amount' => null,
+        'confirmation_count' => 0,
+        'status' => 'pending',
+        'detected_at' => now()->subHour(),
+        'credited_at' => null,
+    ]);
+
+    Deposit::create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'tx_hash' => 'tx-ignored',
+        'gross_amount' => '0.50000000',
+        'fee_amount' => null,
+        'credited_amount' => null,
+        'confirmation_count' => 0,
+        'status' => 'ignored',
+        'detected_at' => now()->subHour(),
+        'credited_at' => null,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('customers.show', $customer))
+        ->assertOk()
+        ->assertSee('tx-detected', false)
+        ->assertSee('tx-pending', false)
+        ->assertDontSee('tx-ignored', false);
+});
+
+test('owner sees credited deposits with fee and credited amounts', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
+
+    Deposit::create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'tx_hash' => 'tx-credited',
+        'gross_amount' => '10.00000000',
+        'fee_amount' => '0.20000000',
+        'credited_amount' => '9.80000000',
+        'confirmation_count' => 6,
+        'status' => 'credited',
+        'detected_at' => now()->subHour(),
+        'credited_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('customers.show', $customer))
+        ->assertOk()
+        ->assertSee('tx-credited', false)
+        ->assertSee('10.00 USDT', false)
+        ->assertSee('0.20', false)
+        ->assertSee('9.80', false);
 });

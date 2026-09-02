@@ -20,30 +20,17 @@
             <flux:heading size="xl">{{ $this->customer->customer_reference }}</flux:heading>
             <flux:text variant="subtle" size="sm" class="mt-1">
                 Customer since {{ $this->customer->created_at->format('M j, Y') }}
+                · {{ $this->deposits->total() }} deposits
             </flux:text>
         </div>
 
         <flux:heading size="lg" class="mb-3">Deposit Addresses</flux:heading>
 
-        @if (empty($this->addresses))
-            <div class="py-12 text-center">
-                <flux:icon icon="wallet" variant="outline" class="mx-auto h-8 w-8 text-zinc-400" />
-                <flux:text class="mt-3">No deposit addresses found for this customer.</flux:text>
-            </div>
-        @else
-            <div class="space-y-2 mb-8">
-                @foreach ($this->addresses as $addr)
-                    <div class="flex items-center gap-3" wire:key="addr-{{ $addr['networkSlug'] }}">
-                        <img src="{{ asset('crypto/' . $addr['networkSlug'] . '.svg') }}" alt="" class="size-4 shrink-0" />
-                        <flux:text size="sm" class="w-28 shrink-0">{{ $addr['networkLabel'] }}</flux:text>
-                        <code class="text-xs truncate flex-1 text-zinc-600 dark:text-zinc-400 font-ledger">{{ $addr['address'] }}</code>
-                        <flux:tooltip content="Copy address">
-                            <flux:button variant="ghost" size="sm" icon="clipboard-document" onclick="navigator.clipboard.writeText('{{ $addr['address'] }}')" />
-                        </flux:tooltip>
-                    </div>
-                @endforeach
-            </div>
-        @endif
+        <x-customer.addresses :addresses="$this->addresses" />
+
+        <flux:heading size="lg" class="mt-8 mb-3">Deposits</flux:heading>
+
+        <x-customer.deposits-table :deposits="$this->deposits" />
 
         <div class="mt-8">
             <flux:button variant="ghost" icon="arrow-left" href="{{ route('customers') }}" wire:navigate>Back to Customers</flux:button>

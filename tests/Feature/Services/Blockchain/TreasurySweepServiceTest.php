@@ -7,6 +7,7 @@ use App\Models\GasExpense;
 use App\Models\GasPolicy;
 use App\Models\GasTopup;
 use App\Models\PlatformSettings;
+use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
@@ -82,7 +83,7 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
         return $this->topupHash;
     }
 
-    public function broadcastPayout(\App\Models\TreasuryPayout $payout): ?string
+    public function broadcastPayout(TreasuryPayout $payout): ?string
     {
         return null;
     }
