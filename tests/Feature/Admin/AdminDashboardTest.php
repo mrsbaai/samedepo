@@ -1,15 +1,111 @@
 <?php
 
 use App\Livewire\Dashboard\AdminDashboard;
+use App\Models\Balance;
+use App\Models\Customer;
 use App\Models\Deposit;
+use App\Models\DepositAddress;
+use App\Models\GasPolicy;
+use App\Models\PlatformSettings;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketMessage;
+use App\Models\TreasuryPayout;
+use App\Models\TreasurySweep;
+use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Security\Models\SecurityBlock;
 use App\Security\Models\ThreatEvent;
+use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use Livewire\Livewire;
+
+function adminDashboardProfitFixture(
+    string $network = 'usdt_trc20',
+    string $ownerBalance = '90.00000000',
+    string $pendingWithdrawal = '20.00000000',
+    string $paidOut = '5.00000000',
+    string $unswept = '40.00000000',
+    string $available = '100.00000000',
+    ?string $profitAddress = 'T111111111111111111111111111111111',
+    string $nativeBalance = '50.00000000',
+    string $reserveThreshold = '1.00000000',
+    ?DateTimeInterface $refreshedAt = null,
+): array {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+
+    $addresses = [
+        'profit_address_bitcoin' => '1BoatSLRHtKNngkdXEeobR76b53LETtpyT',
+        'profit_address_usdt_trc20' => 'T111111111111111111111111111111111',
+        'profit_address_usdt_erc20' => '0x1111111111111111111111111111111111111111',
+    ];
+    if ($profitAddress === null) {
+        $addresses['profit_address_usdt_trc20'] = null;
+    }
+    PlatformSettings::instance()->update($addresses);
+
+    $wallet = TreasuryWallet::factory()->create([
+        'network' => $network,
+        'derivation_index' => 0,
+        'address' => "treasury-$network",
+        'available_funds' => $available,
+        'native_balance' => $network === 'bitcoin' ? '0.50000000' : $nativeBalance,
+        'refreshed_at' => $refreshedAt ?? now(),
+    ]);
+
+    if ($network !== 'bitcoin') {
+        GasPolicy::factory()->create(['network' => $network, 'reserve_threshold' => $reserveThreshold]);
+    }
+
+    if (bccomp($ownerBalance, '0', 8) > 0) {
+        Balance::factory()->create([
+            'user_id' => $owner->id,
+            'network' => $network,
+            'amount' => $ownerBalance,
+        ]);
+    }
+
+    if (bccomp($pendingWithdrawal, '0', 8) > 0) {
+        Withdrawal::factory()->create([
+            'user_id' => $owner->id,
+            'network' => $network,
+            'gross_amount' => $pendingWithdrawal,
+            'status' => 'pending',
+        ]);
+    }
+
+    if (bccomp($unswept, '0', 8) > 0) {
+        $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => $network]);
+        Deposit::create([
+            'deposit_address_id' => $address->id,
+            'customer_id' => $customer->id,
+            'user_id' => $owner->id,
+            'network' => $network,
+            'tx_hash' => 'tx-'.uniqid(),
+            'gross_amount' => $unswept,
+            'status' => 'credited',
+            'detected_at' => now(),
+            'credited_at' => now(),
+            'swept_at' => null,
+        ]);
+    }
+
+    if (bccomp($paidOut, '0', 8) > 0) {
+        TreasuryPayout::create([
+            'network' => $network,
+            'destination_address' => 'T111111111111111111111111111111111',
+            'amount' => $paidOut,
+            'status' => 'confirmed',
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    UsdValuation::create(['network' => $network, 'conversion_value' => '1.000000']);
+
+    return [$admin, $wallet];
+}
 
 test('an admin can view the admin overview', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
@@ -184,4 +280,126 @@ test('security summary reflects an elevated status', function () {
         ->assertOk()
         ->assertSee('Elevated')
         ->assertDontSee('Active attack');
+});
+
+test('treasury card renders between platform status and security summary', function () {
+    [$admin] = adminDashboardProfitFixture();
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Treasury')
+        ->assertSee('Withdrawable profit')
+        ->assertSee('Total profit')
+        ->assertSee('Unswept funds')
+        ->assertSee('Gas float')
+        ->assertSee('Failed ops (24h)')
+        ->assertSee('$30.00');
+});
+
+test('treasury status is healthy with clean fixture', function () {
+    [$admin] = adminDashboardProfitFixture();
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Healthy');
+});
+
+test('treasury status shows attention when gas is low', function () {
+    [$admin] = adminDashboardProfitFixture(reserveThreshold: '100.00000000', nativeBalance: '50.00000000');
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Attention')
+        ->assertSee('Low gas');
+});
+
+test('treasury status shows attention on missing profit address', function () {
+    [$admin] = adminDashboardProfitFixture(profitAddress: null);
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Attention')
+        ->assertSee('Set payout address');
+});
+
+test('treasury status shows deficit when liabilities exceed assets', function () {
+    [$admin] = adminDashboardProfitFixture(ownerBalance: '150.00000000');
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Deficit');
+});
+
+test('treasury status shows attention on failed operations in the last 24 hours', function () {
+    [$admin] = adminDashboardProfitFixture();
+    TreasurySweep::create([
+        'network' => 'usdt_trc20',
+        'treasury_wallet_id' => 1,
+        'tx_hash' => 'failed-sweep',
+        'amount' => '10.00000000',
+        'status' => 'failed',
+        'error_message' => 'Sweep failed',
+        'updated_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Attention')
+        ->assertSee('1');
+});
+
+test('withdraw profit deep link targets the highest withdrawable network with an address', function () {
+    [$admin] = adminDashboardProfitFixture();
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee(route('admin.treasury', ['payout' => 'usdt_trc20']));
+});
+
+test('withdraw profit button is disabled when nothing is withdrawable', function () {
+    [$admin] = adminDashboardProfitFixture(unswept: '0.00000000', ownerBalance: '120.00000000', pendingWithdrawal: '0.00000000', available: '100.00000000');
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Withdraw profit');
+});
+
+test('refresh treasury data refreshes stale wallets once and preserves values on provider failure', function () {
+    [$admin, $wallet] = adminDashboardProfitFixture(refreshedAt: now()->subMinutes(5));
+    $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
+    $broadcaster->shouldReceive('getNativeBalance')->once()->andReturn(null);
+    $broadcaster->shouldReceive('getTronResource')->andReturn(null);
+    app()->instance(BlockchainBroadcaster::class, $broadcaster);
+
+    Livewire::actingAs($admin)
+        ->test(AdminDashboard::class)
+        ->call('refreshTreasuryData');
+
+    expect($wallet->refresh()->native_balance)->toBe('50.00000000');
+});
+
+test('refresh treasury data does not call broadcaster while cache lock is held', function () {
+    [$admin, $wallet] = adminDashboardProfitFixture(refreshedAt: now()->subMinutes(5));
+    $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
+    $broadcaster->shouldReceive('getNativeBalance')->once()->andReturn('999.00000000');
+    $broadcaster->shouldReceive('getTronResource')->andReturn(null);
+    app()->instance(BlockchainBroadcaster::class, $broadcaster);
+
+    Livewire::actingAs($admin)
+        ->test(AdminDashboard::class)
+        ->call('refreshTreasuryData');
+
+    Livewire::actingAs($admin)
+        ->test(AdminDashboard::class)
+        ->call('refreshTreasuryData');
+
+    expect($wallet->refresh()->native_balance)->toBe('999.00000000');
 });
