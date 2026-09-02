@@ -9,6 +9,7 @@ use App\Models\GasExpense;
 use App\Models\GasPolicy;
 use App\Models\GasTopup;
 use App\Models\LedgerEntry;
+use App\Models\PlatformSettings;
 use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
@@ -16,6 +17,7 @@ use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\TreasuryPayoutService;
+use App\Services\Blockchain\TreasuryProfitCalculator;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
@@ -45,6 +47,8 @@ class TreasuryOverview extends Component
 
     public ?string $payoutMessage = null;
 
+    public array $payoutPreview = [];
+
     private const NETWORKS = [
         'bitcoin' => ['label' => 'Bitcoin', 'symbol' => 'BTC', 'native' => 'BTC', 'decimals' => 8, 'slug' => 'bitcoin'],
         'usdt_trc20' => ['label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'native' => 'TRX', 'decimals' => 2, 'slug' => 'usdt-trc20'],
@@ -57,6 +61,31 @@ class TreasuryOverview extends Component
 
         TreasuryWallet::query()->whereIn('network', $this->gasNetworks())->pluck('network')
             ->each(fn (string $network) => $this->loadPolicy($gasTreasury->policy($network)));
+
+        $requested = (string) request()->query('payout', '');
+        if (array_key_exists($requested, self::NETWORKS)
+            && ($this->profitAddresses[$requested] ?? null)
+            && bccomp($this->profit['networks'][$requested]['withdrawable'], '0', 8) > 0) {
+            $this->openPayout($requested);
+        }
+    }
+
+    #[Computed]
+    public function profit(): array
+    {
+        return app(TreasuryProfitCalculator::class)->summary();
+    }
+
+    #[Computed]
+    public function profitAddresses(): array
+    {
+        $settings = PlatformSettings::instance();
+
+        return [
+            'bitcoin' => $settings->profit_address_bitcoin,
+            'usdt_trc20' => $settings->profit_address_usdt_trc20,
+            'usdt_erc20' => $settings->profit_address_usdt_erc20,
+        ];
     }
 
     #[Computed]
@@ -132,34 +161,6 @@ class TreasuryOverview extends Component
                 ],
             ];
         });
-    }
-
-    #[Computed]
-    public function grandTotalUsd(): string
-    {
-        $total = '0.00000000';
-
-        foreach ($this->wallets as $wallet) {
-            $nativeKey = match ($wallet->network) {
-                'bitcoin' => 'bitcoin',
-                'usdt_trc20' => 'native_trx',
-                'usdt_erc20' => 'native_eth',
-                default => $wallet->network,
-            };
-
-            $total = bcadd($total, $this->usdValueRaw((string) $wallet->available_funds, $wallet->network), 8);
-            $total = bcadd($total, $this->usdValueRaw((string) ($wallet->native_balance ?? 0), $nativeKey), 8);
-
-            $unswept = (string) (Deposit::query()->withoutGlobalScope('owner')
-                ->where('network', $wallet->network)
-                ->where('status', 'credited')
-                ->whereNull('swept_at')
-                ->sum('gross_amount') ?? '0.00000000');
-
-            $total = bcadd($total, $this->usdValueRaw($unswept, $wallet->network), 8);
-        }
-
-        return number_format((float) $total, 2);
     }
 
     #[Computed]
@@ -243,13 +244,20 @@ class TreasuryOverview extends Component
         $this->message = $this->networkMeta($network)['label'].($policy->manual_paused ? ' gas operations paused.' : ' gas operations resumed.');
     }
 
-    public function refreshWallet(int $walletId, GasTreasuryService $gasTreasury): void
+    public function refreshTreasuryData(GasTreasuryService $gasTreasury): void
     {
-        $wallet = TreasuryWallet::query()->findOrFail($walletId);
-        $this->message = $gasTreasury->refreshTreasuryWallet($wallet) === null
-            ? 'Wallet balance could not be refreshed.'
-            : $this->networkMeta($wallet->network)['label'].' balance refreshed.';
-        unset($this->wallets);
+        $gasTreasury->refreshStaleTreasuryWallets();
+
+        unset(
+            $this->profit,
+            $this->profitAddresses,
+            $this->wallets,
+            $this->networkMetrics,
+            $this->recentSweeps,
+            $this->recentPayouts,
+            $this->topups,
+            $this->expenses,
+        );
     }
 
     public function retry(): void
@@ -259,44 +267,50 @@ class TreasuryOverview extends Component
 
     public function openPayout(string $network): void
     {
+        abort_unless(array_key_exists($network, self::NETWORKS), 404);
+
         $this->payoutModal = true;
         $this->payoutNetwork = $network;
-        $this->payoutDestination = '';
-        $this->payoutAmount = '';
+        $this->payoutDestination = (string) ($this->profitAddresses[$network] ?? '');
+        $this->payoutAmount = $this->formatWithdrawableInput($this->profit['networks'][$network]['withdrawable'] ?? '0');
         $this->payoutStep = 'form';
         $this->payoutTxHash = null;
         $this->payoutMessage = null;
+        $this->payoutPreview = [];
     }
 
     public function previewPayout(): void
     {
         $this->validate([
-            'payoutDestination' => ['required', 'string', 'max:255'],
             'payoutAmount' => ['required', 'numeric', 'gt:0'],
         ]);
 
-        $wallet = TreasuryWallet::query()->where('network', $this->payoutNetwork)->first();
-        $available = (string) ($wallet?->available_funds ?? '0.00000000');
+        $withdrawable = $this->profit['networks'][$this->payoutNetwork]['withdrawable'] ?? '0.00000000';
 
-        if (bccomp((string) $this->payoutAmount, $available, 8) > 0) {
-            throw ValidationException::withMessages(['payoutAmount' => 'Amount exceeds available funds.']);
+        if (bccomp((string) $this->payoutAmount, $withdrawable, 8) > 0) {
+            throw ValidationException::withMessages(['payoutAmount' => 'Amount exceeds withdrawable profit.']);
         }
+
+        $this->payoutPreview = app(TreasuryPayoutService::class)->preview(
+            $this->payoutNetwork,
+            (string) $this->payoutAmount,
+            $this->payoutDestination,
+        );
 
         $this->payoutStep = 'confirm';
     }
 
     public function confirmPayout(): void
     {
-        $this->validate([
-            'payoutDestination' => ['required', 'string', 'max:255'],
-            'payoutAmount' => ['required', 'numeric', 'gt:0'],
-        ]);
+        $this->payoutPreview = app(TreasuryPayoutService::class)->preview(
+            $this->payoutNetwork,
+            (string) $this->payoutAmount,
+            $this->payoutDestination,
+        );
 
-        $wallet = TreasuryWallet::query()->where('network', $this->payoutNetwork)->first();
-        $available = (string) ($wallet?->available_funds ?? '0.00000000');
-
-        if (bccomp((string) $this->payoutAmount, $available, 8) > 0) {
-            $this->payoutMessage = 'Payout exceeds available funds.';
+        if (($this->payoutPreview['level'] ?? 'block') === 'block') {
+            $this->payoutStep = 'error';
+            $this->payoutMessage = $this->payoutPreview['message'] ?? 'This payout cannot be sent right now.';
 
             return;
         }
@@ -315,6 +329,7 @@ class TreasuryOverview extends Component
             $this->payoutStep = 'success';
             $this->payoutTxHash = $payout->tx_hash;
             $this->message = 'Payout sent. It will be marked confirmed once the network confirms it.';
+            unset($this->profit, $this->wallets);
         } else {
             $this->payoutStep = 'error';
             $this->payoutMessage = $payout->error_message ?? 'Payout could not be sent.';
@@ -329,6 +344,14 @@ class TreasuryOverview extends Component
         $this->payoutAmount = '';
         $this->payoutTxHash = null;
         $this->payoutMessage = null;
+        $this->payoutPreview = [];
+    }
+
+    private function formatWithdrawableInput(string $amount): string
+    {
+        $trimmed = rtrim(rtrim($amount, '0'), '.');
+
+        return $trimmed === '' ? '0' : $trimmed;
     }
 
     private function loadPolicy(GasPolicy $policy): void

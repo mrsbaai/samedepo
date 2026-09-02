@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Withdrawal;
 use App\Notifications\LowGasAlert;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
@@ -207,6 +208,31 @@ class GasTreasuryService
         }
 
         return $update;
+    }
+
+    public function refreshStaleTreasuryWallets(): void
+    {
+        $cutoff = now()->subSeconds(60);
+
+        TreasuryWallet::query()
+            ->where(function ($query) use ($cutoff): void {
+                $query->whereNull('refreshed_at')
+                    ->orWhere('refreshed_at', '<=', $cutoff);
+            })
+            ->get()
+            ->each(function (TreasuryWallet $wallet): void {
+                $lock = Cache::lock("treasury-wallet-refresh:{$wallet->id}", 55);
+
+                if (! $lock->get()) {
+                    return;
+                }
+
+                try {
+                    $this->refreshTreasuryWallet($wallet);
+                } finally {
+                    $lock->release();
+                }
+            });
     }
 
     private function chooseTopupAmount(string $tokenFee, GasPolicy $policy): ?string

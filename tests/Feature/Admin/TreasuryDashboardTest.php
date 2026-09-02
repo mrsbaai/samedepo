@@ -2,16 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Livewire\Admin\TreasuryOverview;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
-use App\Models\LedgerEntry;
+use App\Models\PlatformSettings;
 use App\Models\TreasuryPayout;
-use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
+use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 
 test('admin treasury dashboard shows per-network balances and totals', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
@@ -59,18 +60,11 @@ test('treasury dashboard shows unswept deposits and address count', function () 
         ->assertSee('1 address');
 });
 
-test('treasury dashboard shows revenue and pending withdrawals', function () {
+test('treasury dashboard shows pending withdrawals in network snapshot', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
     $owner = User::factory()->create(['role' => 'owner']);
-    $wallet = TreasuryWallet::factory()->create(['network' => 'bitcoin', 'available_funds' => 0]);
+    TreasuryWallet::factory()->create(['network' => 'bitcoin', 'available_funds' => 0]);
     UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '100.000000']);
-
-    LedgerEntry::create([
-        'user_id' => $owner->id,
-        'network' => 'bitcoin',
-        'amount' => '-0.05000000',
-        'reason' => 'fee',
-    ]);
 
     Withdrawal::factory()->create([
         'user_id' => $owner->id,
@@ -81,12 +75,12 @@ test('treasury dashboard shows revenue and pending withdrawals', function () {
 
     $this->actingAs($admin)
         ->get(route('admin.treasury'))
-        ->assertSee('0.05000000')
+        ->assertSee('Network snapshot')
         ->assertSee('2.00000000')
         ->assertSee('1 pending');
 });
 
-test('grand total usd is shown on the treasury dashboard', function () {
+test('profit summary footer is shown on the treasury dashboard', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
     TreasuryWallet::factory()->create([
         'network' => 'bitcoin',
@@ -97,8 +91,9 @@ test('grand total usd is shown on the treasury dashboard', function () {
 
     $this->actingAs($admin)
         ->get(route('admin.treasury'))
-        ->assertSee('Grand total')
-        ->assertSee('$110.00');
+        ->assertSee('Withdrawable now:')
+        ->assertSee('Total profit:')
+        ->assertSee('$100.00 USD');
 });
 
 test('existing gas policy sections still render and function', function () {
@@ -106,7 +101,7 @@ test('existing gas policy sections still render and function', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20']);
 
     Livewire::actingAs($admin)
-        ->test(\App\Livewire\Admin\TreasuryOverview::class)
+        ->test(TreasuryOverview::class)
         ->set('policies.usdt_erc20.reserve_threshold', '0.03000000')
         ->set('policies.usdt_erc20.top_up_amount', '0.04000000')
         ->set('policies.usdt_erc20.max_top_up', '0.20000000')
@@ -120,7 +115,7 @@ test('payout modal rejects an amount larger than available funds', function () {
     TreasuryWallet::factory()->create(['network' => 'bitcoin', 'available_funds' => '1.00000000']);
 
     Livewire::actingAs($admin)
-        ->test(\App\Livewire\Admin\TreasuryOverview::class)
+        ->test(TreasuryOverview::class)
         ->call('openPayout', 'bitcoin')
         ->set('payoutDestination', '1A...')
         ->set('payoutAmount', '2.00000000')
@@ -131,16 +126,18 @@ test('payout modal rejects an amount larger than available funds', function () {
 test('payout happy path creates and broadcasts a payout', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
     TreasuryWallet::factory()->create(['network' => 'bitcoin', 'derivation_index' => 0, 'address' => 'treasury-btc', 'available_funds' => '5.00000000']);
+    PlatformSettings::instance()->update(['profit_address_bitcoin' => '1BoatSLRHtKNngkdXEeobR76b53LETtpyT']);
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '100.000000']);
 
-    $broadcaster = Mockery::mock(\App\Services\Blockchain\Broadcasters\BlockchainBroadcaster::class);
+    $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
     $broadcaster->shouldReceive('estimateFee')->andReturn('0.00100000');
     $broadcaster->shouldReceive('broadcastPayout')->andReturn('payout-tx-123');
-    app()->instance(\App\Services\Blockchain\Broadcasters\BlockchainBroadcaster::class, $broadcaster);
+    app()->instance(BlockchainBroadcaster::class, $broadcaster);
 
     Livewire::actingAs($admin)
-        ->test(\App\Livewire\Admin\TreasuryOverview::class)
+        ->test(TreasuryOverview::class)
         ->call('openPayout', 'bitcoin')
-        ->set('payoutDestination', '1A...')
+        ->assertSet('payoutDestination', '1BoatSLRHtKNngkdXEeobR76b53LETtpyT')
         ->set('payoutAmount', '1.50000000')
         ->call('previewPayout')
         ->call('confirmPayout')
@@ -150,5 +147,6 @@ test('payout happy path creates and broadcasts a payout', function () {
     $payout = TreasuryPayout::query()->first();
     expect($payout)->not->toBeNull()
         ->and($payout->status)->toBe('sent')
-        ->and($payout->tx_hash)->toBe('payout-tx-123');
+        ->and($payout->tx_hash)->toBe('payout-tx-123')
+        ->and($payout->destination_address)->toBe('1BoatSLRHtKNngkdXEeobR76b53LETtpyT');
 });

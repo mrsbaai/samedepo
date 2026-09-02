@@ -73,9 +73,9 @@ test('error state renders a callout and retry resets to normal', function () {
         ->assertSet('uiState', 'normal');
 });
 
-test('an admin can edit gas policy pause and refresh a wallet', function () {
+test('an admin can edit gas policy and refresh treasury data', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
-    $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_erc20']);
+    TreasuryWallet::factory()->create(['network' => 'usdt_erc20']);
     $service = Mockery::mock(GasTreasuryService::class);
     $service->shouldReceive('policy')->with('usdt_erc20')->andReturnUsing(
         fn () => GasPolicy::firstOrCreate(['network' => 'usdt_erc20'], [
@@ -85,11 +85,7 @@ test('an admin can edit gas policy pause and refresh a wallet', function () {
             'alert_cooldown' => 60,
         ]),
     );
-    $service->shouldReceive('refreshTreasuryWallet')->once()->andReturnUsing(function (TreasuryWallet $wallet) {
-        $wallet->update(['native_balance' => '0.25000000', 'refreshed_at' => now()]);
-
-        return ['native_balance' => '0.25000000'];
-    });
+    $service->shouldReceive('refreshStaleTreasuryWallets')->once();
     app()->instance(GasTreasuryService::class, $service);
 
     Livewire::actingAs($admin)
@@ -100,8 +96,8 @@ test('an admin can edit gas policy pause and refresh a wallet', function () {
         ->set('policies.usdt_erc20.alert_cooldown', 120)
         ->call('savePolicy', 'usdt_erc20')
         ->call('togglePause', 'usdt_erc20')
-        ->call('refreshWallet', $wallet->id)
-        ->assertSee('0.25000000');
+        ->call('refreshTreasuryData')
+        ->assertHasNoErrors();
 
     expect(GasPolicy::where('network', 'usdt_erc20')->first())
         ->reserve_threshold->toBe('0.03000000')
