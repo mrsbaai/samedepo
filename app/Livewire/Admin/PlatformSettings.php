@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin;
 
 use App\Models\PlatformSettings as PlatformSettingsModel;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -26,6 +27,16 @@ class PlatformSettings extends Component
 
     public string $apiRequestsPerMinute = '';
 
+    public string $profitAddressBitcoin = '';
+
+    public string $profitAddressUsdtTrc20 = '';
+
+    public string $profitAddressUsdtErc20 = '';
+
+    public string $profitWarnFeePercent = '';
+
+    public string $profitBlockFeePercent = '';
+
     public bool $showFeeModal = false;
 
     public bool $showMinDepositModal = false;
@@ -33,6 +44,8 @@ class PlatformSettings extends Component
     public bool $showModeModal = false;
 
     public bool $showApiRequestsModal = false;
+
+    public bool $showProfitModal = false;
 
     public ?string $successMessage = null;
 
@@ -55,6 +68,11 @@ class PlatformSettings extends Component
         $this->minDepositErc20 = (string) $settings->min_deposit_usdt_erc20;
         $this->defaultWithdrawalMode = $settings->default_withdrawal_mode;
         $this->apiRequestsPerMinute = (string) $settings->api_requests_per_minute;
+        $this->profitAddressBitcoin = (string) ($settings->profit_address_bitcoin ?? '');
+        $this->profitAddressUsdtTrc20 = (string) ($settings->profit_address_usdt_trc20 ?? '');
+        $this->profitAddressUsdtErc20 = (string) ($settings->profit_address_usdt_erc20 ?? '');
+        $this->profitWarnFeePercent = (string) $settings->profit_payout_warn_fee_percent;
+        $this->profitBlockFeePercent = (string) $settings->profit_payout_block_fee_percent;
     }
 
     #[Computed]
@@ -146,6 +164,45 @@ class PlatformSettings extends Component
 
         $this->showApiRequestsModal = false;
         $this->successMessage = 'API request limit updated.';
+    }
+
+    public function confirmSaveProfit(): void
+    {
+        $this->showProfitModal = true;
+    }
+
+    public function saveProfit(): void
+    {
+        $this->profitAddressBitcoin = trim($this->profitAddressBitcoin);
+        $this->profitAddressUsdtTrc20 = trim($this->profitAddressUsdtTrc20);
+        $this->profitAddressUsdtErc20 = trim($this->profitAddressUsdtErc20);
+
+        $validated = $this->validate([
+            'profitAddressBitcoin' => ['nullable', 'string', 'max:128', 'regex:/^(bc1[ac-hj-np-z02-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/'],
+            'profitAddressUsdtTrc20' => ['nullable', 'string', 'max:128', 'regex:/^T[1-9A-HJ-NP-Za-km-z]{33}$/'],
+            'profitAddressUsdtErc20' => ['nullable', 'string', 'max:128', 'regex:/^0x[a-fA-F0-9]{40}$/'],
+            'profitWarnFeePercent' => ['required', 'numeric', 'gt:0', 'lte:100'],
+            'profitBlockFeePercent' => ['required', 'numeric', 'gt:0', 'lte:100'],
+        ], [
+            'profitAddressBitcoin.regex' => "This doesn't look like a valid Bitcoin address.",
+            'profitAddressUsdtTrc20.regex' => "This doesn't look like a valid USDT (TRC20) address.",
+            'profitAddressUsdtErc20.regex' => "This doesn't look like a valid USDT (ERC20) address.",
+        ]);
+
+        if (bccomp((string) $validated['profitWarnFeePercent'], (string) $validated['profitBlockFeePercent'], 8) >= 0) {
+            throw ValidationException::withMessages(['profitWarnFeePercent' => 'Warning threshold must be lower than the block threshold.']);
+        }
+
+        PlatformSettingsModel::instance()->update([
+            'profit_address_bitcoin' => $validated['profitAddressBitcoin'] ?: null,
+            'profit_address_usdt_trc20' => $validated['profitAddressUsdtTrc20'] ?: null,
+            'profit_address_usdt_erc20' => $validated['profitAddressUsdtErc20'] ?: null,
+            'profit_payout_warn_fee_percent' => $validated['profitWarnFeePercent'],
+            'profit_payout_block_fee_percent' => $validated['profitBlockFeePercent'],
+        ]);
+
+        $this->showProfitModal = false;
+        $this->successMessage = 'Profit payout settings saved.';
     }
 
     public function retry(): void

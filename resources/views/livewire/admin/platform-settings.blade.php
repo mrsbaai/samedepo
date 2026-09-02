@@ -121,6 +121,51 @@
                     </div>
                 </div>
             </flux:card>
+
+            <flux:separator variant="subtle" class="my-6" />
+
+            {{-- Profit Payouts --}}
+            <flux:card>
+                <div class="flex flex-col lg:flex-row gap-4 lg:gap-8">
+                    <div class="lg:w-72 shrink-0">
+                        <flux:heading>Profit payouts</flux:heading>
+                        <flux:subheading class="mt-1">Where samedepo's profit is sent, and when a payout is too expensive to be worth it.</flux:subheading>
+                    </div>
+                    <div class="flex-1 max-w-sm space-y-3">
+                        <flux:field>
+                            <flux:label>Bitcoin profit address</flux:label>
+                            <flux:input wire:model="profitAddressBitcoin" placeholder="bc1…" class="font-mono" />
+                            <flux:error name="profitAddressBitcoin" />
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>USDT (TRC20) profit address</flux:label>
+                            <flux:input wire:model="profitAddressUsdtTrc20" placeholder="T…" class="font-mono" />
+                            <flux:error name="profitAddressUsdtTrc20" />
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>USDT (ERC20) profit address</flux:label>
+                            <flux:input wire:model="profitAddressUsdtErc20" placeholder="0x…" class="font-mono" />
+                            <flux:error name="profitAddressUsdtErc20" />
+                        </flux:field>
+                        <div class="grid grid-cols-2 gap-3">
+                            <flux:field>
+                                <flux:label>Warn when fee is at least (%)</flux:label>
+                                <flux:input type="number" wire:model="profitWarnFeePercent" step="0.1" min="0.1" max="100" size="sm" class="w-24" />
+                                <flux:error name="profitWarnFeePercent" />
+                            </flux:field>
+                            <flux:field>
+                                <flux:label>Block when fee is at least (%)</flux:label>
+                                <flux:input type="number" wire:model="profitBlockFeePercent" step="0.1" min="0.1" max="100" size="sm" class="w-24" />
+                                <flux:error name="profitBlockFeePercent" />
+                            </flux:field>
+                        </div>
+                        <flux:text size="sm" class="text-zinc-500">Fees are compared to the payout amount in USD.</flux:text>
+                        <div class="flex justify-end">
+                            <flux:button variant="primary" size="sm" wire:click="confirmSaveProfit">Save</flux:button>
+                        </div>
+                    </div>
+                </div>
+            </flux:card>
         </div>
     @endif
 
@@ -180,6 +225,26 @@
                 <flux:spacer />
                 <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
                 <flux:button variant="primary" wire:click="saveApiRequests">Confirm</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    {{-- Profit payouts modal --}}
+    <flux:modal wire:model.self="showProfitModal" class="min-w-[22rem]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Save profit payout settings?</flux:heading>
+                <flux:text class="mt-2">Future profit payouts will go to the addresses shown. Double-check them — funds sent to a wrong address cannot be recovered.</flux:text>
+                <div class="mt-4 space-y-2 font-mono text-sm">
+                    <div>Bitcoin: {{ $profitAddressBitcoin ?: 'Not set' }}</div>
+                    <div>USDT (TRC20): {{ $profitAddressUsdtTrc20 ?: 'Not set' }}</div>
+                    <div>USDT (ERC20): {{ $profitAddressUsdtErc20 ?: 'Not set' }}</div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
+                <flux:button variant="primary" wire:click="saveProfit">Save</flux:button>
             </div>
         </div>
     </flux:modal>
