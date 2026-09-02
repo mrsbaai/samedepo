@@ -263,9 +263,9 @@
                 </flux:tab.panel>
 
                 <flux:tab.panel name="settings">
-                    <div class="max-w-lg space-y-6">
+                    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
                         @if ($successMessage)
-                            <flux:callout variant="success" icon="check-circle" heading="{{ $successMessage }}" />
+                            <flux:callout variant="success" icon="check-circle" heading="{{ $successMessage }}" class="lg:col-span-2" />
                         @endif
 
                         {{-- Withdrawal Mode --}}
