@@ -26,6 +26,11 @@ class PlatformSettings extends Model
         'sweep_min_usd_usdt_erc20',
         'sweep_max_age_days',
         'withdrawal_fee_buffer_percent',
+        'profit_address_bitcoin',
+        'profit_address_usdt_trc20',
+        'profit_address_usdt_erc20',
+        'profit_payout_warn_fee_percent',
+        'profit_payout_block_fee_percent',
         'confirmations_bitcoin',
         'confirmations_usdt_trc20',
         'confirmations_usdt_erc20',
@@ -47,6 +52,8 @@ class PlatformSettings extends Model
             'sweep_min_usd_usdt_erc20' => 'decimal:2',
             'sweep_max_age_days' => 'integer',
             'withdrawal_fee_buffer_percent' => 'decimal:2',
+            'profit_payout_warn_fee_percent' => 'decimal:2',
+            'profit_payout_block_fee_percent' => 'decimal:2',
         ];
     }
 
@@ -67,6 +74,8 @@ class PlatformSettings extends Model
             'sweep_min_usd_usdt_erc20' => 300.00,
             'sweep_max_age_days' => 30,
             'withdrawal_fee_buffer_percent' => 20.00,
+            'profit_payout_warn_fee_percent' => 1.00,
+            'profit_payout_block_fee_percent' => 5.00,
             'confirmations_bitcoin' => 3,
             'confirmations_usdt_trc20' => 12,
             'confirmations_usdt_erc20' => 12,

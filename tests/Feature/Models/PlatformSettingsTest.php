@@ -25,6 +25,11 @@ test('the platform settings row has sensible defaults', function () {
         ->and($settings->sweep_min_usd_usdt_erc20)->toBe('300.00')
         ->and($settings->sweep_max_age_days)->toBe(30)
         ->and($settings->withdrawal_fee_buffer_percent)->toBe('20.00')
+        ->and($settings->profit_address_bitcoin)->toBeNull()
+        ->and($settings->profit_address_usdt_trc20)->toBeNull()
+        ->and($settings->profit_address_usdt_erc20)->toBeNull()
+        ->and($settings->profit_payout_warn_fee_percent)->toBe('1.00')
+        ->and($settings->profit_payout_block_fee_percent)->toBe('5.00')
         ->and($settings->confirmations_bitcoin)->toBeGreaterThan(0)
         ->and($settings->confirmations_usdt_trc20)->toBeGreaterThan(0)
         ->and($settings->confirmations_usdt_erc20)->toBeGreaterThan(0);
