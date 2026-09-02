@@ -7,11 +7,13 @@
 
     <flux:field variant="inline">
         <flux:checkbox wire:model="acceptedTerms" />
-        <flux:label>
-            I agree to the
-            <flux:link href="{{ route('terms') }}" wire:navigate>Terms of Service</flux:link>
-            and
-            <flux:link href="{{ route('privacy') }}" wire:navigate>Privacy Policy</flux:link>
+        <flux:label class="w-full flex-wrap items-start">
+            <span class="block min-w-0 leading-snug">
+                I agree to the
+                <flux:link href="{{ route('terms') }}" wire:navigate>Terms of Service</flux:link>
+                and
+                <flux:link href="{{ route('privacy') }}" wire:navigate>Privacy Policy</flux:link>
+            </span>
         </flux:label>
         <flux:error name="acceptedTerms" />
     </flux:field>
