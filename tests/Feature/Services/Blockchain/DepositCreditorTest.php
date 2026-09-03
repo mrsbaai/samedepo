@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Models\LedgerEntry;
+use App\Models\PlatformSettings;
 use App\Models\User;
 use App\Services\Blockchain\DepositCreditor;
 use Illuminate\Support\Facades\Event;
@@ -97,6 +98,28 @@ test('it ignores deposits below the platform minimum', function () {
 
     expect(Balance::query()->where('user_id', $owner->id)->count())->toBe(0);
     expect(LedgerEntry::query()->where('deposit_id', $deposit->id)->count())->toBe(0);
+});
+
+test('it credits an ignored deposit after the platform minimum is lowered', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_erc20']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_erc20',
+        'gross_amount' => '19.70000000',
+        'status' => 'ignored',
+    ]);
+
+    PlatformSettings::instance()->update(['min_deposit_usdt_erc20' => '18.00000000']);
+
+    app(DepositCreditor::class)->credit();
+
+    expect($deposit->fresh()->status)->toBe('credited')
+        ->and($deposit->fresh()->credited_amount)->toBe('19.30600000')
+        ->and(Balance::query()->where('user_id', $owner->id)->where('network', 'usdt_erc20')->value('amount'))->toBe('19.30600000');
 });
 
 test('it is idempotent and does not credit the same deposit twice', function () {

@@ -20,6 +20,11 @@ class Customer extends Model
         'customer_reference',
     ];
 
+    public function getRouteKeyName(): string
+    {
+        return 'customer_reference';
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

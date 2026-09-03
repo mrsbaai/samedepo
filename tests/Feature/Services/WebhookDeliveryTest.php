@@ -31,7 +31,7 @@ function webhookOwner(array $enabledEvents = ['deposit.credited']): array
 
 function creditedDeposit(User $owner): Deposit
 {
-    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'customer-123']);
     $address = DepositAddress::factory()->create([
         'customer_id' => $customer->id,
         'network' => 'bitcoin',
@@ -62,6 +62,7 @@ test('deposit credited dispatches a queued webhook with the expected payload', f
     Queue::assertPushed(DeliverWebhook::class, function (DeliverWebhook $job) use ($deposit) {
         return $job->event === 'deposit.credited'
             && $job->payload['data']['id'] === $deposit->id
+            && $job->payload['data']['customer_reference'] === 'customer-123'
             && $job->payload['data']['network'] === 'bitcoin'
             && $job->payload['data']['credited_amount'] === '1.23750000'
             && $job->payload['data']['credited_usd_value'] === '37125.00';

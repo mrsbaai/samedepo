@@ -17,7 +17,7 @@ class DepositCreditor
     public function credit(): void
     {
         Deposit::query()
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'ignored'])
             ->chunkById(100, function ($deposits): void {
                 foreach ($deposits as $deposit) {
                     DB::transaction(function () use ($deposit): void {

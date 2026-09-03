@@ -5,6 +5,17 @@ use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Models\User;
 
+test('customer detail routes use the owner supplied reference', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'customer-123']);
+
+    $this->actingAs($owner)
+        ->get('/customers/customer-123')
+        ->assertOk();
+
+    expect(route('customers.show', 'customer-123'))->toEndWith('/customers/customer-123');
+});
+
 test('an authenticated owner can view a customer detail and deposit addresses', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);

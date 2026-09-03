@@ -37,7 +37,9 @@ class CustomerDetail extends Component
         $this->uiState = request()->query('state', 'normal');
 
         try {
-            $model = Customer::withoutGlobalScope('owner')->findOrFail($customer);
+            $model = Customer::withoutGlobalScope('owner')
+                ->where('customer_reference', $customer)
+                ->firstOrFail();
         } catch (ModelNotFoundException) {
             abort(404);
         }

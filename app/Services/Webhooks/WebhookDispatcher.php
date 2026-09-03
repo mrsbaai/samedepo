@@ -31,6 +31,7 @@ class WebhookDispatcher
         DeliverWebhook::dispatch($endpoint->id, 'deposit.credited', $this->wrapPayload('deposit.credited', [
             'id' => $deposit->id,
             'customer_id' => $deposit->customer_id,
+            'customer_reference' => $deposit->customer?->customer_reference,
             'network' => $deposit->network,
             'tx_hash' => $deposit->tx_hash,
             'gross_amount' => $deposit->gross_amount,
@@ -47,6 +48,7 @@ class WebhookDispatcher
         return $this->deliver($endpoint, 'deposit.credited', $this->wrapPayload('deposit.credited', [
             'id' => 0,
             'customer_id' => 0,
+            'customer_reference' => 'customer-123',
             'network' => 'bitcoin',
             'tx_hash' => 'test-tx',
             'gross_amount' => '0.10000000',
