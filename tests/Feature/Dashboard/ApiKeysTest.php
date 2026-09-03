@@ -41,7 +41,7 @@ test('a key name is required to generate a key', function () {
         ->assertHasErrors(['newKeyName' => 'required']);
 });
 
-test('an owner sees their active and revoked keys', function () {
+test('an owner sees only their active keys', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
     ApiKey::factory()->create([
@@ -60,9 +60,9 @@ test('an owner sees their active and revoked keys', function () {
     Livewire::actingAs($owner)
         ->test(ApiKeys::class)
         ->assertSee('Active key', false)
-        ->assertSee('Revoked key', false)
         ->assertSee('Active', false)
-        ->assertSee('Revoked', false);
+        ->assertDontSee('Revoked key', false)
+        ->assertDontSee('Revoked', false);
 });
 
 test('an owner can revoke a key', function () {

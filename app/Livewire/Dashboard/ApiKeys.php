@@ -65,7 +65,7 @@ class ApiKeys extends Component
         }
 
         return ApiKey::query()
-            ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
+            ->where('status', 'active')
             ->orderByDesc('created_at')
             ->paginate(10);
     }
