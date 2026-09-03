@@ -11,6 +11,8 @@ use InvalidArgumentException;
 
 class InfuraProvider implements BlockchainProvider
 {
+    private const BLOCK_RANGE = 10000;
+
     private const TRANSFER_EVENT_SIGNATURE = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
     public function __construct(
@@ -55,8 +57,8 @@ class InfuraProvider implements BlockchainProvider
             'method' => 'eth_getLogs',
             'params' => [[
                 'address' => strtolower($this->usdtContract),
-                'fromBlock' => '0x0',
-                'toBlock' => 'latest',
+                'fromBlock' => '0x'.dechex(max(0, $currentBlock - self::BLOCK_RANGE + 1)),
+                'toBlock' => '0x'.dechex($currentBlock),
                 'topics' => [self::TRANSFER_EVENT_SIGNATURE, null, $toTopic],
             ]],
             'id' => 1,
@@ -113,7 +115,13 @@ class InfuraProvider implements BlockchainProvider
             throw new InvalidArgumentException('Infura API returned an error: '.$response->body());
         }
 
-        return $response->json();
+        $data = $response->json();
+
+        if (isset($data['error'])) {
+            throw new InvalidArgumentException('Infura API returned an error: '.($data['error']['message'] ?? json_encode($data['error'])));
+        }
+
+        return $data;
     }
 
     private function hexToDec(string $hex): string

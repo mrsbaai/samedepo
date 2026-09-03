@@ -7,6 +7,7 @@ namespace App\Services\Blockchain\Providers;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
 
 class BlockCypherProvider implements BlockchainProvider
 {
@@ -46,8 +47,19 @@ class BlockCypherProvider implements BlockchainProvider
             $params['token'] = $this->token;
         }
 
-        $response = Http::get($url, $params)->json();
-        $txs = $response['txs'] ?? [];
+        $response = Http::get($url, $params);
+
+        if (! $response->successful()) {
+            throw new InvalidArgumentException('BlockCypher API returned an error: '.$response->body());
+        }
+
+        $data = $response->json();
+
+        if (isset($data['error'])) {
+            throw new InvalidArgumentException('BlockCypher API returned an error: '.$data['error']);
+        }
+
+        $txs = $data['txs'] ?? [];
 
         $transactions = [];
 
