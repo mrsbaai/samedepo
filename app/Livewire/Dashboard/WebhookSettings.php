@@ -27,6 +27,10 @@ class WebhookSettings extends Component
 
     public ?string $testError = null;
 
+    public ?string $revealedSecret = null;
+
+    public bool $showRegenerateModal = false;
+
     public function mount(): void
     {
         $this->uiState = request()->query('state', 'normal');
@@ -82,13 +86,15 @@ class WebhookSettings extends Component
         $endpoint = WebhookEndpoint::query()->first();
 
         if ($endpoint === null) {
+            $secret = bin2hex(random_bytes(32));
             WebhookEndpoint::create([
                 'user_id' => Auth::id(),
                 'url' => $url,
                 'enabled_events' => ['deposit.credited'],
-                'secret' => bin2hex(random_bytes(32)),
+                'secret' => $secret,
             ]);
         } else {
+            $secret = $endpoint->secret;
             $endpoint->update([
                 'url' => $url,
                 'enabled_events' => ['deposit.credited'],
@@ -99,6 +105,32 @@ class WebhookSettings extends Component
         $this->testResult = null;
         $this->testError = null;
         $this->showSetupNotice = false;
+        $this->revealedSecret = $secret;
+    }
+
+    public function regenerate(): void
+    {
+        $endpoint = WebhookEndpoint::query()->first();
+
+        if ($endpoint === null) {
+            $this->showRegenerateModal = false;
+
+            return;
+        }
+
+        $secret = bin2hex(random_bytes(32));
+        $endpoint->update(['secret' => $secret]);
+
+        $this->revealedSecret = $secret;
+        $this->successMessage = 'Webhook secret regenerated. Copy it now — you won\'t see it again.';
+        $this->showRegenerateModal = false;
+        $this->testResult = null;
+        $this->testError = null;
+    }
+
+    public function cancelRegenerate(): void
+    {
+        $this->showRegenerateModal = false;
     }
 
     public function test(WebhookDispatcher $dispatcher): void

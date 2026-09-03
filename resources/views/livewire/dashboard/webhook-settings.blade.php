@@ -40,6 +40,18 @@
                 </flux:callout>
             @endif
 
+            @if ($revealedSecret)
+                <div class="space-y-4">
+                    <flux:callout variant="warning" icon="exclamation-triangle" heading="Copy your webhook secret now">
+                        <flux:callout.text>This is the only time you'll see the full secret. Use it to verify the X-Samedepo-Signature header on your endpoint.</flux:callout.text>
+                    </flux:callout>
+                    <flux:field>
+                        <flux:label>Webhook secret</flux:label>
+                        <flux:input icon="key" :value="$revealedSecret" readonly copyable class="font-ledger" />
+                    </flux:field>
+                </div>
+            @endif
+
             <flux:field>
                 <flux:label>Endpoint URL</flux:label>
                 <flux:description>Must use https://. Your endpoint should respond with any HTTP 2xx status code on a successful delivery. The response body is ignored.</flux:description>
@@ -50,10 +62,29 @@
                 <flux:error name="webhookUrl" />
             </flux:field>
 
-            <div class="flex gap-4">
+            <div class="flex flex-wrap gap-4">
                 <flux:button variant="primary" wire:click="save">Save Webhook Endpoint</flux:button>
                 <flux:button wire:click="test" icon="paper-airplane">Test Endpoint</flux:button>
+                @if (! $showSetupNotice)
+                    <flux:button wire:click="$set('showRegenerateModal', true)" icon="arrow-path" variant="ghost">Regenerate secret</flux:button>
+                @endif
             </div>
         </div>
     @endif
+
+    <flux:modal wire:model.self="showRegenerateModal" class="min-w-[22rem]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Regenerate webhook secret?</flux:heading>
+                <flux:text class="mt-2">This invalidates the current secret immediately. Any endpoint still using the old signature will reject valid payloads until updated.</flux:text>
+            </div>
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close>
+                    <flux:button variant="ghost" wire:click="cancelRegenerate">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button variant="primary" wire:click="regenerate">Regenerate Secret</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

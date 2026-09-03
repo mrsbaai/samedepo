@@ -79,3 +79,11 @@ test('the api docs page uses the public layout', function () {
         ->assertSee('API Docs')
         ->assertSee('Sign in');
 });
+
+test('the webhooks tab documents the correct php signature header key', function () {
+    $response = $this->get(route('public.api-docs', ['tab' => 'webhooks']))->assertOk();
+
+    expect($response->getContent())
+        ->toMatch('/HTTP_X_SAMEDEP[A-Z]_SIGNATURE/')
+        ->not->toMatch('/HTTP_X_SAMEDEP[a-z]_SIGNATURE/');
+});

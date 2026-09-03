@@ -228,7 +228,7 @@
                                 <pre class="max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-zinc-950 p-3 sm:p-4 text-xs font-mono text-zinc-300"><code>$payload = file_get_contents(<span class="text-(--color-accent)">'php://input'</span>);
 $expected = hash_hmac(<span class="text-(--color-accent)">'sha256'</span>, $payload, $yourSecret);
 
-if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPo_SIGNATURE'] ?? '')) {
+if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPO_SIGNATURE'] ?? '')) {
     http_response_code(<span class="text-(--color-accent)">401</span>);
     exit(<span class="text-(--color-accent)">'Invalid signature'</span>);
 }</code></pre>

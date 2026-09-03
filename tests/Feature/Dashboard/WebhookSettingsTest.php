@@ -38,6 +38,21 @@ test('an owner can save webhook settings', function () {
     expect($endpoint->enabled_events)->toBe(['deposit.credited']);
 });
 
+test('saving a new webhook endpoint reveals the generated secret', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    $component = Livewire::actingAs($owner)
+        ->test(WebhookSettings::class)
+        ->set('webhookUrl', 'example.com/webhooks/samedepo')
+        ->call('save');
+
+    $component->assertHasNoErrors();
+
+    $endpoint = WebhookEndpoint::where('user_id', $owner->id)->first();
+    $component->assertSet('revealedSecret', $endpoint->secret);
+    $component->assertSee($endpoint->secret, false);
+});
+
 test('webhook url must use https', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
@@ -73,6 +88,29 @@ test('an owner can test a webhook endpoint', function () {
         ->call('test')
         ->assertHasNoErrors()
         ->assertSee('Test delivery succeeded', false);
+});
+
+test('an owner can regenerate the webhook secret', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $endpoint = WebhookEndpoint::factory()->create([
+        'user_id' => $owner->id,
+        'url' => 'https://existing.example.com/webhook',
+        'enabled_events' => ['deposit.credited'],
+    ]);
+    $oldSecret = $endpoint->secret;
+
+    $component = Livewire::actingAs($owner)
+        ->test(WebhookSettings::class)
+        ->set('showRegenerateModal', true)
+        ->call('regenerate')
+        ->assertHasNoErrors();
+
+    $endpoint->refresh();
+
+    expect($endpoint->secret)->not->toBe($oldSecret)
+        ->and($endpoint->url)->toBe('https://existing.example.com/webhook')
+        ->and($endpoint->enabled_events)->toBe(['deposit.credited'])
+        ->and($component->get('revealedSecret'))->toBe($endpoint->secret);
 });
 
 test('a failing webhook test shows an error and notifies the owner', function () {
