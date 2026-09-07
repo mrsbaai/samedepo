@@ -37,7 +37,7 @@
 
                 <flux:table.cell class="py-0">
                     <flux:badge size="sm" color="{{ \App\Support\DepositRow::STATUS_COLORS[$d['status']] ?? 'zinc' }}">
-                        {{ ucfirst($d['status']) }}
+                        {{ $d['statusLabel'] }}
                     </flux:badge>
                 </flux:table.cell>
 

@@ -19,12 +19,12 @@
         <div class="space-y-8 max-w-lg">
             <div>
                 <flux:heading size="xl">Webhook Settings</flux:heading>
-                <flux:subheading class="mt-2">Configure the endpoint where credited-deposit webhooks are delivered.</flux:subheading>
+                <flux:subheading class="mt-2">Configure the endpoint where deposit webhooks are delivered.</flux:subheading>
             </div>
 
             @if ($showSetupNotice)
                 <flux:callout variant="warning" icon="exclamation-triangle" heading="No webhook endpoint configured">
-                    <flux:callout.text>Credited deposit webhooks will not be sent until you save an endpoint URL.</flux:callout.text>
+                    <flux:callout.text>Deposit webhooks will not be sent until you save an endpoint URL.</flux:callout.text>
                 </flux:callout>
             @endif
 

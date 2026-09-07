@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Events\DepositCredited;
+use App\Events\DepositPending;
 use App\Jobs\DeliverWebhook;
 use App\Models\Customer;
 use App\Models\Deposit;
@@ -48,6 +49,27 @@ function creditedDeposit(User $owner): Deposit
         'status' => 'credited',
         'tx_hash' => 'deposit-tx',
         'credited_at' => now(),
+    ]);
+}
+
+function pendingDeposit(User $owner, int $confirmations = 2): Deposit
+{
+    $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'customer-123']);
+    $address = DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'bitcoin',
+    ]);
+
+    return Deposit::factory()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'deposit_address_id' => $address->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '1.25000000',
+        'status' => 'pending',
+        'confirmation_count' => $confirmations,
+        'tx_hash' => 'pending-tx',
+        'detected_at' => now(),
     ]);
 }
 
@@ -127,4 +149,41 @@ test('test webhook uses the public deposit payload fields', function () {
             && ! isset($data['credited_amount'])
             && ! isset($data['credited_usd_value']);
     });
+});
+
+test('deposit pending dispatches a queued webhook with the expected payload', function () {
+    Queue::fake();
+    [$owner] = webhookOwner(['deposit.pending']);
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => 30000.00]);
+    $deposit = pendingDeposit($owner, 2);
+
+    DepositPending::dispatch($deposit);
+
+    Queue::assertPushed(DeliverWebhook::class, function (DeliverWebhook $job) use ($deposit) {
+        return $job->event === 'deposit.pending'
+            && $job->payload['data']['id'] === $deposit->id
+            && $job->payload['data']['customer_id'] === $deposit->customer_id
+            && $job->payload['data']['customer_reference'] === 'customer-123'
+            && $job->payload['data']['network'] === 'bitcoin'
+            && $job->payload['data']['tx_hash'] === 'pending-tx'
+            && $job->payload['data']['gross_amount'] === '1.25000000'
+            && $job->payload['data']['gross_amount_usd'] === '37500.00'
+            && $job->payload['data']['status'] === 'pending'
+            && $job->payload['data']['confirmation_count'] === 2
+            && $job->payload['data']['confirmations_required'] === 3
+            && $job->payload['data']['detected_at'] !== null
+            && ! isset($job->payload['data']['credited_at'])
+            && ! isset($job->payload['data']['fee_amount'])
+            && ! isset($job->payload['data']['credited_amount']);
+    });
+});
+
+test('deposit pending is not dispatched when the endpoint does not enable it', function () {
+    Queue::fake();
+    [$owner] = webhookOwner(['deposit.credited']);
+    $deposit = pendingDeposit($owner);
+
+    DepositPending::dispatch($deposit);
+
+    Queue::assertNothingPushed();
 });

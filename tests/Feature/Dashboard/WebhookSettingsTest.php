@@ -35,7 +35,7 @@ test('an owner can save webhook settings', function () {
     ]);
 
     $endpoint = WebhookEndpoint::where('user_id', $owner->id)->first();
-    expect($endpoint->enabled_events)->toBe(['deposit.credited']);
+    expect($endpoint->enabled_events)->toBe(['deposit.pending', 'deposit.credited']);
 });
 
 test('saving a new webhook endpoint reveals the generated secret', function () {
@@ -109,7 +109,7 @@ test('an owner can regenerate the webhook secret', function () {
 
     expect($endpoint->secret)->not->toBe($oldSecret)
         ->and($endpoint->url)->toBe('https://existing.example.com/webhook')
-        ->and($endpoint->enabled_events)->toBe(['deposit.credited'])
+        ->and($endpoint->enabled_events)->toBe(['deposit.pending', 'deposit.credited'])
         ->and($component->get('revealedSecret'))->toBe($endpoint->secret);
 });
 

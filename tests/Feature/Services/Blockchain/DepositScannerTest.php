@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\DepositPending;
 use App\Models\BlockchainScanState;
 use App\Models\Customer;
 use App\Models\Deposit;
@@ -8,6 +9,7 @@ use App\Models\User;
 use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 
 class FakeBlockchainProvider implements BlockchainProvider
@@ -56,7 +58,8 @@ function createScanner(string $network, array $transactions): DepositScanner
     return new DepositScanner([$provider]);
 }
 
-test('it creates a detected deposit for an unconfirmed transaction', function () {
+test('it creates a pending deposit for an unconfirmed transaction', function () {
+    Event::fake([DepositPending::class]);
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     $address = DepositAddress::factory()->create([
@@ -68,7 +71,7 @@ test('it creates a detected deposit for an unconfirmed transaction', function ()
     $scanner = createScanner('bitcoin', [
         new BlockchainTransaction(
             network: 'bitcoin',
-            txHash: 'tx-detected',
+            txHash: 'tx-pending-create',
             toAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
             amount: '0.50000000',
             confirmations: 1,
@@ -77,14 +80,17 @@ test('it creates a detected deposit for an unconfirmed transaction', function ()
 
     $scanner->scan();
 
-    $deposit = Deposit::query()->where('tx_hash', 'tx-detected')->first();
+    $deposit = Deposit::query()->where('tx_hash', 'tx-pending-create')->first();
     expect($deposit)->not->toBeNull();
-    expect($deposit->status)->toBe('detected');
+    expect($deposit->status)->toBe('pending');
     expect($deposit->gross_amount)->toBe('0.50000000');
     expect($deposit->user_id)->toBe($owner->id);
+
+    Event::assertDispatched(DepositPending::class, fn (DepositPending $event) => $event->deposit->id === $deposit->id);
 });
 
-test('it updates confirmation count and moves the deposit to pending when the threshold is reached', function () {
+test('it updates confirmation count and keeps the deposit pending at the threshold', function () {
+    Event::fake([DepositPending::class]);
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     DepositAddress::factory()->create([
@@ -96,7 +102,7 @@ test('it updates confirmation count and moves the deposit to pending when the th
     $scanner = createScanner('bitcoin', [
         new BlockchainTransaction(
             network: 'bitcoin',
-            txHash: 'tx-pending',
+            txHash: 'tx-pending-threshold',
             toAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
             amount: '1.00000000',
             confirmations: 1,
@@ -105,14 +111,17 @@ test('it updates confirmation count and moves the deposit to pending when the th
 
     $scanner->scan();
 
-    $first = Deposit::query()->where('tx_hash', 'tx-pending')->first();
-    expect($first->status)->toBe('detected');
+    $first = Deposit::query()->where('tx_hash', 'tx-pending-threshold')->first();
+    expect($first->status)->toBe('pending');
     expect($first->confirmation_count)->toBe(1);
+
+    Event::assertDispatched(DepositPending::class, 1);
+    Event::fake([DepositPending::class]);
 
     $scanner2 = createScanner('bitcoin', [
         new BlockchainTransaction(
             network: 'bitcoin',
-            txHash: 'tx-pending',
+            txHash: 'tx-pending-threshold',
             toAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
             amount: '1.00000000',
             confirmations: 3,
@@ -124,6 +133,8 @@ test('it updates confirmation count and moves the deposit to pending when the th
     $first->refresh();
     expect($first->status)->toBe('pending');
     expect($first->confirmation_count)->toBe(3);
+
+    Event::assertNotDispatched(DepositPending::class);
 });
 
 test('it ignores transactions sent to addresses that are not watched', function () {

@@ -85,23 +85,25 @@ class WebhookSettings extends Component
 
         $endpoint = WebhookEndpoint::query()->first();
 
+        $enabledEvents = ['deposit.pending', 'deposit.credited'];
+
         if ($endpoint === null) {
             $secret = bin2hex(random_bytes(32));
             WebhookEndpoint::create([
                 'user_id' => Auth::id(),
                 'url' => $url,
-                'enabled_events' => ['deposit.credited'],
+                'enabled_events' => $enabledEvents,
                 'secret' => $secret,
             ]);
         } else {
             $secret = $endpoint->secret;
             $endpoint->update([
                 'url' => $url,
-                'enabled_events' => ['deposit.credited'],
+                'enabled_events' => $enabledEvents,
             ]);
         }
 
-        $this->successMessage = 'Webhook endpoint saved. Credited deposits will be sent to this URL.';
+        $this->successMessage = 'Webhook endpoint saved. Deposit webhooks will be sent to this URL.';
         $this->testResult = null;
         $this->testError = null;
         $this->showSetupNotice = false;
@@ -119,7 +121,10 @@ class WebhookSettings extends Component
         }
 
         $secret = bin2hex(random_bytes(32));
-        $endpoint->update(['secret' => $secret]);
+        $endpoint->update([
+            'secret' => $secret,
+            'enabled_events' => ['deposit.pending', 'deposit.credited'],
+        ]);
 
         $this->revealedSecret = $secret;
         $this->successMessage = 'Webhook secret regenerated. Copy it now — you won\'t see it again.';
@@ -160,6 +165,7 @@ class WebhookSettings extends Component
         $testEndpoint = new WebhookEndpoint([
             'url' => $url,
             'secret' => $secret,
+            'enabled_events' => ['deposit.credited'],
         ]);
 
         if ($dispatcher->test($testEndpoint)) {

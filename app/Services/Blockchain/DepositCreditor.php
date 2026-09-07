@@ -30,6 +30,11 @@ class DepositCreditor
     private function creditDeposit(Deposit $deposit): void
     {
         $settings = PlatformSettings::instance();
+        $requiredConfirmations = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+
+        if ($deposit->confirmation_count < $requiredConfirmations) {
+            return;
+        }
 
         if ($this->belowMinimum($deposit, $settings)) {
             $deposit->update(['status' => 'ignored']);

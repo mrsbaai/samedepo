@@ -38,7 +38,6 @@ class TransactionHistory extends Component
         'detected' => 'Detected',
         'pending' => 'Pending',
         'credited' => 'Credited',
-        'ignored' => 'Ignored',
         'approved' => 'Approved',
         'denied' => 'Denied',
         'cancelled' => 'Cancelled',
@@ -118,6 +117,11 @@ class TransactionHistory extends Component
                 ? $this->formatAmount((string) ((float) $deposit->gross_amount - (float) $deposit->fee_amount), $meta['decimals'])
                 : null);
 
+        $confirmationsRequired = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+        $statusLabel = $deposit->status === 'pending'
+            ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
+            : ucfirst($deposit->status);
+
         return [
             'id' => 'deposit-'.$deposit->id,
             'type' => 'deposit',
@@ -129,6 +133,9 @@ class TransactionHistory extends Component
             'fee' => $fee,
             'net' => $net,
             'status' => $deposit->status,
+            'statusLabel' => $statusLabel,
+            'confirmationCount' => $deposit->confirmation_count,
+            'confirmationsRequired' => $confirmationsRequired,
             'userRef' => $deposit->customer?->customer_reference,
             'customer' => $deposit->customer,
             'txHash' => $deposit->tx_hash,
@@ -157,6 +164,7 @@ class TransactionHistory extends Component
             'fee' => $fee,
             'net' => $net,
             'status' => $withdrawal->status,
+            'statusLabel' => ucfirst($withdrawal->status),
             'userRef' => 'Owner',
             'customer' => null,
             'txHash' => $withdrawal->tx_hash,
@@ -180,6 +188,7 @@ class TransactionHistory extends Component
         if ($this->typeFilter !== 'withdrawal') {
             $deposits = Deposit::query()
                 ->with('customer')
+                ->where('status', '!=', 'ignored')
                 ->when($dbNetwork !== null, fn ($query) => $query->where('network', $dbNetwork))
                 ->when($this->statusFilter !== 'all', fn ($query) => $query->where('status', $this->statusFilter))
                 ->get();

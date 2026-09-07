@@ -38,6 +38,11 @@ final class DepositRow
             ? null
             : number_format((float) $value, $meta['decimals'], '.', '');
 
+        $confirmationsRequired = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+        $statusLabel = $deposit->status === 'pending'
+            ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
+            : ucfirst($deposit->status);
+
         return [
             'id' => $deposit->id,
             'networkSlug' => $meta['slug'],
@@ -47,6 +52,9 @@ final class DepositRow
             'fee' => $deposit->status === 'credited' ? $format($deposit->fee_amount) : null,
             'credited' => $deposit->status === 'credited' ? $format($deposit->credited_amount) : null,
             'status' => $deposit->status,
+            'statusLabel' => $statusLabel,
+            'confirmationCount' => $deposit->confirmation_count,
+            'confirmationsRequired' => $confirmationsRequired,
             'txHash' => $deposit->tx_hash,
             'explorerUrl' => ExplorerUrl::for('tx', $deposit->network, $deposit->tx_hash),
             'at' => $deposit->detected_at ?? $deposit->created_at,

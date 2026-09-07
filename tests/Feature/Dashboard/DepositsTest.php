@@ -20,7 +20,8 @@ function makeDeposit(User $owner, array $attributes = []): Deposit
         'customer_id' => $customer->id,
         'user_id' => $owner->id,
         'network' => $address->network,
-        'status' => 'detected',
+        'status' => 'pending',
+        'confirmation_count' => 0,
         'detected_at' => now(),
     ], $attributes));
 }
@@ -113,7 +114,8 @@ test('pagination works across pages of deposits', function () {
         makeDeposit($owner, [
             'customer_id' => $customer->id,
             'deposit_address_id' => $address->id,
-            'status' => 'detected',
+            'status' => 'pending',
+            'confirmation_count' => $i,
             'detected_at' => now()->subMinutes($i),
         ]);
     }
@@ -155,7 +157,7 @@ test('error state renders a callout and retry resets to normal', function () {
 test('tx hash copy action is present for a deposit row', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
-    makeDeposit($owner, ['tx_hash' => 'abc123txhash', 'status' => 'detected']);
+    makeDeposit($owner, ['tx_hash' => 'abc123txhash', 'status' => 'pending']);
 
     $this->actingAs($owner)
         ->get(route('deposits'))
@@ -169,12 +171,31 @@ test('customer reference links to the customer detail page', function () {
 
     $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'CUST-LINK']);
     $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
-    makeDeposit($owner, ['customer_id' => $customer->id, 'deposit_address_id' => $address->id, 'status' => 'detected']);
+    makeDeposit($owner, ['customer_id' => $customer->id, 'deposit_address_id' => $address->id, 'status' => 'pending']);
 
     $this->actingAs($owner)
         ->get(route('deposits'))
         ->assertOk()
         ->assertSee(route('customers.show', $customer), false);
+});
+
+test('pending deposits show confirmation progress', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'CUST-PROG']);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    makeDeposit($owner, [
+        'customer_id' => $customer->id,
+        'deposit_address_id' => $address->id,
+        'status' => 'pending',
+        'confirmation_count' => 2,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('deposits'))
+        ->assertOk()
+        ->assertSee('CUST-PROG', false)
+        ->assertSee('Pending · 2/3 confirmations', false);
 });
 
 test('admins cannot access the deposits page', function () {

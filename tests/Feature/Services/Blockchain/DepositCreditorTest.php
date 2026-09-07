@@ -67,6 +67,7 @@ test('it applies the per-owner deposit fee override', function () {
         'network' => 'bitcoin',
         'gross_amount' => '2.00000000',
         'status' => 'pending',
+        'confirmation_count' => 3,
     ]);
 
     app(DepositCreditor::class)->credit();
@@ -87,6 +88,7 @@ test('it ignores deposits below the platform minimum', function () {
         'network' => 'usdt_trc20',
         'gross_amount' => '5.00000000', // below 10 USDT minimum
         'status' => 'pending',
+        'confirmation_count' => 20,
     ]);
 
     app(DepositCreditor::class)->credit();
@@ -100,7 +102,7 @@ test('it ignores deposits below the platform minimum', function () {
     expect(LedgerEntry::query()->where('deposit_id', $deposit->id)->count())->toBe(0);
 });
 
-test('it credits an ignored deposit after the platform minimum is lowered', function () {
+test('it credits an ignored deposit after the platform minimum is lowered and confirmations are met', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_erc20']);
@@ -111,6 +113,7 @@ test('it credits an ignored deposit after the platform minimum is lowered', func
         'network' => 'usdt_erc20',
         'gross_amount' => '19.70000000',
         'status' => 'ignored',
+        'confirmation_count' => 12,
     ]);
 
     PlatformSettings::instance()->update(['min_deposit_usdt_erc20' => '18.00000000']);
@@ -133,6 +136,7 @@ test('it is idempotent and does not credit the same deposit twice', function () 
         'network' => 'bitcoin',
         'gross_amount' => '1.00000000',
         'status' => 'pending',
+        'confirmation_count' => 3,
     ]);
 
     app(DepositCreditor::class)->credit();
@@ -144,4 +148,105 @@ test('it is idempotent and does not credit the same deposit twice', function () 
     $balance = Balance::query()->where('user_id', $owner->id)->where('network', 'bitcoin')->first();
     expect($balance->amount)->toBe('0.98000000');
     expect(LedgerEntry::query()->where('deposit_id', $deposit->id)->count())->toBe(2);
+});
+
+test('it does not credit a pending deposit before required confirmations are reached', function () {
+    Event::fake([DepositCredited::class]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '1.00000000',
+        'status' => 'pending',
+        'confirmation_count' => 1,
+    ]);
+
+    app(DepositCreditor::class)->credit();
+
+    $deposit->refresh();
+    expect($deposit->status)->toBe('pending');
+    expect($deposit->credited_amount)->toBeNull();
+    expect(Balance::query()->where('user_id', $owner->id)->count())->toBe(0);
+    expect(LedgerEntry::query()->where('deposit_id', $deposit->id)->count())->toBe(0);
+
+    Event::assertNotDispatched(DepositCredited::class);
+});
+
+test('it keeps an unconfirmed below-minimum deposit pending', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '5.00000000',
+        'status' => 'pending',
+        'confirmation_count' => 19,
+    ]);
+
+    app(DepositCreditor::class)->credit();
+
+    expect($deposit->fresh()->status)->toBe('pending')
+        ->and($deposit->fresh()->fee_amount)->toBeNull()
+        ->and($deposit->fresh()->credited_amount)->toBeNull()
+        ->and(Balance::query()->where('user_id', $owner->id)->count())->toBe(0)
+        ->and(LedgerEntry::query()->where('deposit_id', $deposit->id)->count())->toBe(0);
+});
+
+test('it credits a pending deposit once the required confirmations are reached', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '1.00000000',
+        'status' => 'pending',
+        'confirmation_count' => 3,
+    ]);
+
+    app(DepositCreditor::class)->credit();
+
+    $deposit->refresh();
+    expect($deposit->status)->toBe('credited');
+    expect($deposit->credited_amount)->toBe('0.98000000');
+    expect(Balance::query()->where('user_id', $owner->id)->where('network', 'bitcoin')->value('amount'))->toBe('0.98000000');
+});
+
+test('it does not credit an ignored deposit after the minimum is lowered until confirmations are reached', function () {
+    Event::fake([DepositCredited::class]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_erc20']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_erc20',
+        'gross_amount' => '19.70000000',
+        'status' => 'ignored',
+        'confirmation_count' => 11,
+    ]);
+
+    PlatformSettings::instance()->update(['min_deposit_usdt_erc20' => '18.00000000']);
+
+    app(DepositCreditor::class)->credit();
+
+    expect($deposit->fresh()->status)->toBe('ignored');
+    expect(Balance::query()->where('user_id', $owner->id)->count())->toBe(0);
+
+    $deposit->update(['confirmation_count' => 12]);
+
+    app(DepositCreditor::class)->credit();
+
+    expect($deposit->fresh()->status)->toBe('credited');
+    expect($deposit->fresh()->credited_amount)->toBe('19.30600000');
 });

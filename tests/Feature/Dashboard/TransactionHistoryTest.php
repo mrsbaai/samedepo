@@ -127,6 +127,23 @@ test('status filter narrows the ledger to a single status', function () {
         ->assertSee('denied-tx-hash', false);
 });
 
+test('pending deposits show confirmation progress in the ledger', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    makeLedgerDeposit($owner, [
+        'network' => 'bitcoin',
+        'status' => 'pending',
+        'tx_hash' => 'progress-tx-hash',
+        'confirmation_count' => 2,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('transactions'))
+        ->assertOk()
+        ->assertSee('progress-tx-hash', false)
+        ->assertSee('Pending · 2/3 confirmations', false);
+});
+
 test('pagination works across combined pages of transactions', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 

@@ -145,3 +145,25 @@ test('a non-owner id as owner parameter is not found', function () {
         ->assertOk()
         ->assertSee('Customer not found', false);
 });
+
+test('admin sees pending deposit confirmation progress in the customer deposit table', function () {
+    $f = adminCustomerFixture();
+
+    Deposit::create([
+        'deposit_address_id' => $f['btc']->id,
+        'customer_id' => $f['customer']->id,
+        'user_id' => $f['owner']->id,
+        'network' => 'bitcoin',
+        'tx_hash' => 'tx-progress',
+        'gross_amount' => '0.25000000',
+        'status' => 'pending',
+        'confirmation_count' => 2,
+        'detected_at' => now(),
+    ]);
+
+    $this->actingAs($f['admin'])
+        ->get(route('admin.owners.customers.show', [$f['owner'], $f['customer']->customer_reference]))
+        ->assertOk()
+        ->assertSee('tx-progress', false)
+        ->assertSee('Pending · 2/3 confirmations', false);
+});

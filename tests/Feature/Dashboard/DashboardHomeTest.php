@@ -88,6 +88,32 @@ test('recent activity table renders deposits and withdrawals', function () {
         ->assertSee('Sent', false);
 });
 
+test('pending deposits in recent activity show confirmation progress', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    seedBalances($owner);
+
+    $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'CUST-PENDING']);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '0.00500000',
+        'status' => 'pending',
+        'confirmation_count' => 2,
+        'detected_at' => now(),
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('CUST-PENDING', false)
+        ->assertSee('0.00500000 BTC', false)
+        ->assertSee('Pending · 2/3 confirmations', false);
+});
+
 test('empty state is shown when there is no activity', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     seedBalances($owner);

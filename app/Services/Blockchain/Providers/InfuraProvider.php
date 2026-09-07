@@ -34,9 +34,11 @@ class InfuraProvider implements BlockchainProvider
 
         $currentBlock = $this->currentBlockNumber();
         $state = BlockchainScanState::query()->where('network', $this->network)->first();
+        $confirmationsRequired = max(0, (int) config("blockchain.confirmations.{$this->network}", 0));
+        $overlap = max(0, $confirmationsRequired - 1);
         $fromBlock = $state?->last_scanned_block === null
             ? max(0, $currentBlock - self::BLOCK_RANGE + 1)
-            : $state->last_scanned_block + 1;
+            : max(0, $state->last_scanned_block + 1 - $overlap);
 
         if ($fromBlock > $currentBlock) {
             return [];

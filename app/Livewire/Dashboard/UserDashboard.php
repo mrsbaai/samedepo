@@ -105,6 +105,7 @@ class UserDashboard extends Component
     {
         $deposits = Deposit::query()
             ->with('customer')
+            ->where('status', '!=', 'ignored')
             ->orderByDesc('detected_at')
             ->limit(20)
             ->get()
@@ -112,6 +113,10 @@ class UserDashboard extends Component
                 $meta = self::NETWORKS[$deposit->network] ?? ['slug' => str_replace('_', '-', $deposit->network), 'label' => $deposit->network, 'decimals' => 8];
                 $amount = $deposit->credited_amount ?? $deposit->gross_amount;
                 $timestamp = $deposit->detected_at ?? $deposit->created_at;
+                $confirmationsRequired = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+                $statusLabel = $deposit->status === 'pending'
+                    ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
+                    : ucfirst($deposit->status);
 
                 return [
                     'type' => 'deposit',
@@ -121,6 +126,9 @@ class UserDashboard extends Component
                     'txHash' => $deposit->tx_hash,
                     'amount' => number_format((float) $amount, $meta['decimals'], '.', ''),
                     'status' => $deposit->status,
+                    'statusLabel' => $statusLabel,
+                    'confirmationCount' => $deposit->confirmation_count,
+                    'confirmationsRequired' => $confirmationsRequired,
                     'timestamp' => $timestamp->toIso8601String(),
                 ];
             });
@@ -141,6 +149,7 @@ class UserDashboard extends Component
                     'txHash' => $withdrawal->tx_hash,
                     'amount' => number_format((float) $amount, $meta['decimals'], '.', ''),
                     'status' => $withdrawal->status,
+                    'statusLabel' => ucfirst($withdrawal->status),
                     'timestamp' => $withdrawal->created_at->toIso8601String(),
                 ];
             });

@@ -28,6 +28,10 @@ class WebhookDispatcher
             return;
         }
 
+        if (! $this->eventEnabled('deposit.credited', $endpoint)) {
+            return;
+        }
+
         DeliverWebhook::dispatch($endpoint->id, 'deposit.credited', $this->wrapPayload('deposit.credited', [
             'id' => $deposit->id,
             'customer_id' => $deposit->customer_id,
@@ -38,6 +42,38 @@ class WebhookDispatcher
             'gross_amount_usd' => $this->calculateCreditedUsdValue($deposit->network, (string) $deposit->gross_amount),
             'status' => $deposit->status,
             'credited_at' => $deposit->credited_at?->toIso8601String(),
+        ]));
+    }
+
+    public function depositPending(Deposit $deposit): void
+    {
+        $endpoint = WebhookEndpoint::query()
+            ->withoutGlobalScope('owner')
+            ->where('user_id', $deposit->user_id)
+            ->first();
+
+        if ($endpoint === null) {
+            Log::info('Webhook skipped: no endpoint configured', ['user_id' => $deposit->user_id]);
+
+            return;
+        }
+
+        if (! $this->eventEnabled('deposit.pending', $endpoint)) {
+            return;
+        }
+
+        DeliverWebhook::dispatch($endpoint->id, 'deposit.pending', $this->wrapPayload('deposit.pending', [
+            'id' => $deposit->id,
+            'customer_id' => $deposit->customer_id,
+            'customer_reference' => $deposit->customer?->customer_reference,
+            'network' => $deposit->network,
+            'tx_hash' => $deposit->tx_hash,
+            'gross_amount' => $deposit->gross_amount,
+            'gross_amount_usd' => $this->calculateCreditedUsdValue($deposit->network, (string) $deposit->gross_amount),
+            'status' => 'pending',
+            'confirmation_count' => $deposit->confirmation_count,
+            'confirmations_required' => (int) config("blockchain.confirmations.{$deposit->network}", 0),
+            'detected_at' => $deposit->detected_at?->toIso8601String(),
         ]));
     }
 
@@ -71,6 +107,11 @@ class WebhookDispatcher
         } catch (Throwable) {
             return false;
         }
+    }
+
+    private function eventEnabled(string $event, WebhookEndpoint $endpoint): bool
+    {
+        return in_array($event, (array) $endpoint->enabled_events, true);
     }
 
     private function calculateCreditedUsdValue(string $network, string $creditedAmount): string

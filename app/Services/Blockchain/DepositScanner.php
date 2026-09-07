@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain;
 
+use App\Events\DepositPending;
 use App\Models\BlockchainScanState;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -101,7 +103,6 @@ class DepositScanner
      */
     private function processNetwork(string $network, BlockchainProvider $provider, array $addresses): void
     {
-        $confirmationRequirement = (int) config("blockchain.confirmations.{$network}", 0);
         $addressRecords = DepositAddress::query()
             ->where('network', $network)
             ->get()
@@ -114,30 +115,34 @@ class DepositScanner
                 continue;
             }
 
-            $status = $transaction->confirmations >= $confirmationRequirement ? 'pending' : 'detected';
+            DB::transaction(function () use ($addressRecord, $network, $transaction): void {
+                $deposit = Deposit::firstOrCreate(
+                    [
+                        'deposit_address_id' => $addressRecord->id,
+                        'tx_hash' => $transaction->txHash,
+                    ],
+                    [
+                        'customer_id' => $addressRecord->customer_id,
+                        'user_id' => $addressRecord->customer->user_id,
+                        'network' => $network,
+                        'gross_amount' => $transaction->amount,
+                        'confirmation_count' => $transaction->confirmations,
+                        'status' => 'pending',
+                        'detected_at' => now(),
+                    ]
+                );
 
-            $deposit = Deposit::firstOrCreate(
-                [
-                    'deposit_address_id' => $addressRecord->id,
-                    'tx_hash' => $transaction->txHash,
-                ],
-                [
-                    'customer_id' => $addressRecord->customer_id,
-                    'user_id' => $addressRecord->customer->user_id,
-                    'network' => $network,
-                    'gross_amount' => $transaction->amount,
-                    'confirmation_count' => $transaction->confirmations,
-                    'status' => $status,
-                    'detected_at' => now(),
-                ]
-            );
+                if ($deposit->status !== 'credited') {
+                    $deposit->update([
+                        'confirmation_count' => $transaction->confirmations,
+                        'status' => $deposit->status === 'ignored' ? 'ignored' : 'pending',
+                    ]);
+                }
 
-            if (! in_array($deposit->status, ['credited', 'ignored'], true)) {
-                $deposit->update([
-                    'confirmation_count' => $transaction->confirmations,
-                    'status' => $status,
-                ]);
-            }
+                if ($deposit->wasRecentlyCreated) {
+                    event(new DepositPending($deposit->fresh()));
+                }
+            });
         }
     }
 }

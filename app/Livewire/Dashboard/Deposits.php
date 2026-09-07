@@ -79,12 +79,20 @@ class Deposits extends Component
             'decimals' => 8,
         ];
 
+        $confirmationsRequired = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+        $statusLabel = $deposit->status === 'pending'
+            ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
+            : ucfirst($deposit->status);
+
         return [
             'id' => $deposit->id,
             'networkSlug' => $meta['slug'],
             'networkLabel' => $meta['label'],
             'amount' => number_format((float) $deposit->gross_amount, $meta['decimals'], '.', ''),
             'status' => $deposit->status,
+            'statusLabel' => $statusLabel,
+            'confirmationCount' => $deposit->confirmation_count,
+            'confirmationsRequired' => $confirmationsRequired,
             'customer' => $deposit->customer,
             'txHash' => $deposit->tx_hash,
             'detectedAt' => ($deposit->detected_at ?? $deposit->created_at)->toIso8601String(),

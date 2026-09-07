@@ -197,11 +197,21 @@
                         <div class="space-y-8">
                             <div class="space-y-4">
                                 <flux:text>
-                                    When a deposit is credited, samedepo sends a signed POST request to the webhook URL you configure in your dashboard.
+                                    When a deposit is first detected and when it is credited, samedepo sends a signed POST request to the webhook URL you configure in your dashboard.
                                 </flux:text>
 
                                 <flux:text>
                                     Your endpoint must return any HTTP 2xx status code. The response body is ignored. If a test or real delivery does not receive a 2xx response, samedepo will notify you by email.
+                                </flux:text>
+                            </div>
+
+                            <div>
+                                <flux:heading size="md" class="mb-3">Event types and lifecycle</flux:heading>
+                                <flux:text class="mb-3">
+                                    <code>deposit.pending</code> is sent the first time we see an inbound payment, regardless of confirmation count. <code>deposit.credited</code> is sent once the required network confirmations have been reached and the deposit has been credited.
+                                </flux:text>
+                                <flux:text class="mb-3">
+                                    <code>network</code> can be <code>bitcoin</code>, <code>usdt_trc20</code>, or <code>usdt_erc20</code>. Required confirmations are configured per network.
                                 </flux:text>
                             </div>
 
@@ -235,9 +245,34 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPO_SIGNATURE'] ?? '')) {
                             </div>
 
                             <div>
+                                <flux:heading size="md" class="mb-3">Example: deposit.pending</flux:heading>
+                                <flux:text class="mb-3">
+                                    <code>gross_amount_usd</code> is the USD value of <code>gross_amount</code> at the latest stored conversion rate. <code>confirmations_required</code> is the configured threshold for the deposit's network before it can be credited.
+                                </flux:text>
+                                <pre class="max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-zinc-950 p-3 sm:p-4 text-xs font-mono text-zinc-300"><code>{
+  "<span class="text-(--color-accent)">event</span>": "deposit.pending",
+  "<span class="text-(--color-accent)">id</span>": "6a3f...",
+  "<span class="text-(--color-accent)">created_at</span>": "2026-08-27T12:00:00+07:00",
+  "<span class="text-(--color-accent)">data</span>": {
+    "<span class="text-(--color-accent)">id</span>": 1,
+    "<span class="text-(--color-accent)">customer_id</span>": 1,
+    "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
+    "<span class="text-(--color-accent)">network</span>": "bitcoin",
+    "<span class="text-(--color-accent)">tx_hash</span>": "abc123...",
+    "<span class="text-(--color-accent)">gross_amount</span>": "0.10000000",
+    "<span class="text-(--color-accent)">gross_amount_usd</span>": "3000.00",
+    "<span class="text-(--color-accent)">status</span>": "pending",
+    "<span class="text-(--color-accent)">confirmation_count</span>": 2,
+    "<span class="text-(--color-accent)">confirmations_required</span>": 3,
+    "<span class="text-(--color-accent)">detected_at</span>": "2026-08-27T12:00:00+07:00"
+  }
+}</code></pre>
+                            </div>
+
+                            <div>
                                 <flux:heading size="md" class="mb-3">Example: deposit.credited</flux:heading>
                                 <flux:text class="mb-3">
-                                    <code>gross_amount_usd</code> is the USD value of <code>gross_amount</code> at the latest stored conversion rate. <code>network</code> can be <code>bitcoin</code>, <code>usdt_trc20</code>, or <code>usdt_erc20</code>.
+                                    <code>gross_amount_usd</code> is the USD value of <code>gross_amount</code> at the latest stored conversion rate. <code>credited_amount</code> and <code>credited_usd_value</code> are not included in the payload; use <code>gross_amount</code> and <code>gross_amount_usd</code>.
                                 </flux:text>
                                 <pre class="max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-zinc-950 p-3 sm:p-4 text-xs font-mono text-zinc-300"><code>{
   "<span class="text-(--color-accent)">event</span>": "deposit.credited",
@@ -246,6 +281,7 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPO_SIGNATURE'] ?? '')) {
   "<span class="text-(--color-accent)">data</span>": {
     "<span class="text-(--color-accent)">id</span>": 1,
     "<span class="text-(--color-accent)">customer_id</span>": 1,
+    "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
     "<span class="text-(--color-accent)">network</span>": "bitcoin",
     "<span class="text-(--color-accent)">tx_hash</span>": "abc123...",
     "<span class="text-(--color-accent)">gross_amount</span>": "0.10000000",
