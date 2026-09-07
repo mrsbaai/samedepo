@@ -7,16 +7,23 @@ use App\Models\User;
 use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
+use Illuminate\Support\Facades\Log;
 
 class FakeBlockchainProvider implements BlockchainProvider
 {
     /** @var array<int, BlockchainTransaction> */
     public array $transactions = [];
 
+    public bool $fails = false;
+
     public function __construct(private readonly string $networkName) {}
 
     public function fetchTransactions(array $addresses): array
     {
+        if ($this->fails) {
+            throw new RuntimeException('Provider failed');
+        }
+
         return $this->transactions;
     }
 
@@ -174,6 +181,39 @@ test('it matches ethereum addresses case-insensitively', function () {
     $scanner->scan();
 
     expect(Deposit::query()->count())->toBe(1);
+});
+
+test('it logs a failed network and continues scanning other networks', function () {
+    Log::spy();
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'bitcoin',
+        'address' => '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+    ]);
+    $erc20Address = DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'usdt_erc20',
+        'address' => '0xA0b86a33E6441E6C7D3D4B4e5F6a7B8c9D0e1F2a',
+    ]);
+    $failedProvider = new FakeBlockchainProvider('bitcoin');
+    $failedProvider->fails = true;
+    $workingProvider = new FakeBlockchainProvider('usdt_erc20');
+    $workingProvider->transactions = [new BlockchainTransaction(
+        network: 'usdt_erc20',
+        txHash: 'successful-network-tx',
+        toAddress: $erc20Address->address,
+        amount: '10.000000',
+        confirmations: 15,
+    )];
+
+    (new DepositScanner([$failedProvider, $workingProvider]))->scan();
+
+    expect(Deposit::query()->where('tx_hash', 'successful-network-tx')->exists())->toBeTrue();
+    Log::shouldHaveReceived('error')->once()->withArgs(fn (string $message, array $context) => $message === 'Blockchain deposit scan failed.'
+        && $context['network'] === 'bitcoin'
+        && $context['exception'] instanceof RuntimeException);
 });
 
 test('it skips a network when no provider is configured', function () {

@@ -8,6 +8,8 @@ use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class DepositScanner
 {
@@ -36,7 +38,14 @@ class DepositScanner
                 continue;
             }
 
-            $this->processNetwork($network, $provider, $addresses);
+            try {
+                $this->processNetwork($network, $provider, $addresses);
+            } catch (Throwable $exception) {
+                Log::error('Blockchain deposit scan failed.', [
+                    'network' => $network,
+                    'exception' => $exception,
+                ]);
+            }
         }
     }
 

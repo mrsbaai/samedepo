@@ -11,6 +11,6 @@ use Illuminate\Support\Facades\Schedule;
 
 Schedule::command(DeleteExpiredAccounts::class)->daily();
 Schedule::command(CloseInactiveSupportTickets::class)->daily();
-Schedule::command(ProcessDeposits::class)->everyMinute();
+Schedule::command(ProcessDeposits::class)->everyMinute()->withoutOverlapping();
 Schedule::command(ProcessWithdrawals::class)->everyMinute();
 Schedule::command(UpdateUsdValuations::class)->everyFiveMinutes();

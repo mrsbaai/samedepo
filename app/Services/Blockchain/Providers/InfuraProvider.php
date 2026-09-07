@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain\Providers;
 
+use App\Models\BlockchainScanState;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
 use Illuminate\Support\Facades\Http;
@@ -12,6 +13,8 @@ use InvalidArgumentException;
 class InfuraProvider implements BlockchainProvider
 {
     private const BLOCK_RANGE = 10000;
+
+    private const RECIPIENT_BATCH_SIZE = 100;
 
     private const TRANSFER_EVENT_SIGNATURE = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
@@ -25,15 +28,65 @@ class InfuraProvider implements BlockchainProvider
 
     public function fetchTransactions(array $addresses): array
     {
-        if ($addresses === []) {
+        if ($addresses === [] || $this->projectId === null || $this->projectId === '') {
             return [];
         }
 
         $currentBlock = $this->currentBlockNumber();
-        $transactions = [];
+        $state = BlockchainScanState::query()->where('network', $this->network)->first();
+        $fromBlock = $state === null
+            ? max(0, $currentBlock - self::BLOCK_RANGE + 1)
+            : $state->last_scanned_block + 1;
+        $topicsToAddresses = [];
 
         foreach ($addresses as $address) {
-            $transactions = array_merge($transactions, $this->fetchAddressLogs($address, $currentBlock));
+            $topicsToAddresses[$this->addressTopic($address)] = $address;
+        }
+
+        $transactions = [];
+
+        for ($chunkStart = $fromBlock; $chunkStart <= $currentBlock; $chunkStart += self::BLOCK_RANGE) {
+            $chunkEnd = min($currentBlock, $chunkStart + self::BLOCK_RANGE - 1);
+
+            foreach (array_chunk(array_keys($topicsToAddresses), self::RECIPIENT_BATCH_SIZE) as $recipientTopics) {
+                $response = $this->rpc([
+                    'jsonrpc' => '2.0',
+                    'method' => 'eth_getLogs',
+                    'params' => [[
+                        'address' => strtolower($this->usdtContract),
+                        'fromBlock' => '0x'.dechex($chunkStart),
+                        'toBlock' => '0x'.dechex($chunkEnd),
+                        'topics' => [self::TRANSFER_EVENT_SIGNATURE, null, $recipientTopics],
+                    ]],
+                    'id' => 1,
+                ]);
+
+                foreach ($response['result'] ?? [] as $log) {
+                    $recipientTopic = strtolower((string) ($log['topics'][2] ?? ''));
+                    $address = $topicsToAddresses[$recipientTopic] ?? null;
+
+                    if ($address === null) {
+                        continue;
+                    }
+
+                    $logBlock = hexdec($log['blockNumber'] ?? '0x0');
+                    $transactions[] = new BlockchainTransaction(
+                        network: $this->network,
+                        txHash: (string) ($log['transactionHash'] ?? ''),
+                        toAddress: $address,
+                        amount: bcdiv($this->hexToDec($log['data'] ?? '0x0'), '1000000', 6),
+                        confirmations: max(0, $currentBlock - $logBlock + 1),
+                        tokenContract: $this->usdtContract,
+                    );
+                }
+            }
+        }
+
+        if ($fromBlock <= $currentBlock) {
+            BlockchainScanState::query()->updateOrCreate(
+                ['network' => $this->network],
+                ['last_scanned_block' => $currentBlock],
+            );
         }
 
         return $transactions;
@@ -44,47 +97,9 @@ class InfuraProvider implements BlockchainProvider
         return $this->network;
     }
 
-    private function fetchAddressLogs(string $address, int $currentBlock): array
+    private function addressTopic(string $address): string
     {
-        if ($this->projectId === null || $this->projectId === '') {
-            return [];
-        }
-
-        $toTopic = '0x'.str_pad(ltrim(strtolower($address), '0x'), 64, '0', STR_PAD_LEFT);
-
-        $payload = [
-            'jsonrpc' => '2.0',
-            'method' => 'eth_getLogs',
-            'params' => [[
-                'address' => strtolower($this->usdtContract),
-                'fromBlock' => '0x'.dechex(max(0, $currentBlock - self::BLOCK_RANGE + 1)),
-                'toBlock' => '0x'.dechex($currentBlock),
-                'topics' => [self::TRANSFER_EVENT_SIGNATURE, null, $toTopic],
-            ]],
-            'id' => 1,
-        ];
-
-        $response = $this->rpc($payload);
-        $logs = $response['result'] ?? [];
-
-        $transactions = [];
-
-        foreach ($logs as $log) {
-            $logBlock = hexdec($log['blockNumber'] ?? '0x0');
-            $confirmations = max(0, $currentBlock - $logBlock + 1);
-            $rawValue = $this->hexToDec($log['data'] ?? '0x0');
-
-            $transactions[] = new BlockchainTransaction(
-                network: $this->network,
-                txHash: (string) ($log['transactionHash'] ?? ''),
-                toAddress: $address,
-                amount: bcdiv($rawValue, '1000000', 6),
-                confirmations: $confirmations,
-                tokenContract: $this->usdtContract,
-            );
-        }
-
-        return $transactions;
+        return '0x'.str_pad(preg_replace('/^0x/i', '', strtolower($address)), 64, '0', STR_PAD_LEFT);
     }
 
     private function currentBlockNumber(): int
@@ -102,7 +117,6 @@ class InfuraProvider implements BlockchainProvider
     private function rpc(array $payload): array
     {
         $url = "https://{$this->infuraNetwork}.infura.io/v3/{$this->projectId}";
-
         $http = Http::timeout(30);
 
         if ($this->projectSecret) {

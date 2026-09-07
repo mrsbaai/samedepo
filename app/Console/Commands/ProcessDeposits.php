@@ -8,6 +8,7 @@ use App\Services\Blockchain\DepositCreditor;
 use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\TreasurySweepService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class ProcessDeposits extends Command
 {
@@ -17,9 +18,13 @@ class ProcessDeposits extends Command
 
     public function handle(DepositScanner $scanner, DepositCreditor $creditor, TreasurySweepService $sweeper): int
     {
+        Log::info('Deposit processing started.');
+
         $scanner->scan();
         $creditor->credit();
         $sweeper->sweep();
+
+        Log::info('Deposit processing completed.');
 
         return self::SUCCESS;
     }
