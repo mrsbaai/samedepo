@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\BlockchainScanState;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
@@ -16,10 +17,14 @@ class FakeBlockchainProvider implements BlockchainProvider
 
     public bool $fails = false;
 
+    public int $calls = 0;
+
     public function __construct(private readonly string $networkName) {}
 
     public function fetchTransactions(array $addresses): array
     {
+        $this->calls++;
+
         if ($this->fails) {
             throw new RuntimeException('Provider failed');
         }
@@ -32,6 +37,16 @@ class FakeBlockchainProvider implements BlockchainProvider
         return $this->networkName;
     }
 }
+
+beforeEach(function () {
+    config([
+        'blockchain.scan_intervals' => [
+            'bitcoin' => 0,
+            'usdt_trc20' => 0,
+            'usdt_erc20' => 0,
+        ],
+    ]);
+});
 
 function createScanner(string $network, array $transactions): DepositScanner
 {
@@ -214,6 +229,60 @@ test('it logs a failed network and continues scanning other networks', function 
     Log::shouldHaveReceived('error')->once()->withArgs(fn (string $message, array $context) => $message === 'Blockchain deposit scan failed.'
         && $context['network'] === 'bitcoin'
         && $context['exception'] instanceof RuntimeException);
+});
+
+test('it persistently schedules each network at its configured cadence', function () {
+    config(['blockchain.scan_intervals.bitcoin' => 15]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'bitcoin',
+    ]);
+    $provider = new FakeBlockchainProvider('bitcoin');
+    $scanner = new DepositScanner([$provider]);
+
+    $scanner->scan();
+    $scanner->scan();
+
+    expect($provider->calls)->toBe(1)
+        ->and(BlockchainScanState::query()->where('network', 'bitcoin')->value('next_scan_at'))->not->toBeNull();
+
+    $this->travel(15)->minutes();
+    $scanner->scan();
+
+    expect($provider->calls)->toBe(2);
+});
+
+test('it cools down a failed provider without affecting other networks and resets after recovery', function () {
+    config([
+        'blockchain.provider_backoff.base_minutes' => 2,
+        'blockchain.provider_backoff.max_minutes' => 30,
+    ]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
+    $failed = new FakeBlockchainProvider('bitcoin');
+    $failed->fails = true;
+    $working = new FakeBlockchainProvider('usdt_trc20');
+    $scanner = new DepositScanner([$failed, $working]);
+
+    $scanner->scan();
+    $scanner->scan();
+
+    expect($failed->calls)->toBe(1)
+        ->and($working->calls)->toBe(2)
+        ->and(BlockchainScanState::query()->where('network', 'bitcoin')->value('consecutive_failures'))->toBe(1);
+
+    $failed->fails = false;
+    $this->travel(2)->minutes();
+    $scanner->scan();
+
+    $state = BlockchainScanState::query()->where('network', 'bitcoin')->first();
+    expect($failed->calls)->toBe(2)
+        ->and($state->consecutive_failures)->toBe(0)
+        ->and($state->cooldown_until)->toBeNull();
 });
 
 test('it skips a network when no provider is configured', function () {

@@ -34,7 +34,7 @@ class InfuraProvider implements BlockchainProvider
 
         $currentBlock = $this->currentBlockNumber();
         $state = BlockchainScanState::query()->where('network', $this->network)->first();
-        $fromBlock = $state === null
+        $fromBlock = $state?->last_scanned_block === null
             ? max(0, $currentBlock - self::BLOCK_RANGE + 1)
             : $state->last_scanned_block + 1;
 

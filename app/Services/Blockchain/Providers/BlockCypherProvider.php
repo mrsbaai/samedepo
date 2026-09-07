@@ -40,7 +40,7 @@ class BlockCypherProvider implements BlockchainProvider
 
     private function fetchAddressTransactions(string $address): array
     {
-        $url = "https://api.blockcypher.com/v1/{$this->coinSymbol}/{$this->apiNetwork}/addrs/{$address}/full";
+        $url = "https://api.blockcypher.com/v1/{$this->coinSymbol}/{$this->apiNetwork}/addrs/{$address}";
         $params = ['limit' => 50];
 
         if ($this->token) {
@@ -59,47 +59,48 @@ class BlockCypherProvider implements BlockchainProvider
             throw new InvalidArgumentException('BlockCypher API returned an error: '.$data['error']);
         }
 
-        $txs = $data['txs'] ?? [];
+        $references = [];
 
-        $transactions = [];
+        foreach (['txrefs', 'unconfirmed_txrefs'] as $key) {
+            if (is_array($data[$key] ?? null)) {
+                $references = array_merge($references, $data[$key]);
+            }
+        }
 
-        foreach ($txs as $tx) {
-            $confirmations = (int) ($tx['confirmations'] ?? 0);
-            $hash = (string) ($tx['hash'] ?? '');
-            $outputs = $tx['outputs'] ?? [];
+        $incoming = [];
 
-            $amount = $this->sumOutputsToAddress($outputs, $address);
-
-            if ($amount <= 0) {
+        foreach ($references as $reference) {
+            if (! is_array($reference) || (int) ($reference['tx_input_n'] ?? 0) !== -1) {
                 continue;
             }
 
+            $hash = (string) ($reference['tx_hash'] ?? '');
+            $value = (int) ($reference['value'] ?? 0);
+
+            if ($hash === '' || $value <= 0) {
+                continue;
+            }
+
+            $incoming[$hash] ??= ['value' => 0, 'confirmations' => 0];
+            $incoming[$hash]['value'] += $value;
+            $incoming[$hash]['confirmations'] = max(
+                $incoming[$hash]['confirmations'],
+                (int) ($reference['confirmations'] ?? 0),
+            );
+        }
+
+        $transactions = [];
+
+        foreach ($incoming as $hash => $transaction) {
             $transactions[] = new BlockchainTransaction(
                 network: $this->network,
                 txHash: $hash,
                 toAddress: $address,
-                amount: bcdiv((string) $amount, '100000000', 8),
-                confirmations: $confirmations,
+                amount: bcdiv((string) $transaction['value'], '100000000', 8),
+                confirmations: $transaction['confirmations'],
             );
         }
 
         return $transactions;
-    }
-
-    private function sumOutputsToAddress(array $outputs, string $address): int
-    {
-        $total = 0;
-
-        foreach ($outputs as $output) {
-            $addresses = $output['addresses'] ?? [];
-
-            if (! in_array($address, $addresses, true)) {
-                continue;
-            }
-
-            $total += (int) ($output['value'] ?? 0);
-        }
-
-        return $total;
     }
 }

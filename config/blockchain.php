@@ -14,6 +14,17 @@ return [
         'usdt_erc20' => 12,
     ],
 
+    'scan_intervals' => [
+        'bitcoin' => 15,
+        'usdt_trc20' => 5,
+        'usdt_erc20' => 5,
+    ],
+
+    'provider_backoff' => [
+        'base_minutes' => 2,
+        'max_minutes' => 60,
+    ],
+
     'bitcoin' => [
         'xpub' => env('BLOCKCHAIN_BITCOIN_XPUB'),
         'coin_type' => 0,
