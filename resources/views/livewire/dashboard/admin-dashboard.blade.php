@@ -144,6 +144,42 @@
         </flux:card>
     </section>
 
+    <section>
+        <div class="flex items-center gap-2">
+            <flux:icon name="banknotes" class="size-5 text-zinc-400" />
+            <flux:heading size="md">Latest payments</flux:heading>
+        </div>
+
+        <flux:card class="mt-3 overflow-hidden p-0">
+            @if ($latestPayments->isEmpty())
+                <flux:text class="p-6 text-zinc-500">No payments yet.</flux:text>
+            @else
+                <flux:table>
+                    <flux:table.columns>
+                        <flux:table.column>Date</flux:table.column>
+                        <flux:table.column>Owner</flux:table.column>
+                        <flux:table.column>Customer</flux:table.column>
+                        <flux:table.column>Network</flux:table.column>
+                        <flux:table.column align="end">Amount</flux:table.column>
+                        <flux:table.column>Status</flux:table.column>
+                    </flux:table.columns>
+                    <flux:table.rows>
+                        @foreach ($latestPayments as $payment)
+                            <flux:table.row :key="$payment->id">
+                                <flux:table.cell class="whitespace-nowrap">{{ ($payment->detected_at ?? $payment->created_at)->format('M j, Y H:i') }}</flux:table.cell>
+                                <flux:table.cell>{{ $payment->user?->email ?? 'Unknown owner' }}</flux:table.cell>
+                                <flux:table.cell>{{ $payment->customer?->customer_reference ?? 'Unknown customer' }}</flux:table.cell>
+                                <flux:table.cell>{{ $networkMeta[$payment->network]['label'] ?? $payment->network }}</flux:table.cell>
+                                <flux:table.cell align="end" class="whitespace-nowrap font-mono">{{ number_format((float) $payment->gross_amount, $networkMeta[$payment->network]['decimals'] ?? 8) }} {{ $networkMeta[$payment->network]['symbol'] ?? '' }}</flux:table.cell>
+                                <flux:table.cell><flux:badge size="sm" :color="['credited' => 'green', 'pending' => 'amber', 'detected' => 'zinc', 'ignored' => 'zinc'][$payment->status] ?? 'zinc'">{{ ucfirst($payment->status) }}</flux:badge></flux:table.cell>
+                            </flux:table.row>
+                        @endforeach
+                    </flux:table.rows>
+                </flux:table>
+            @endif
+        </flux:card>
+    </section>
+
     @php
         $hasSecuritySummary = $securitySummary['events24h'] > 0 || $securitySummary['blockedIps'] > 0 || $securitySummary['blockedDevices'] > 0;
     @endphp

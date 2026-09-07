@@ -40,6 +40,12 @@ class AdminDashboard extends Component
             'platformStatus' => $this->platformStatus(),
             'treasury' => $this->treasury(),
             'networkMeta' => self::NETWORKS,
+            'latestPayments' => Deposit::query()
+                ->withoutGlobalScope('owner')
+                ->with(['user', 'customer' => fn ($query) => $query->withoutGlobalScope('owner')])
+                ->latest('detected_at')
+                ->limit(10)
+                ->get(),
             'securitySummary' => $this->securitySummary(),
         ]);
     }

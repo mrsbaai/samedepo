@@ -215,6 +215,32 @@ test('platform status aggregates are displayed', function () {
         ->assertSee('$30,000.00'); // 0.5 BTC @ $60,000
 });
 
+test('latest payments are shown newest first on the admin overview', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner', 'email' => 'payments@example.com']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'customer-latest']);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
+
+    Deposit::factory()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'deposit_address_id' => $address->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '25.50000000',
+        'status' => 'credited',
+        'detected_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Latest payments')
+        ->assertSee('payments@example.com')
+        ->assertSee('customer-latest')
+        ->assertSee('25.50 USDT')
+        ->assertSee('Credited');
+});
+
 test('security summary is hidden when there are no recent threats or blocks', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
 
