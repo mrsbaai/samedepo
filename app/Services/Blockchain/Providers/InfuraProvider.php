@@ -37,6 +37,12 @@ class InfuraProvider implements BlockchainProvider
         $fromBlock = $state === null
             ? max(0, $currentBlock - self::BLOCK_RANGE + 1)
             : $state->last_scanned_block + 1;
+
+        if ($fromBlock > $currentBlock) {
+            return [];
+        }
+
+        $chunkEnd = min($currentBlock, $fromBlock + self::BLOCK_RANGE - 1);
         $topicsToAddresses = [];
 
         foreach ($addresses as $address) {
@@ -45,49 +51,43 @@ class InfuraProvider implements BlockchainProvider
 
         $transactions = [];
 
-        for ($chunkStart = $fromBlock; $chunkStart <= $currentBlock; $chunkStart += self::BLOCK_RANGE) {
-            $chunkEnd = min($currentBlock, $chunkStart + self::BLOCK_RANGE - 1);
+        foreach (array_chunk(array_keys($topicsToAddresses), self::RECIPIENT_BATCH_SIZE) as $recipientTopics) {
+            $response = $this->rpc([
+                'jsonrpc' => '2.0',
+                'method' => 'eth_getLogs',
+                'params' => [[
+                    'address' => strtolower($this->usdtContract),
+                    'fromBlock' => '0x'.dechex($fromBlock),
+                    'toBlock' => '0x'.dechex($chunkEnd),
+                    'topics' => [self::TRANSFER_EVENT_SIGNATURE, null, $recipientTopics],
+                ]],
+                'id' => 1,
+            ]);
 
-            foreach (array_chunk(array_keys($topicsToAddresses), self::RECIPIENT_BATCH_SIZE) as $recipientTopics) {
-                $response = $this->rpc([
-                    'jsonrpc' => '2.0',
-                    'method' => 'eth_getLogs',
-                    'params' => [[
-                        'address' => strtolower($this->usdtContract),
-                        'fromBlock' => '0x'.dechex($chunkStart),
-                        'toBlock' => '0x'.dechex($chunkEnd),
-                        'topics' => [self::TRANSFER_EVENT_SIGNATURE, null, $recipientTopics],
-                    ]],
-                    'id' => 1,
-                ]);
+            foreach ($response['result'] ?? [] as $log) {
+                $recipientTopic = strtolower((string) ($log['topics'][2] ?? ''));
+                $address = $topicsToAddresses[$recipientTopic] ?? null;
 
-                foreach ($response['result'] ?? [] as $log) {
-                    $recipientTopic = strtolower((string) ($log['topics'][2] ?? ''));
-                    $address = $topicsToAddresses[$recipientTopic] ?? null;
-
-                    if ($address === null) {
-                        continue;
-                    }
-
-                    $logBlock = hexdec($log['blockNumber'] ?? '0x0');
-                    $transactions[] = new BlockchainTransaction(
-                        network: $this->network,
-                        txHash: (string) ($log['transactionHash'] ?? ''),
-                        toAddress: $address,
-                        amount: bcdiv($this->hexToDec($log['data'] ?? '0x0'), '1000000', 6),
-                        confirmations: max(0, $currentBlock - $logBlock + 1),
-                        tokenContract: $this->usdtContract,
-                    );
+                if ($address === null) {
+                    continue;
                 }
+
+                $logBlock = hexdec($log['blockNumber'] ?? '0x0');
+                $transactions[] = new BlockchainTransaction(
+                    network: $this->network,
+                    txHash: (string) ($log['transactionHash'] ?? ''),
+                    toAddress: $address,
+                    amount: bcdiv($this->hexToDec($log['data'] ?? '0x0'), '1000000', 6),
+                    confirmations: max(0, $currentBlock - $logBlock + 1),
+                    tokenContract: $this->usdtContract,
+                );
             }
         }
 
-        if ($fromBlock <= $currentBlock) {
-            BlockchainScanState::query()->updateOrCreate(
-                ['network' => $this->network],
-                ['last_scanned_block' => $currentBlock],
-            );
-        }
+        BlockchainScanState::query()->updateOrCreate(
+            ['network' => $this->network],
+            ['last_scanned_block' => $chunkEnd],
+        );
 
         return $transactions;
     }

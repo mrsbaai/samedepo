@@ -15,7 +15,7 @@ function infuraTopic(string $address): string
     return '0x'.str_pad(substr(strtolower($address), 2), 64, '0', STR_PAD_LEFT);
 }
 
-test('it resumes in ten thousand block chunks and batches recipient topics', function () {
+test('it scans one ten thousand block chunk and resumes the next chunk on the next invocation', function () {
     BlockchainScanState::query()->create([
         'network' => 'usdt_erc20',
         'last_scanned_block' => 4999,
@@ -41,21 +41,27 @@ test('it resumes in ten thousand block chunks and batches recipient topics', fun
         return Http::response(['jsonrpc' => '2.0', 'result' => $result, 'id' => 1]);
     });
 
-    $transactions = (new InfuraProvider(
+    $provider = new InfuraProvider(
         network: 'usdt_erc20',
         usdtContract: '0xdac17f958d2ee523a2206206994597c13d831ec7',
         projectId: 'project',
-    ))->fetchTransactions($addresses);
+    );
+    $transactions = $provider->fetchTransactions($addresses);
 
-    expect($requests)->toHaveCount(4)
+    expect($requests)->toHaveCount(2)
         ->and($requests[0]['params'][0]['fromBlock'])->toBe('0x1388')
         ->and($requests[0]['params'][0]['toBlock'])->toBe('0x3a97')
-        ->and($requests[2]['params'][0]['fromBlock'])->toBe('0x3a98')
-        ->and($requests[2]['params'][0]['toBlock'])->toBe('0x61a7')
         ->and($requests[0]['params'][0]['topics'][2])->toHaveCount(100)
         ->and($requests[1]['params'][0]['topics'][2])->toHaveCount(1)
         ->and($transactions)->toHaveCount(1)
         ->and($transactions[0]->toAddress)->toBe($addresses[0])
+        ->and(BlockchainScanState::query()->where('network', 'usdt_erc20')->value('last_scanned_block'))->toBe(14999);
+
+    $provider->fetchTransactions($addresses);
+
+    expect($requests)->toHaveCount(4)
+        ->and($requests[2]['params'][0]['fromBlock'])->toBe('0x3a98')
+        ->and($requests[2]['params'][0]['toBlock'])->toBe('0x61a7')
         ->and(BlockchainScanState::query()->where('network', 'usdt_erc20')->value('last_scanned_block'))->toBe(24999);
 });
 
