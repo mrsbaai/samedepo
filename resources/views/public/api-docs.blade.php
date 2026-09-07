@@ -237,7 +237,7 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPO_SIGNATURE'] ?? '')) {
                             <div>
                                 <flux:heading size="md" class="mb-3">Example: deposit.credited</flux:heading>
                                 <flux:text class="mb-3">
-                                    <code>credited_usd_value</code> is the USD value of <code>credited_amount</code> at the latest stored conversion rate for the deposit network.
+                                    <code>gross_amount_usd</code> and <code>credited_usd_value</code> are the USD values of the gross and credited amounts at the latest stored conversion rate for the deposit network.
                                 </flux:text>
                                 <pre class="max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-zinc-950 p-3 sm:p-4 text-xs font-mono text-zinc-300"><code>{
   "<span class="text-(--color-accent)">event</span>": "deposit.credited",
@@ -249,6 +249,7 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPO_SIGNATURE'] ?? '')) {
     "<span class="text-(--color-accent)">network</span>": "bitcoin",
     "<span class="text-(--color-accent)">tx_hash</span>": "abc123...",
     "<span class="text-(--color-accent)">gross_amount</span>": "0.10000000",
+    "<span class="text-(--color-accent)">gross_amount_usd</span>": "3000.00",
     "<span class="text-(--color-accent)">fee_amount</span>": "0.00050000",
     "<span class="text-(--color-accent)">credited_amount</span>": "0.09950000",
     "<span class="text-(--color-accent)">credited_usd_value</span>": "2985.00",

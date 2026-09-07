@@ -64,6 +64,7 @@ test('deposit credited dispatches a queued webhook with the expected payload', f
             && $job->payload['data']['id'] === $deposit->id
             && $job->payload['data']['customer_reference'] === 'customer-123'
             && $job->payload['data']['network'] === 'bitcoin'
+            && $job->payload['data']['gross_amount_usd'] === '37500.00'
             && $job->payload['data']['credited_amount'] === '1.23750000'
             && $job->payload['data']['credited_usd_value'] === '37125.00';
     });
