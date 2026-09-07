@@ -50,12 +50,7 @@ class ApiDocsController
                     ]);
             })
             ->sortBy('uri')
-            ->groupBy('group')
-            ->sortBy(fn ($items, $group) => match ($group) {
-                'Customers' => 0,
-                'Balances' => 1,
-                default => 999,
-            });
+            ->groupBy('group');
     }
 
     private function groupFor(Route $route): string

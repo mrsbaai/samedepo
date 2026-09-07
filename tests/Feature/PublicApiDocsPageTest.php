@@ -16,7 +16,7 @@ test('guests can view the api docs page with instructions', function () {
         ->assertOk()
         ->assertSee('API Documentation')
         ->assertSee('Quick start')
-        ->assertSee('Endpoints')
+        ->assertSee('Endpoint')
         ->assertSee('Webhooks')
         ->assertSee('Limits & fees')
         ->assertSee('1.25%')
@@ -29,7 +29,8 @@ test('guests can view the api docs page with instructions', function () {
         ->assertSee('Authorization: Bearer')
         ->assertSee('v1/customers/customer-123')
         ->assertDontSee('v1/customers/{reference}', false)
-        ->assertSee('v1/balances')
+        ->assertDontSee('v1/balances')
+        ->assertDontSee('Balances')
         ->assertSee('GET')
         ->assertSee('API key')
         ->assertSee('API request limit')
@@ -71,6 +72,10 @@ test('owners see their effective deposit fee in the api docs', function () {
 
 test('the standalone limits and fees route has been removed', function () {
     $this->get('/limits-and-fees')->assertNotFound();
+});
+
+test('the balances api endpoint has been removed', function () {
+    $this->getJson('/api/v1/balances')->assertNotFound();
 });
 
 test('the api docs page uses the public layout', function () {

@@ -4,7 +4,7 @@
         $tabs = [
             'quick-start' => ['Quick start', 'bolt'],
             'limits' => ['Limits & fees', 'adjustments-horizontal'],
-            'endpoints' => ['Endpoints', 'code-bracket'],
+            'endpoints' => ['Endpoint', 'code-bracket'],
             'webhooks' => ['Webhooks', 'signal'],
         ];
     @endphp
@@ -166,27 +166,12 @@
                                             <flux:text class="mt-2 text-sm"><code>status</code> is <code>created</code> on the first request (HTTP 201) and <code>existing</code> on later requests (HTTP 200). All addresses include a <code>qr</code> URL for the deposit address and a <code>minimum_deposit</code> in the network's native currency — deposits below this amount are not credited.</flux:text>
                                             </div>
                                         @endif
-
-                                        @if ($endpoint['uri'] === '/api/v1/balances' && $endpoint['method'] === 'GET')
-                                            <div class="mt-4">
-                                                <flux:heading size="sm" class="mb-2">Response</flux:heading>
-                                                <pre class="max-w-full overflow-hidden whitespace-pre-wrap break-words rounded-lg bg-zinc-950 p-3 font-mono text-xs text-zinc-300 sm:p-4"><code>{
-  "<span class="text-(--color-accent)">balances</span>": [
-    { "<span class="text-(--color-accent)">network</span>": "Bitcoin", "<span class="text-(--color-accent)">amount</span>": 0.50000000, "<span class="text-(--color-accent)">usd_value</span>": 12345.67 },
-    { "<span class="text-(--color-accent)">network</span>": "USDT (TRC20)", "<span class="text-(--color-accent)">amount</span>": 100.00000000, "<span class="text-(--color-accent)">usd_value</span>": 100.00 },
-    { "<span class="text-(--color-accent)">network</span>": "USDT (ERC20)", "<span class="text-(--color-accent)">amount</span>": 50.00000000, "<span class="text-(--color-accent)">usd_value</span>": 50.00 }
-  ],
-  "<span class="text-(--color-accent)">total_usd</span>": 12495.67,
-  "<span class="text-(--color-accent)">last_updated_at</span>": "2026-08-27T12:00:00+07:00"
-}</code></pre>
-                                            </div>
-                                        @endif
                                     </article>
                                 @endforeach
                             </div>
                         </div>
                     @empty
-                        <flux:text>No API endpoints are currently available.</flux:text>
+                        <flux:text>No API endpoint is currently available.</flux:text>
                     @endforelse
                 </flux:tab.panel>
 
