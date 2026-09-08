@@ -152,7 +152,7 @@
     </section>
 
     {{-- Final CTA --}}
-    <section class="relative py-20 sm:py-28">
+    <section class="relative pt-20 pb-0 sm:pt-28 sm:pb-0">
         <div id="cta-background" class="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-screen -translate-x-1/2 md:block [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_70%,transparent)]"></div>
 
         <div class="mx-auto max-w-2xl text-center">
@@ -170,9 +170,6 @@
             <a href="{{ route('signup') }}" wire:navigate>
                 <img src="{{ asset('images/dashboard.png') }}" alt="samedepo dashboard showing per-network balances and recent credited deposits" class="block w-full cursor-pointer rounded-xl ring-1 ring-white/10 shadow-2xl shadow-black/60 transition duration-300 hover:ring-white/20 hover:brightness-110" />
             </a>
-            <figcaption class="mt-4 text-center">
-                <flux:text size="sm" class="text-zinc-500">Every balance and every credited deposit, in one place.</flux:text>
-            </figcaption>
         </figure>
     </section>
 

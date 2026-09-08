@@ -1485,51 +1485,7 @@ export default function AeroShards({
       wakeRenderer();
     };
 
-    const handlePointerDown = event => {
-      const settings = settingsRef.current;
-      if (!event.isPrimary || event.button !== 0 || !visible || settings.interaction === INTERACTIONS.none) return;
-      // Never hijack links, form controls, or editable content layered above a background.
-      if (
-        event.target instanceof Element &&
-        event.target.closest('a, button, input, textarea, select, [role="button"], [contenteditable="true"]')
-      )
-        return;
-      const next = pointFromClient(event.clientX, event.clientY);
-      if (!next) return;
-      if (!settings.paused && !reduceMotion.matches && settings.speed > 0.0001) {
-        startRipple(ripplesRef.current, next, bounds.width / Math.max(bounds.height, 1));
-        if (settings.holdToGather) {
-          holdRef.current.pointerId = event.pointerId;
-          holdRef.current.elapsed = 0;
-        }
-      }
-      updatePointerTarget(next);
-      const now = performance.now();
-      interactionDeadline = now + 220;
-      settlingDeadline = now + 800;
-      wakeRenderer();
-    };
-
     const handlePointerEnd = event => {
-      const hold = holdRef.current;
-      if (hold.pointerId === event.pointerId) {
-        hold.pointerId = null;
-        const settings = settingsRef.current;
-        if (
-          hold.amount > 0.1 &&
-          !settings.paused &&
-          !reduceMotion.matches &&
-          settings.interaction !== INTERACTIONS.none
-        ) {
-          startRipple(
-            ripplesRef.current,
-            pointerRef.current.raw,
-            bounds.width / Math.max(bounds.height, 1),
-            1 + hold.amount * 0.8
-          );
-        }
-        wakeRenderer();
-      }
       if (event.pointerType !== 'mouse') deactivatePointer();
     };
 
@@ -1545,7 +1501,6 @@ export default function AeroShards({
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
-    window.addEventListener('pointerdown', handlePointerDown, { passive: true });
     window.addEventListener('pointerup', handlePointerEnd, { passive: true });
     window.addEventListener('pointercancel', deactivatePointer, { passive: true });
     window.addEventListener('blur', deactivatePointer);
@@ -1984,7 +1939,6 @@ export default function AeroShards({
     return () => {
       disposed = true;
       window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointerup', handlePointerEnd);
       window.removeEventListener('pointercancel', deactivatePointer);
       window.removeEventListener('blur', deactivatePointer);
