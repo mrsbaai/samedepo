@@ -107,36 +107,30 @@
     </section>
 
     <section class="py-20 sm:py-24">
-        <div class="rounded-2xl bg-zinc-950/70 p-6 ring-1 ring-white/8 sm:p-10">
-            <div class="max-w-xl">
+        <div class="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
+            <div class="max-w-lg lg:sticky lg:top-24 lg:self-start">
                 <flux:text size="sm" class="font-medium text-(--color-accent)">Network infrastructure</flux:text>
                 <flux:heading size="xl" level="2" class="mt-2">Lower fees without more work.</flux:heading>
+                <flux:text size="lg" class="mt-3 text-zinc-400">Address formats, gas, and key custody are handled for you. Your integration stays the same.</flux:text>
             </div>
 
-            <div class="mt-10 grid gap-10 md:grid-cols-3">
-                <div>
-                    <span class="flex size-10 items-center justify-center rounded-lg bg-amber-400/10 text-(--color-accent)">
-                        <flux:icon.bolt class="size-5" />
-                    </span>
-                    <flux:heading size="lg" level="3" class="mt-5">Lower-cost Bitcoin transfers</flux:heading>
-                    <flux:text class="mt-2 text-zinc-400">Bitcoin deposits use native SegWit addresses. They reduce transaction size and network fees without changing how customers send Bitcoin.</flux:text>
-                </div>
-
-                <div>
-                    <span class="flex size-10 items-center justify-center rounded-lg bg-amber-400/10 text-(--color-accent)">
-                        <flux:icon.banknotes class="size-5" />
-                    </span>
-                    <flux:heading size="lg" level="3" class="mt-5">Automatic USDT gas handling</flux:heading>
-                    <flux:text class="mt-2 text-zinc-400">samedepo handles ETH, TRX, energy, and bandwidth from treasury. Website owners and their customers don't need to fund deposit addresses with separate gas balances.</flux:text>
-                </div>
-
-                <div>
-                    <span class="flex size-10 items-center justify-center rounded-lg bg-amber-400/10 text-(--color-accent)">
-                        <flux:icon.shield-check class="size-5" />
-                    </span>
-                    <flux:heading size="lg" level="3" class="mt-5">Isolated transaction signing</flux:heading>
-                    <flux:text class="mt-2 text-zinc-400">Private wallet keys never enter the website application. Deposits and withdrawals are signed by an isolated service through authenticated requests.</flux:text>
-                </div>
+            <div class="divide-y divide-zinc-800 border-y border-zinc-800">
+                @foreach ([
+                    ['bolt', 'SegWit', 'Lower-cost Bitcoin transfers', 'Bitcoin deposits use native SegWit addresses. They reduce transaction size and network fees without changing how customers send Bitcoin.'],
+                    ['banknotes', 'Gas', 'Automatic USDT gas handling', 'samedepo handles ETH, TRX, energy, and bandwidth from treasury. Website owners and their customers don\'t need to fund deposit addresses with separate gas balances.'],
+                    ['shield-check', 'Custody', 'Isolated transaction signing', 'Private wallet keys never enter the website application. Deposits and withdrawals are signed by an isolated service through authenticated requests.'],
+                ] as [$icon, $tag, $heading, $copy])
+                    <div class="grid gap-4 py-8 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-6">
+                        <flux:icon :name="$icon" class="size-5 text-(--color-accent)" />
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <flux:heading size="lg" level="3">{{ $heading }}</flux:heading>
+                                <flux:text size="xs" class="font-mono uppercase tracking-wider text-zinc-500">{{ $tag }}</flux:text>
+                            </div>
+                            <flux:text class="mt-2 max-w-xl text-zinc-400">{{ $copy }}</flux:text>
+                        </div>
+                    </div>
+                @endforeach
             </div>
         </div>
     </section>
