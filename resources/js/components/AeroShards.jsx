@@ -473,12 +473,12 @@ fn rippleDisplacement(position: vec3f, pulse: vec4f) -> vec4f {
 fn shardVertex(index: u32) -> vec3f {
   let fold = 0.34;
   let vertices = array<vec3f, 6>(
-    vec3f(0.0, 1.0, fold),
-    vec3f(-0.72, 0.0, 0.0),
-    vec3f(0.0, -1.0, fold),
-    vec3f(0.0, 1.0, fold),
-    vec3f(0.0, -1.0, fold),
-    vec3f(0.72, 0.0, 0.0)
+    vec3f(0.0, 1.5, fold),
+    vec3f(-1.5, 0.0, 0.0),
+    vec3f(0.0, -1.5, fold),
+    vec3f(0.0, 1.5, fold),
+    vec3f(0.0, -1.5, fold),
+    vec3f(1.5, 0.0, 0.0)
   );
   return vertices[index % 6u];
 }
@@ -622,8 +622,8 @@ fn vs_main(
   let depthScale = mix(0.56, 1.58, clamp(renderPosition.z * 0.62 + 0.5, 0.0, 1.0));
   let scaleShape = 0.46 + seedScale * 0.58 + pow(seedScale, 12.0) * 1.55;
   let size = view.viewport.y * scaleShape * depthScale * (1.0 - view.gather.z * 0.3);
-  let width = size * 0.72;
-  let lengthScale = size * 1.26 * view.effects.z;
+  let width = size * 0.9;
+  let lengthScale = size * 0.9 * view.effects.z;
   let world = renderPosition
     + direction * local.y * lengthScale
     + bankedSide * local.x * width
@@ -720,12 +720,9 @@ fn vs_main(
 fn fs_main(in: VertexOut) -> @location(0) vec4f {
   let crease = (1.0 - smoothstep(0.015, 0.11, abs(in.localCoord.x)))
     * (1.0 - smoothstep(0.78, 1.0, abs(in.localCoord.y)));
-  var coverage = 1.0;
-  if (view.effects.y > 0.001) {
-    let diamondDistance = 1.0 - abs(in.localCoord.y) - abs(in.localCoord.x) / 0.72;
-    let edgeWidth = max(fwidth(diamondDistance) * view.effects.y, 0.0001);
-    coverage = smoothstep(0.0, edgeWidth, diamondDistance);
-  }
+  let circleDistance = 1.0 - length(in.localCoord);
+  let edgeWidth = max(fwidth(circleDistance) * max(view.effects.y, 1.0), 0.0001);
+  let coverage = smoothstep(0.0, edgeWidth, circleDistance);
   let mapped = in.baseAlpha.rgb + in.creaseColor * crease;
   let coveredAlpha = in.baseAlpha.a * coverage;
   return vec4f(mapped * coveredAlpha, coveredAlpha);

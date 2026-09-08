@@ -39,7 +39,7 @@
 
         <x-umani-analytics />
     </head>
-    <body class="min-h-screen bg-zinc-900 text-zinc-100 antialiased">
+    <body class="min-h-screen overflow-x-clip bg-zinc-900 text-zinc-100 antialiased">
         {{ $aboveHeader ?? '' }}
         <div>
             <flux:header container class="{{ isset($aboveHeader) ? 'bg-transparent' : 'bg-zinc-900/80 backdrop-blur-xl' }}">

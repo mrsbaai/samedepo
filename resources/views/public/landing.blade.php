@@ -5,7 +5,7 @@
     </x-slot:aboveHeader>
 
     @push('scripts')
-        @vite(['resources/js/hero-background.jsx', 'resources/js/cta-laserflow.jsx'])
+        @vite(['resources/js/hero-background.jsx'])
     @endpush
 
     {{-- Hero --}}
@@ -152,43 +152,28 @@
     </section>
 
     {{-- Final CTA --}}
-    <section class="py-20 sm:py-28">
-        <div
-            class="relative h-auto w-full overflow-hidden rounded-2xl"
-            x-data="{ x: '50%', y: '50%', on: false }"
-            @mousemove="const r = $el.getBoundingClientRect(); x = ($event.clientX - r.left) + 'px'; y = ($event.clientY - r.top) + 'px'; on = true"
-            @mouseleave="on = false"
-        >
-            <div id="cta-laserflow" class="absolute inset-0 z-0"></div>
-            <img
-                src="{{ asset('images/dashboard.png') }}"
-                alt=""
-                class="pointer-events-none relative z-10 w-full select-none opacity-0 mix-blend-screen transition-opacity duration-300"
-                :class="on && 'opacity-100'"
-                :style="`mask-composite: intersect; -webkit-mask-composite: source-in; mask-image: radial-gradient(circle 240px at ${x} ${y}, black 0%, transparent 100%), linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%), linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 24px), transparent 100%); -webkit-mask-image: radial-gradient(circle 240px at ${x} ${y}, black 0%, transparent 100%), linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%), linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 24px), transparent 100%)`"
-            />
-        </div>
-        <div class="rounded-2xl border-2 border-(--color-accent) bg-[#0E0E0E] px-6 py-14 text-center sm:px-14 sm:py-20">
-            <div class="mx-auto max-w-2xl">
-                <flux:text size="sm" class="font-medium text-(--color-accent)">Get started</flux:text>
-                <flux:heading size="xl" level="2" class="mt-3 text-3xl tracking-tight sm:text-5xl">Give every customer an address that stays theirs.</flux:heading>
-                <flux:text size="lg" class="mt-5 text-zinc-400">Register them once. We handle deposits, confirmations, credits, and webhooks from there.</flux:text>
+    <section class="relative py-20 sm:py-28">
+        <div id="cta-background" class="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-screen -translate-x-1/2 md:block [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_70%,transparent)]"></div>
 
-                <div class="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-                    <flux:button href="{{ route('signup') }}" variant="primary" icon:trailing="arrow-right" wire:navigate>Create a free account</flux:button>
-                    <flux:button href="{{ route('public.api-docs') }}" variant="ghost" icon="code-bracket" wire:navigate>Read the API docs</flux:button>
-                </div>
+        <div class="mx-auto max-w-2xl text-center">
+            <flux:text size="sm" class="font-medium text-(--color-accent)">Get started</flux:text>
+            <flux:heading size="xl" level="2" class="mt-2">Give every customer an address that stays theirs.</flux:heading>
+            <flux:text size="lg" class="mt-3 text-zinc-400">Register them once. Deposits, confirmations, credits, and webhooks are handled from there.</flux:text>
 
-                <div class="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-                    @foreach ([['link', 'Permanent addresses'], ['bolt', 'One API request'], ['bell-alert', 'Webhook on every deposit']] as [$icon, $label])
-                        <div class="flex items-center gap-2">
-                            <flux:icon :name="$icon" variant="micro" class="text-(--color-accent)" />
-                            <flux:text size="sm" class="text-zinc-400">{{ $label }}</flux:text>
-                        </div>
-                    @endforeach
-                </div>
+            <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                <flux:button href="{{ route('signup') }}" variant="primary" icon:trailing="arrow-right" wire:navigate>Create a free account</flux:button>
+                <flux:button href="{{ route('public.api-docs') }}" variant="ghost" wire:navigate>Read the API docs</flux:button>
             </div>
         </div>
+
+        <figure class="mx-auto mt-16 max-w-5xl">
+            <a href="{{ route('signup') }}" wire:navigate>
+                <img src="{{ asset('images/dashboard.png') }}" alt="samedepo dashboard showing per-network balances and recent credited deposits" class="block w-full cursor-pointer rounded-xl ring-1 ring-white/10 shadow-2xl shadow-black/60 transition duration-300 hover:ring-white/20 hover:brightness-110" />
+            </a>
+            <figcaption class="mt-4 text-center">
+                <flux:text size="sm" class="text-zinc-500">Every balance and every credited deposit, in one place.</flux:text>
+            </figcaption>
+        </figure>
     </section>
 
 </x-layouts.public>
