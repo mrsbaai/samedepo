@@ -38,6 +38,7 @@ uniform float uDecay;
 uniform float uFalloffStart;
 uniform float uFogFallSpeed;
 uniform vec3 uColor;
+uniform vec3 uCoreColor;
 uniform float uFade;
 
 // Core beam/flare shaping and dynamics
@@ -221,7 +222,7 @@ void mainImage(out vec4 fc,in vec2 frag){
     float LF=L+fog;
     float dith=(h21(frag)-0.5)*(DITHER_STRENGTH/255.0);
     float tone=g(LF+w);
-    vec3 col=min(tone,1.0)*uColor+dith;
+    vec3 col=mix(tone*uColor,uCoreColor,smoothstep(0.8,1.6,tone))+dith;
     float alpha=clamp(g(L+w*0.6)+dith*0.6,0.0,1.0);
     float nxE=abs((frag.x-C.x)*invW),xF=pow(clamp(1.0-smoothstep(EDGE_X0,EDGE_X1,nxE),0.0,1.0),EDGE_X_GAMMA);
     float scene=LF+max(0.0,w)*0.5,hi=smoothstep(EDGE_LUMA_T0,EDGE_LUMA_T1,scene);
@@ -259,6 +260,7 @@ export const LaserFlow = ({
   falloffStart = 1.2,
   fogFallSpeed = 0.6,
   color = '#FF79C6',
+  coreColor = '#FFFFFF',
   backgroundColor = '#000000'
 }) => {
   const mountRef = useRef(null);
@@ -352,6 +354,7 @@ export const LaserFlow = ({
       uFalloffStart: { value: falloffStart },
       uFogFallSpeed: { value: fogFallSpeed },
       uColor: { value: new THREE.Vector3(1, 1, 1) },
+      uCoreColor: { value: new THREE.Vector3(1, 1, 1) },
       uFade: { value: hasFadedRef.current ? 1 : 0 }
     };
     uniformsRef.current = uniforms;
@@ -569,6 +572,8 @@ export const LaserFlow = ({
 
     const { r, g, b } = hexToRGB(color || '#FFFFFF');
     uniforms.uColor.value.set(r, g, b);
+    const core = hexToRGB(coreColor || '#FFFFFF');
+    uniforms.uCoreColor.value.set(core.r, core.g, core.b);
     const canvas = rendererRef.current?.domElement;
     if (canvas) {
       const background = new THREE.Color(backgroundColor || '#000000');
@@ -596,6 +601,7 @@ export const LaserFlow = ({
     falloffStart,
     fogFallSpeed,
     color,
+    coreColor,
     backgroundColor
   ]);
 

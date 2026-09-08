@@ -9,6 +9,7 @@ if (mount) {
         <StrictMode>
             <LaserFlow
                 color="#FFB900"
+                coreColor="#FFBF17"
                 wispDensity={1}
                 flowSpeed={0.35}
                 verticalSizing={2}
