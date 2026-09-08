@@ -1,21 +1,25 @@
 <x-layouts.public :title="'Deposit addresses that never change'" :description="'samedepo gives every customer of a website owner the same permanent crypto deposit address and automatic top-up tracking.'">
 
+    <x-slot:aboveHeader>
+        <div id="hero-background" class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-screen hidden md:block"></div>
+    </x-slot:aboveHeader>
+
+    @push('scripts')
+        @vite(['resources/js/hero-background.jsx', 'resources/js/cta-laserflow.jsx'])
+    @endpush
+
     {{-- Hero --}}
     <section class="py-12 sm:py-28">
         <div class="grid gap-10 sm:gap-12 lg:grid-cols-2 lg:items-center">
             <div class="text-center lg:text-left">
-                <div class="mb-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-                    <flux:badge icon="check" color="amber" size="sm">No invoices, No expiring links.</flux:badge>
-                </div>
-
                 <flux:heading size="xl" level="1" class="text-4xl sm:text-5xl font-semibold tracking-tight">
-                    Same customer,<br />
-                    same deposit address.<br />
+                    Same deposit address.<br />
+                    Simpler account top-ups.<br />
                 </flux:heading>
 
                 <flux:text size="lg" class="mt-6 text-zinc-400">
-                    Send a customer reference and get permanent Bitcoin, USDT (TRC20), and USDT (ERC20) deposit
-                    addresses. The same GET request returns the same addresses every time.
+                    Give every user a permanent deposit address through one API endpoint. Receive a webhook when
+                    their deposit is confirmed, so your app can credit their balance automatically.
                 </flux:text>
 
                 <div class="mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-10 sm:flex-row sm:items-center lg:justify-start">
@@ -55,22 +59,23 @@
 
     {{-- Supported networks --}}
     <section class="py-12 sm:py-16">
-        <div class="mx-auto max-w-2xl">
-            <flux:heading size="sm" level="3" class="mb-3 text-center text-zinc-400 sm:mb-4">Supported networks</flux:heading>
-            <flux:card variant="soft" class="bg-zinc-800 p-4 sm:p-5">
-                <div class="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-center sm:text-left">
-                    <div class="flex -space-x-2">
-                        @foreach (['bitcoin.svg', 'usdt-trc20.svg', 'usdt-erc20.svg'] as $icon)
-                            <img src="{{ asset('crypto/'.$icon) }}" alt="" class="size-10 rounded-full ring-2 ring-zinc-800" />
-                        @endforeach
-                    </div>
+        <div class="flex flex-col gap-8 border-y border-zinc-800 py-8 lg:flex-row lg:items-center lg:justify-between">
+            <div class="max-w-sm">
+                <flux:text size="sm" class="font-medium text-(--color-accent)">Three networks. One integration.</flux:text>
+                <flux:heading size="lg" level="2" class="mt-2">Give your users permanent deposit addresses.</flux:heading>
+            </div>
 
-                    <div>
-                        <flux:heading>Three networks. One integration.</flux:heading>
-                        <flux:text size="sm" variant="subtle">Permanent deposit addresses across Bitcoin and USDT.</flux:text>
+            <div class="flex flex-wrap gap-x-10 gap-y-4">
+                @foreach ([['bitcoin.svg', 'Bitcoin', 'Native SegWit'], ['usdt-trc20.svg', 'USDT', 'TRC20'], ['usdt-erc20.svg', 'USDT', 'ERC20']] as [$icon, $name, $network])
+                    <div class="flex items-center gap-3">
+                        <img src="{{ asset('crypto/'.$icon) }}" alt="" class="size-8 shrink-0 rounded-full" />
+                        <div class="leading-tight">
+                            <flux:text class="font-medium text-zinc-100">{{ $name }}</flux:text>
+                            <flux:text size="xs" class="font-mono text-zinc-500">{{ $network }}</flux:text>
+                        </div>
                     </div>
-                </div>
-            </flux:card>
+                @endforeach
+            </div>
         </div>
     </section>
 
@@ -138,24 +143,56 @@
 
     {{-- FAQs --}}
     <section class="py-20 sm:py-24">
-        <div class="mx-auto max-w-3xl">
-            <flux:heading size="xl" level="2" class="text-center">FAQs</flux:heading>
-            <flux:text class="mt-3 text-center text-zinc-400">Answers to common questions about fees, networks, and limits.</flux:text>
+        <div class="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
+            <div class="max-w-lg lg:sticky lg:top-24 lg:self-start">
+                <flux:text size="sm" class="font-medium text-(--color-accent)">FAQs</flux:text>
+                <flux:heading size="xl" level="2" class="mt-2">Before you integrate.</flux:heading>
+                <flux:text size="lg" class="mt-3 text-zinc-400">Fees, networks, confirmations, and limits, answered in plain terms.</flux:text>
+                <flux:button href="{{ route('public.api-docs') }}" variant="ghost" icon:trailing="arrow-right" class="mt-6 -ml-3" wire:navigate>Need the details? Read the API docs</flux:button>
+            </div>
 
-            <div class="mt-8">
+            <div>
                 @include('livewire.support.partials.faq-accordion')
             </div>
         </div>
     </section>
 
     {{-- Final CTA --}}
-    <section class="py-20 text-center sm:py-28">
-        <div class="mx-auto max-w-2xl">
-            <flux:heading size="xl" level="2">Give every customer an address that stays theirs.</flux:heading>
-            <flux:text size="lg" class="mx-auto mt-4 max-w-xl text-zinc-400">Register them once. We handle deposits, confirmations, credits, and webhooks from there.</flux:text>
-            <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <flux:button href="{{ route('signup') }}" variant="primary" wire:navigate>Create a free account</flux:button>
-                <flux:button href="{{ route('public.api-docs') }}" variant="ghost" wire:navigate>Read the API docs</flux:button>
+    <section class="py-20 sm:py-28">
+        <div
+            class="relative h-auto w-full overflow-hidden rounded-2xl"
+            x-data="{ x: '50%', y: '50%', on: false }"
+            @mousemove="const r = $el.getBoundingClientRect(); x = ($event.clientX - r.left) + 'px'; y = ($event.clientY - r.top) + 'px'; on = true"
+            @mouseleave="on = false"
+        >
+            <div id="cta-laserflow" class="absolute inset-0 z-0"></div>
+            <img
+                src="{{ asset('images/dashboard.png') }}"
+                alt=""
+                class="pointer-events-none relative z-10 w-full select-none opacity-0 mix-blend-screen transition-opacity duration-300"
+                :class="on && 'opacity-100'"
+                :style="`mask-composite: intersect; -webkit-mask-composite: source-in; mask-image: radial-gradient(circle 240px at ${x} ${y}, black 0%, transparent 100%), linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%), linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 24px), transparent 100%); -webkit-mask-image: radial-gradient(circle 240px at ${x} ${y}, black 0%, transparent 100%), linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%), linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 24px), transparent 100%)`"
+            />
+        </div>
+        <div class="rounded-2xl border-2 border-(--color-accent) bg-[#0E0E0E] px-6 py-14 text-center sm:px-14 sm:py-20">
+            <div class="mx-auto max-w-2xl">
+                <flux:text size="sm" class="font-medium text-(--color-accent)">Get started</flux:text>
+                <flux:heading size="xl" level="2" class="mt-3 text-3xl tracking-tight sm:text-5xl">Give every customer an address that stays theirs.</flux:heading>
+                <flux:text size="lg" class="mt-5 text-zinc-400">Register them once. We handle deposits, confirmations, credits, and webhooks from there.</flux:text>
+
+                <div class="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
+                    <flux:button href="{{ route('signup') }}" variant="primary" icon:trailing="arrow-right" wire:navigate>Create a free account</flux:button>
+                    <flux:button href="{{ route('public.api-docs') }}" variant="ghost" icon="code-bracket" wire:navigate>Read the API docs</flux:button>
+                </div>
+
+                <div class="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+                    @foreach ([['link', 'Permanent addresses'], ['bolt', 'One API request'], ['bell-alert', 'Webhook on every deposit']] as [$icon, $label])
+                        <div class="flex items-center gap-2">
+                            <flux:icon :name="$icon" variant="micro" class="text-(--color-accent)" />
+                            <flux:text size="sm" class="text-zinc-400">{{ $label }}</flux:text>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
     </section>

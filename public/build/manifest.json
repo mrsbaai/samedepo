@@ -1,6 +1,10 @@
 {
+  "_client-DGj8QgOs.js": {
+    "file": "assets/client-DGj8QgOs.js",
+    "name": "client"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-Cx1FvPkE.css",
+    "file": "assets/app-IDpQEXgM.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -9,5 +13,29 @@
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true
+  },
+  "resources/js/cta-laserflow.jsx": {
+    "file": "assets/cta-laserflow-BJ-7pYru.js",
+    "name": "cta-laserflow",
+    "src": "resources/js/cta-laserflow.jsx",
+    "isEntry": true,
+    "imports": [
+      "_client-DGj8QgOs.js"
+    ],
+    "css": [
+      "assets/cta-laserflow-DogrKNTQ.css"
+    ]
+  },
+  "resources/js/hero-background.jsx": {
+    "file": "assets/hero-background-2x1z2E1_.js",
+    "name": "hero-background",
+    "src": "resources/js/hero-background.jsx",
+    "isEntry": true,
+    "imports": [
+      "_client-DGj8QgOs.js"
+    ],
+    "css": [
+      "assets/hero-background-3qRyQhhn.css"
+    ]
   }
 }

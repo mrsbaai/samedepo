@@ -35,12 +35,14 @@
         <x-favicon />
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @stack('scripts')
 
         <x-umani-analytics />
     </head>
     <body class="min-h-screen bg-zinc-900 text-zinc-100 antialiased">
+        {{ $aboveHeader ?? '' }}
         <div>
-            <flux:header container class="bg-zinc-900/80 backdrop-blur-xl">
+            <flux:header container class="{{ isset($aboveHeader) ? 'bg-transparent' : 'bg-zinc-900/80 backdrop-blur-xl' }}">
                 <x-brand :href="url('/')" />
 
                 <flux:navbar class="ml-6 max-lg:hidden">

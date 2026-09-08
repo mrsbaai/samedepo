@@ -155,16 +155,20 @@
     margin-bottom: 0;
 }
 
-/* Subtle continuous float for a single hero showpiece element (e.g. the
-   landing page's code snippet). Not a mouse-hover effect — the element
-   gently bobs on its own to draw the eye without being distracting.
-   Respects prefers-reduced-motion. */
+/* Continuous float for a single hero showpiece element (e.g. the
+   landing page's code snippet). Larger vertical travel and a subtle
+   scale/rotation for a modern feel. Pauses on hover. Respects
+   prefers-reduced-motion. */
 @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    0%, 100% { transform: translateY(0) scale(1) rotateX(0deg); }
+    50% { transform: translateY(-28px) scale(1.02) rotateX(2deg); }
 }
 @utility animate-float {
-    animation: float 6s ease-in-out infinite;
+    animation: float 5s ease-in-out infinite;
+
+    &:hover {
+        animation-play-state: paused;
+    }
 
     @media (prefers-reduced-motion: reduce) {
         animation: none;

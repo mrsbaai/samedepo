@@ -6,8 +6,8 @@ use App\Models\User;
 test('guests can view the public landing page', function () {
     $this->get('/')
         ->assertOk()
-        ->assertSee('Same customer,')
-        ->assertSee('same deposit address.')
+        ->assertSee('Same deposit address')
+        ->assertSee('Simpler account top-ups')
         ->assertSee('Create a free account')
         ->assertSee('Read the API docs')
         ->assertSee('How it works');
