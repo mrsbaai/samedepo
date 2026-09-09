@@ -84,7 +84,7 @@ class FeeCalculator extends Component
     public function belowWithdrawalMinimum(): bool
     {
         return $this->usdPrice() !== null
-            && bccomp(bcmul($this->numericAmount(), $this->usdPrice(), 8), $this->withdrawalMinimumUsd(), 8) < 0;
+            && bccomp($this->numericAmount(), $this->withdrawalMinimumUsd(), 8) < 0;
     }
 
     #[Computed]
@@ -104,16 +104,18 @@ class FeeCalculator extends Component
             return null;
         }
 
-        $fee = (new FeeConverter)->toNetworkUnits($this->network, (new FeeConverter)->bufferedNativeFee($nativeFee));
+        $networkFeeCrypto = (new FeeConverter)->toNetworkUnits($this->network, (new FeeConverter)->bufferedNativeFee($nativeFee));
 
-        if ($fee === null) {
+        if ($networkFeeCrypto === null || $this->usdPrice() === null) {
             return null;
         }
 
+        $amountCrypto = bcdiv($this->numericAmount(), $this->usdPrice(), 8);
+
         return [
-            'network_fee' => $fee,
-            'receive' => bccomp($this->numericAmount(), $fee, 8) >= 0
-                ? bcsub($this->numericAmount(), $fee, 8)
+            'network_fee' => $networkFeeCrypto,
+            'receive' => bccomp($amountCrypto, $networkFeeCrypto, 8) >= 0
+                ? bcsub($amountCrypto, $networkFeeCrypto, 8)
                 : '0.00000000',
         ];
     }
