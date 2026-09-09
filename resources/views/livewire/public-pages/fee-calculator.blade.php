@@ -12,7 +12,7 @@
                     <flux:select.option value="usdt_trc20">USDT (TRC20)</flux:select.option>
                     <flux:select.option value="usdt_erc20">USDT (ERC20)</flux:select.option>
                 </flux:select>
-                <flux:input wire:model.live.debounce.500ms="amount" type="number" min="0" step="any" label="Withdrawal amount" />
+                <flux:input wire:model.live.debounce.500ms="amount" type="number" min="0" step="any" label="Withdrawal amount (in USD)" />
             </div>
 
             <div class="border-t border-zinc-200 pt-6 dark:border-white/10 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
