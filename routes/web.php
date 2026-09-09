@@ -311,7 +311,7 @@ Route::get('/', function () {
 })->name('public.landing');
 
 Route::get('/api-docs', ApiDocsController::class)->name('public.api-docs');
-Route::get('/fee-calculator', FeeCalculator::class)->name('fees.calculator');
+Route::get('/withdrawal-fee-calculator', FeeCalculator::class)->name('withdrawal-fees.calculator');
 
 Route::get('/qr/{address}', [QrController::class, 'show'])->name('qr');
 

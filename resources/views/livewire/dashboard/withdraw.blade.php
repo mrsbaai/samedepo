@@ -95,7 +95,7 @@
                         <flux:text variant="subtle">Destination</flux:text>
                         <code class="text-xs font-mono truncate max-w-[200px] text-zinc-600 dark:text-zinc-400">{{ $this->withdrawalAddress->address ?? '' }}</code>
                     </div>
-                    <flux:link href="{{ route('fees.calculator') }}" wire:navigate class="text-sm">How fees are calculated</flux:link>
+                    <flux:link href="{{ route('withdrawal-fees.calculator') }}" wire:navigate class="text-sm">How fees are calculated</flux:link>
                 </div>
                 <flux:button variant="primary" class="w-full" wire:click="confirmRequest">Withdraw Full Balance</flux:button>
             @endif
