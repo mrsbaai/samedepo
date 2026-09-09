@@ -24,11 +24,17 @@
                     <dl class="space-y-4">
                         <div class="flex items-center justify-between gap-4">
                             <flux:text variant="subtle">Estimated network fee</flux:text>
-                            <flux:text class="font-ledger tabular-nums">{{ $this->formatted($this->withdrawalEstimate['network_fee']) }} {{ $this->networkMeta['symbol'] }}</flux:text>
+                            <div class="text-right">
+                                <flux:text class="font-ledger tabular-nums">{{ $this->formattedUsd($this->withdrawalEstimate['network_fee']) }}</flux:text>
+                                <flux:text size="sm" variant="subtle" class="font-ledger tabular-nums block">({{ $this->formatted($this->withdrawalEstimate['network_fee']) }} {{ $this->networkMeta['symbol'] }})</flux:text>
+                            </div>
                         </div>
                         <div class="flex items-end justify-between gap-4 border-t border-zinc-200 pt-4 dark:border-white/10">
                             <flux:heading>Estimated amount received</flux:heading>
-                            <flux:heading size="xl" class="font-ledger tabular-nums">{{ $this->formatted($this->withdrawalEstimate['receive']) }} {{ $this->networkMeta['symbol'] }}</flux:heading>
+                            <div class="text-right">
+                                <flux:heading size="xl" class="font-ledger tabular-nums">{{ $this->formattedUsd($this->withdrawalEstimate['receive']) }}</flux:heading>
+                                <flux:text size="sm" variant="subtle" class="font-ledger tabular-nums block">({{ $this->formatted($this->withdrawalEstimate['receive']) }} {{ $this->networkMeta['symbol'] }})</flux:text>
+                            </div>
                         </div>
                     </dl>
                 @else

@@ -123,6 +123,17 @@ class FeeCalculator extends Component
         return number_format((float) $amount, $this->networkMeta()['decimals']);
     }
 
+    public function formattedUsd(string $amount): string
+    {
+        $price = $this->usdPrice();
+
+        if ($price === null) {
+            return '$—';
+        }
+
+        return '$'.number_format((float) bcmul($amount, $price, 8), 2).' USD';
+    }
+
     public function render(): mixed
     {
         return view('livewire.public-pages.fee-calculator');
