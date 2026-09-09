@@ -237,8 +237,9 @@ class GasTreasuryService
 
     private function chooseTopupAmount(string $tokenFee, GasPolicy $policy): ?string
     {
-        $amount = bccomp($tokenFee, (string) $policy->top_up_amount, 8) > 0
-            ? $tokenFee
+        $buffered = (new FeeConverter)->bufferedNativeFee($tokenFee);
+        $amount = bccomp($buffered, (string) $policy->top_up_amount, 8) > 0
+            ? $buffered
             : (string) $policy->top_up_amount;
 
         if (bccomp($amount, (string) $policy->max_top_up, 8) > 0) {

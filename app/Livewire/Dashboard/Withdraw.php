@@ -129,7 +129,7 @@ class Withdraw extends Component
                 return null;
             }
 
-            $estimate = (new FeeConverter)->estimate($this->networkKey(), $estimatedNative, (int) Auth::id());
+            $estimate = (new FeeConverter)->estimate($this->networkKey(), $estimatedNative);
 
             if ($estimate === null) {
                 return null;

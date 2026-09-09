@@ -5,9 +5,10 @@ use App\Models\Balance;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
-use App\Models\GasExpense;
+use App\Models\GasTopup;
 use App\Models\LedgerEntry;
 use App\Models\TreasurySweep;
+use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
@@ -152,7 +153,13 @@ function ownerFinanceFixture(): array
         'confirmed_at' => now()->subDays(5),
         'fee_recovered_at' => now()->subDays(4),
     ]);
-    GasExpense::create(['network' => 'usdt_trc20', 'amount' => '1.50000000', 'expensable_type' => TreasurySweep::class, 'expensable_id' => $sweepRecovered->id]);
+    $wallet = TreasuryWallet::firstOrCreate(['network' => 'usdt_trc20'], ['derivation_index' => 0, 'address' => 'treasury-trc20', 'available_funds' => '0', 'native_balance' => '0']);
+    $topup = fn (DepositAddress $to, string $amount, ?Carbon $recoveredAt) => GasTopup::create([
+        'treasury_wallet_id' => $wallet->id, 'network' => 'usdt_trc20', 'recipient_address' => $to->address, 'recipient_index' => 0,
+        'amount' => $amount, 'tx_hash' => 'topup-'.$to->id.'-'.$amount, 'status' => 'confirmed', 'confirmed_at' => now()->subDays(5),
+        'fee_recovered_at' => $recoveredAt, 'is_open' => $to->id.'-'.$amount,
+    ]);
+    $topup($address, '1.50000000', now()->subDays(4));
 
     $sweepUnrecovered = TreasurySweep::create([
         'deposit_id' => null,
@@ -163,7 +170,7 @@ function ownerFinanceFixture(): array
         'status' => 'confirmed',
         'confirmed_at' => now()->subDays(2),
     ]);
-    GasExpense::create(['network' => 'usdt_trc20', 'amount' => '2.00000000', 'expensable_type' => TreasurySweep::class, 'expensable_id' => $sweepUnrecovered->id]);
+    $topup($address, '2.00000000', null);
 
     $decoySweep = TreasurySweep::create([
         'deposit_id' => null,
@@ -174,7 +181,7 @@ function ownerFinanceFixture(): array
         'status' => 'confirmed',
         'confirmed_at' => now()->subDays(2),
     ]);
-    GasExpense::create(['network' => 'usdt_trc20', 'amount' => '9.00000000', 'expensable_type' => TreasurySweep::class, 'expensable_id' => $decoySweep->id]);
+    $topup($otherAddress, '9.00000000', null);
 
     return ['admin' => $admin, 'owner' => $owner, 'otherOwner' => $otherOwner];
 }

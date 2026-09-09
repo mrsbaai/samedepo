@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Blockchain;
 
 use App\Models\GasExpense;
+use App\Models\GasTopup;
 use App\Models\PlatformSettings;
 use App\Models\TreasurySweep;
 use App\Models\UsdValuation;
@@ -42,22 +43,54 @@ class FeeConverter
         return bcdiv(bcmul($nativeAmount, (string) $nativeUsd, 8), (string) $tokenUsd, 8);
     }
 
-    public function sweepGasNative(int $userId, string $network): string
+    /**
+     * Native units the treasury actually spent consolidating an owner's deposits.
+     * Tokens: gas top-ups sent to deposit addresses (amount + top-up tx fee).
+     * Bitcoin: the miner fee taken out of each sweep.
+     */
+    public function sweepGasNative(int $userId, string $network, bool $unrecoveredOnly = false): string
     {
-        return $this->sumAttributableSweepGas($this->attributableSweepGasQuery($userId, $network));
+        if ($network === 'bitcoin') {
+            $query = $this->attributableSweepGasQuery($userId, $network)
+                ->when($unrecoveredOnly, fn (Builder $query) => $query->whereNull('treasury_sweeps.fee_recovered_at'));
+
+            return $this->sumAttributableSweepGas($query);
+        }
+
+        $sum = $this->attributableTopupQuery($userId, $network)
+            ->when($unrecoveredOnly, fn (Builder $query) => $query->whereNull('gas_topups.fee_recovered_at'))
+            ->leftJoin('gas_expenses', 'gas_expenses.gas_topup_id', '=', 'gas_topups.id')
+            ->selectRaw('COALESCE(SUM(gas_topups.amount + COALESCE(gas_expenses.amount, 0)), 0) as total')
+            ->value('total');
+
+        return bcadd((string) $sum, '0', 8);
     }
 
     public function unrecoveredSweepGasNative(int $userId, string $network): string
     {
-        return $this->sumAttributableSweepGas(
-            $this->attributableSweepGasQuery($userId, $network)->whereNull('treasury_sweeps.fee_recovered_at')
-        );
+        return $this->sweepGasNative($userId, $network, true);
+    }
+
+    /**
+     * @return Builder<GasTopup>
+     */
+    public function attributableTopupQuery(int $userId, string $network): Builder
+    {
+        return GasTopup::query()
+            ->where('gas_topups.network', $network)
+            ->where('gas_topups.status', 'confirmed')
+            ->join('deposit_addresses', function ($join): void {
+                $join->on('deposit_addresses.address', '=', 'gas_topups.recipient_address')
+                    ->on('deposit_addresses.network', '=', 'gas_topups.network');
+            })
+            ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
+            ->where('customers.user_id', $userId);
     }
 
     /**
      * @return Builder<GasExpense>
      */
-    private function attributableSweepGasQuery(int $userId, string $network): Builder
+    public function attributableSweepGasQuery(int $userId, string $network): Builder
     {
         return GasExpense::query()
             ->where('gas_expenses.expensable_type', TreasurySweep::class)
@@ -85,19 +118,10 @@ class FeeConverter
         return bcadd($sum !== null ? (string) $sum : '0', '0', 8);
     }
 
-    public function estimate(string $network, string $estimatedFeeNative, int $userId): ?array
+    public function estimate(string $network, string $estimatedFeeNative): ?array
     {
         $networkFee = $this->toNetworkUnits($network, $this->bufferedNativeFee($estimatedFeeNative));
-        $recovery = $this->toNetworkUnits($network, $this->unrecoveredSweepGasNative($userId, $network));
 
-        if ($networkFee === null || $recovery === null) {
-            return null;
-        }
-
-        return [
-            'network_fee' => $networkFee,
-            'sweep_recovery' => $recovery,
-            'total_fee' => bcadd($networkFee, $recovery, 8),
-        ];
+        return $networkFee === null ? null : ['network_fee' => $networkFee, 'total_fee' => $networkFee];
     }
 }

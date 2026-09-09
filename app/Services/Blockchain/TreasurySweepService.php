@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain;
 
+use App\Models\Balance;
 use App\Models\Deposit;
 use App\Models\GasExpense;
+use App\Models\GasTopup;
+use App\Models\LedgerEntry;
 use App\Models\PlatformSettings;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
@@ -19,12 +22,16 @@ class TreasurySweepService
     public function __construct(
         private readonly BlockchainBroadcaster $broadcaster,
         private ?GasTreasuryService $gasTreasury = null,
+        private ?FeeConverter $feeConverter = null,
     ) {
         $this->gasTreasury ??= new GasTreasuryService($this->broadcaster);
+        $this->feeConverter ??= new FeeConverter;
     }
 
     public function sweep(): void
     {
+        $this->billConsolidationCosts();
+
         $settings = PlatformSettings::instance();
         $valuations = UsdValuation::query()->pluck('conversion_value', 'network');
 
@@ -81,6 +88,82 @@ class TreasurySweepService
                 $this->processSweep($sweep, $wallet);
             });
         }
+    }
+
+    /**
+     * Charge each owner, in token units, what the treasury spent consolidating
+     * their deposits (top-ups for tokens, miner fee for Bitcoin) as soon as the
+     * sweep confirms, instead of waiting for a withdrawal that may never come.
+     */
+    public function billConsolidationCosts(): void
+    {
+        $groups = TreasurySweep::query()
+            ->where('treasury_sweeps.status', 'confirmed')
+            ->whereNull('treasury_sweeps.fee_recovered_at')
+            ->leftJoin('deposits', 'deposits.id', '=', 'treasury_sweeps.deposit_id')
+            ->leftJoin('deposit_addresses', 'deposit_addresses.id', '=', 'treasury_sweeps.deposit_address_id')
+            ->leftJoin('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
+            ->selectRaw('treasury_sweeps.id as sweep_id, treasury_sweeps.network, COALESCE(deposits.user_id, customers.user_id) as owner_id')
+            ->get()
+            ->whereNotNull('owner_id')
+            ->groupBy(fn ($row) => $row->network.':'.$row->owner_id);
+
+        foreach ($groups as $rows) {
+            $first = $rows->first();
+
+            DB::transaction(fn () => $this->billOwner((int) $first->owner_id, $first->network, (int) $rows->min('sweep_id')));
+        }
+    }
+
+    private function billOwner(int $userId, string $network, int $sweepId): void
+    {
+        $cost = $this->feeConverter->toNetworkUnits(
+            $network,
+            $this->feeConverter->unrecoveredSweepGasNative($userId, $network),
+        );
+
+        if ($cost === null) {
+            return;
+        }
+
+        if (bccomp($cost, '0', 8) > 0) {
+            // ponytail: balance may go negative if everything is already reserved for a withdrawal; the next deposit nets it out.
+            $balance = Balance::query()->withoutGlobalScope('owner')->lockForUpdate()->firstOrCreate(
+                ['user_id' => $userId, 'network' => $network],
+                ['amount' => 0],
+            );
+            $balance->update(['amount' => bcsub((string) $balance->amount, $cost, 8)]);
+
+            $sweep = TreasurySweep::query()->find($sweepId);
+
+            LedgerEntry::create([
+                'user_id' => $userId,
+                'network' => $network,
+                'amount' => '-'.$cost,
+                'reason' => 'network_fee',
+                'deposit_id' => $sweep?->deposit_id ?? ($sweep?->deposit_ids[0] ?? null),
+            ]);
+        }
+
+        $now = now();
+        TreasurySweep::query()->where('network', $network)->where('status', 'confirmed')->whereNull('fee_recovered_at')
+            ->where(function ($query) use ($userId): void {
+                $query->whereExists(function ($sub) use ($userId): void {
+                    $sub->selectRaw('1')->from('deposits')
+                        ->whereColumn('deposits.id', 'treasury_sweeps.deposit_id')
+                        ->where('deposits.user_id', $userId);
+                })->orWhereExists(function ($sub) use ($userId): void {
+                    $sub->selectRaw('1')->from('deposit_addresses')
+                        ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
+                        ->whereColumn('deposit_addresses.id', 'treasury_sweeps.deposit_address_id')
+                        ->where('customers.user_id', $userId);
+                });
+            })
+            ->update(['fee_recovered_at' => $now]);
+        $topupIds = $this->feeConverter->attributableTopupQuery($userId, $network)
+            ->whereNull('gas_topups.fee_recovered_at')
+            ->pluck('gas_topups.id');
+        GasTopup::query()->whereIn('id', $topupIds)->update(['fee_recovered_at' => $now]);
     }
 
     private function shouldSweep(object $group, TreasuryWallet $wallet, PlatformSettings $settings, $valuations): bool

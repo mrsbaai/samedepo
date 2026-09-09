@@ -4,9 +4,10 @@ use App\Models\Balance;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
-use App\Models\GasExpense;
+use App\Models\GasTopup;
 use App\Models\LedgerEntry;
 use App\Models\TreasurySweep;
+use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
@@ -23,6 +24,27 @@ beforeEach(function () {
     UsdValuation::create(['network' => 'native_trx', 'conversion_value' => '0.300000']);
     UsdValuation::create(['network' => 'native_eth', 'conversion_value' => '3000.000000']);
 });
+
+function seedTopup(DepositAddress $address, string $amount, bool $recovered): void
+{
+    $wallet = TreasuryWallet::firstOrCreate(
+        ['network' => $address->network],
+        ['derivation_index' => 0, 'address' => 'treasury-'.$address->network, 'available_funds' => '0', 'native_balance' => '0'],
+    );
+
+    GasTopup::create([
+        'treasury_wallet_id' => $wallet->id,
+        'network' => $address->network,
+        'recipient_address' => $address->address,
+        'recipient_index' => 0,
+        'amount' => $amount,
+        'tx_hash' => 'topup-'.$address->address,
+        'status' => 'confirmed',
+        'confirmed_at' => now()->subDays(10),
+        'fee_recovered_at' => $recovered ? now()->subDays(9) : null,
+        'is_open' => $address->address,
+    ]);
+}
 
 function seedOwnerO(): User
 {
@@ -134,7 +156,7 @@ function seedOwnerO(): User
 
     Balance::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => '67.00000000']);
 
-    $sweep1 = TreasurySweep::create([
+    TreasurySweep::create([
         'deposit_id' => $d1->id,
         'network' => 'usdt_trc20',
         'amount' => '0.00000000',
@@ -142,16 +164,9 @@ function seedOwnerO(): User
         'confirmed_at' => now()->subDays(10),
         'fee_recovered_at' => now()->subDays(9),
     ]);
+    seedTopup($addr1, '1.50000000', true);
 
-    GasExpense::create([
-        'expensable_type' => TreasurySweep::class,
-        'expensable_id' => $sweep1->id,
-        'network' => 'native_trx',
-        'tx_hash' => 'tx-gas-1',
-        'amount' => '1.50000000',
-    ]);
-
-    $sweep2 = TreasurySweep::create([
+    TreasurySweep::create([
         'deposit_id' => $d2->id,
         'network' => 'usdt_trc20',
         'amount' => '0.00000000',
@@ -159,14 +174,7 @@ function seedOwnerO(): User
         'confirmed_at' => now()->subDays(10),
         'fee_recovered_at' => null,
     ]);
-
-    GasExpense::create([
-        'expensable_type' => TreasurySweep::class,
-        'expensable_id' => $sweep2->id,
-        'network' => 'native_trx',
-        'tx_hash' => 'tx-gas-2',
-        'amount' => '2.00000000',
-    ]);
+    seedTopup($addr2, '2.00000000', false);
 
     return $owner;
 }
@@ -197,7 +205,7 @@ function seedOtherOwner(): User
         'credited_at' => now()->subDay(),
     ]);
 
-    $sweep = TreasurySweep::create([
+    TreasurySweep::create([
         'deposit_id' => $deposit->id,
         'network' => 'usdt_trc20',
         'amount' => '0.00000000',
@@ -205,14 +213,7 @@ function seedOtherOwner(): User
         'confirmed_at' => now()->subDay(),
         'fee_recovered_at' => null,
     ]);
-
-    GasExpense::create([
-        'expensable_type' => TreasurySweep::class,
-        'expensable_id' => $sweep->id,
-        'network' => 'native_trx',
-        'tx_hash' => 'tx-gas-other',
-        'amount' => '9.00000000',
-    ]);
+    seedTopup($address, '9.00000000', false);
 
     return $owner;
 }

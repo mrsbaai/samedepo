@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain;
 
+use App\Models\Balance;
+use App\Models\GasExpense;
 use App\Models\LedgerEntry;
-use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
@@ -64,7 +65,7 @@ class WithdrawalProcessor
         }
 
         $networkFeeNative = $this->feeConverter->bufferedNativeFee($estimatedFeeNative);
-        $totalFee = $this->calculateTotalFee($withdrawal, $networkFeeNative);
+        $totalFee = $this->feeConverter->toNetworkUnits($withdrawal->network, $networkFeeNative);
 
         if ($totalFee === null) {
             return;
@@ -110,44 +111,71 @@ class WithdrawalProcessor
             'reason' => 'network_fee',
             'withdrawal_id' => $withdrawal->id,
         ]);
-
-        $this->markSweepsRecovered($withdrawal);
     }
 
-    private function calculateTotalFee(Withdrawal $withdrawal, string $networkFeeNative): ?string
+    /**
+     * Record the gas each sent withdrawal really burned and charge or refund
+     * the owner the difference against the buffered estimate they were billed.
+     */
+    public function reconcile(): void
     {
-        $networkFee = $this->feeConverter->toNetworkUnits($withdrawal->network, $networkFeeNative);
-        $recovery = $this->feeConverter->toNetworkUnits(
-            $withdrawal->network,
-            $this->feeConverter->unrecoveredSweepGasNative($withdrawal->user_id, $withdrawal->network),
-        );
-
-        return $networkFee === null || $recovery === null ? null : bcadd($networkFee, $recovery, 8);
-    }
-
-    private function markSweepsRecovered(Withdrawal $withdrawal): void
-    {
-        TreasurySweep::query()
-            ->where('network', $withdrawal->network)
-            ->where('status', 'confirmed')
-            ->whereNull('fee_recovered_at')
-            ->where(function ($query) use ($withdrawal): void {
-                $query->whereExists(function ($sub) use ($withdrawal): void {
-                    $sub->selectRaw('1')
-                        ->from('deposits')
-                        ->whereColumn('deposits.id', 'treasury_sweeps.deposit_id')
-                        ->where('deposits.user_id', $withdrawal->user_id);
-                })->orWhereExists(function ($sub) use ($withdrawal): void {
-                    $sub->selectRaw('1')
-                        ->from('deposit_addresses')
-                        ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
-                        ->whereColumn('deposit_addresses.id', 'treasury_sweeps.deposit_address_id')
-                        ->where('customers.user_id', $withdrawal->user_id);
-                });
+        Withdrawal::query()
+            ->withoutGlobalScope('owner')
+            ->where('status', 'sent')
+            ->whereNotNull('tx_hash')
+            ->where('sent_at', '>=', now()->subDays(7))
+            ->whereNotExists(function ($query): void {
+                $query->selectRaw('1')->from('gas_expenses')
+                    ->whereColumn('gas_expenses.expensable_id', 'withdrawals.id')
+                    ->where('gas_expenses.expensable_type', Withdrawal::class);
             })
-            ->update([
-                'fee_recovered_at' => now(),
-                'recovered_withdrawal_id' => $withdrawal->id,
-            ]);
+            ->chunkById(100, function ($withdrawals): void {
+                foreach ($withdrawals as $withdrawal) {
+                    DB::transaction(fn () => $this->reconcileOne($withdrawal));
+                }
+            });
+    }
+
+    private function reconcileOne(Withdrawal $withdrawal): void
+    {
+        $receipt = $this->broadcaster->getTransactionReceipt($withdrawal->network, (string) $withdrawal->tx_hash);
+
+        if (($receipt['status'] ?? null) !== 'confirmed' || ! isset($receipt['fee'])) {
+            return;
+        }
+
+        $actualNative = (string) $receipt['fee'];
+        $varianceNative = bcsub($actualNative, (string) $withdrawal->network_fee_native, 8);
+        $variance = $this->feeConverter->toNetworkUnits($withdrawal->network, $varianceNative);
+
+        if ($variance === null) {
+            return;
+        }
+
+        GasExpense::create([
+            'network' => $withdrawal->network,
+            'tx_hash' => $withdrawal->tx_hash,
+            'amount' => $actualNative,
+            'expensable_type' => Withdrawal::class,
+            'expensable_id' => $withdrawal->id,
+        ]);
+
+        if (bccomp($variance, '0', 8) === 0) {
+            return;
+        }
+
+        $balance = Balance::query()->withoutGlobalScope('owner')->lockForUpdate()->firstOrCreate(
+            ['user_id' => $withdrawal->user_id, 'network' => $withdrawal->network],
+            ['amount' => 0],
+        );
+        $balance->update(['amount' => bcsub((string) $balance->amount, $variance, 8)]);
+
+        LedgerEntry::create([
+            'user_id' => $withdrawal->user_id,
+            'network' => $withdrawal->network,
+            'amount' => bcmul($variance, '-1', 8),
+            'reason' => 'network_fee_adjustment',
+            'withdrawal_id' => $withdrawal->id,
+        ]);
     }
 }

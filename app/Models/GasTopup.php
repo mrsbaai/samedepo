@@ -24,6 +24,7 @@ class GasTopup extends Model
         'error_message',
         'broadcasted_at',
         'confirmed_at',
+        'fee_recovered_at',
         'is_open',
     ];
 
@@ -34,6 +35,7 @@ class GasTopup extends Model
             'recipient_index' => 'integer',
             'broadcasted_at' => 'datetime',
             'confirmed_at' => 'datetime',
+            'fee_recovered_at' => 'datetime',
         ];
     }
 

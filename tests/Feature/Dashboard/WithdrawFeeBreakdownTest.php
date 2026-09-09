@@ -2,12 +2,7 @@
 
 use App\Livewire\Dashboard\Withdraw;
 use App\Models\Balance;
-use App\Models\Customer;
-use App\Models\Deposit;
-use App\Models\DepositAddress;
-use App\Models\GasExpense;
 use App\Models\PlatformSettings;
-use App\Models\TreasurySweep;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\WithdrawalAddress;
@@ -51,42 +46,6 @@ test('withdraw page shows the exact buffered and converted fee breakdown', funct
         ->assertSee('Estimates — the final fee is locked when the withdrawal is sent.')
         ->assertSee('How fees are calculated')
         ->assertDontSee('Sweep-gas recovery');
-});
-
-test('withdraw page shows sweep gas recovery only when an unrecovered sweep exists', function () {
-    $owner = ownerWithTrc20Balance();
-    $customer = Customer::factory()->create(['user_id' => $owner->id]);
-    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
-    $deposit = Deposit::factory()->create([
-        'user_id' => $owner->id,
-        'customer_id' => $customer->id,
-        'deposit_address_id' => $address->id,
-        'network' => 'usdt_trc20',
-        'status' => 'credited',
-    ]);
-    $sweep = TreasurySweep::create([
-        'deposit_id' => $deposit->id,
-        'network' => 'usdt_trc20',
-        'amount' => '10.00000000',
-        'status' => 'confirmed',
-        'confirmed_at' => now(),
-    ]);
-    GasExpense::create([
-        'expensable_type' => TreasurySweep::class,
-        'expensable_id' => $sweep->id,
-        'network' => 'usdt_trc20',
-        'amount' => '1.00000000',
-        'tx_hash' => 'sweep-fee-test',
-    ]);
-    $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
-    $broadcaster->shouldReceive('estimateFee')->once()->andReturn('5.00000000');
-    app()->instance(BlockchainBroadcaster::class, $broadcaster);
-
-    Livewire::actingAs($owner)
-        ->test(Withdraw::class, ['network' => 'usdt-trc20'])
-        ->assertSee('Sweep-gas recovery')
-        ->assertSee('0.33 USDT')
-        ->assertSee('97.69 USDT');
 });
 
 test('withdraw fee estimate is cached for five minutes', function () {

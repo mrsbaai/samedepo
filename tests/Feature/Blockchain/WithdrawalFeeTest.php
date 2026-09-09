@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Models\Balance;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Models\GasExpense;
+use App\Models\GasTopup;
 use App\Models\LedgerEntry;
 use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
@@ -14,6 +16,7 @@ use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\TreasurySweepService;
 use App\Services\Blockchain\WithdrawalProcessor;
 
 class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
@@ -25,6 +28,8 @@ class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
     public ?string $nativeBalance = '1000.00000000';
 
     public ?string $topupHash = 'topup-tx-123';
+
+    public string $receiptFee = '0.00010000';
 
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
@@ -60,7 +65,7 @@ class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
     {
         return [
             'status' => 'confirmed',
-            'fee' => '0.00010000',
+            'fee' => $this->receiptFee,
             'confirmations' => 3,
         ];
     }
@@ -128,12 +133,31 @@ function seedTokenValuations(string $tokenNetwork, string $nativeUsd, string $to
     UsdValuation::updateOrCreate(['network' => $tokenNetwork], ['conversion_value' => $tokenUsd]);
 }
 
-function createUnrecoveredSweep(User $owner, string $network, string $gasAmount): TreasurySweep
+function createUnrecoveredSweep(User $owner, string $network, string $topupAmount, string $topupFee = '0.00000000'): TreasurySweep
 {
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     $address = DepositAddress::factory()->create([
         'customer_id' => $customer->id,
         'network' => $network,
+    ]);
+    $topup = GasTopup::create([
+        'treasury_wallet_id' => TreasuryWallet::where('network', $network)->value('id'),
+        'network' => $network,
+        'recipient_address' => $address->address,
+        'recipient_index' => (int) ($address->derivation_index ?? 0),
+        'amount' => $topupAmount,
+        'tx_hash' => 'topup-'.$address->id,
+        'status' => 'confirmed',
+        'confirmed_at' => now(),
+        'is_open' => 'done',
+    ]);
+    GasExpense::create([
+        'gas_topup_id' => $topup->id,
+        'expensable_type' => GasTopup::class,
+        'expensable_id' => $topup->id,
+        'network' => $network,
+        'tx_hash' => $topup->tx_hash,
+        'amount' => $topupFee,
     ]);
     $deposit = Deposit::factory()->create([
         'deposit_address_id' => $address->id,
@@ -152,14 +176,6 @@ function createUnrecoveredSweep(User $owner, string $network, string $gasAmount)
         'status' => 'confirmed',
         'confirmed_at' => now(),
         'fee_recovered_at' => null,
-    ]);
-
-    GasExpense::create([
-        'expensable_type' => TreasurySweep::class,
-        'expensable_id' => $sweep->id,
-        'network' => $network,
-        'tx_hash' => 'sweep-tx-'.$sweep->id,
-        'amount' => $gasAmount,
     ]);
 
     return $sweep;
@@ -182,33 +198,71 @@ test('token withdrawal deducts buffered network fee converted to token units', f
         ->and($withdrawal->amount_sent)->toBe('98.02000000');
 });
 
-test('sweep gas recovery is added to the token withdrawal fee and stamped as recovered', function () {
+test('consolidation cost is billed to the owner balance when the sweep confirms, not at withdrawal', function () {
     seedTokenValuations('usdt_trc20', '0.33', '1.00');
     [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
-    $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '13.02850000');
-    [$processor] = feeTestProcessor(fee: '5.00000000');
+    Balance::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => '50.00000000']);
+    // Treasury outflow = top-up 12.7285 TRX + top-up tx fee 0.3 TRX = 13.0285 TRX -> 4.299405 USDT
+    $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '12.72850000', '0.30000000');
 
+    (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();
+
+    $sweep->refresh();
+    expect($sweep->fee_recovered_at)->not->toBeNull()
+        ->and(GasTopup::first()->fee_recovered_at)->not->toBeNull()
+        ->and((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('45.70059500')
+        ->and((string) LedgerEntry::where('user_id', $owner->id)->where('reason', 'network_fee')->value('amount'))->toBe('-4.29940500');
+
+    // Billing is idempotent and the withdrawal only carries its own gas.
+    (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();
+    [$processor] = feeTestProcessor(fee: '5.00000000');
+    $processor->process();
+    $withdrawal->refresh();
+
+    expect((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('45.70059500')
+        ->and($withdrawal->network_fee)->toBe('1.98000000')
+        ->and($withdrawal->amount_sent)->toBe('98.02000000');
+});
+
+test('consolidation billing waits when the valuation is missing', function () {
+    UsdValuation::updateOrCreate(['network' => 'usdt_trc20'], ['conversion_value' => '1.00']);
+    [, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '12.00000000');
+
+    (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();
+
+    expect($sweep->refresh()->fee_recovered_at)->toBeNull()
+        ->and(LedgerEntry::count())->toBe(0);
+});
+
+test('reconcile records actual withdrawal gas and charges the owner the variance once', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    Balance::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => '10.00000000']);
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
     $processor->process();
 
-    $withdrawal->refresh();
-    $sweep->refresh();
+    // Charged 6 TRX; the chain actually burned 9 TRX -> variance 3 TRX = 0.99 USDT
+    $broadcaster->receiptFee = '9.00000000';
+    $processor->reconcile();
+    $processor->reconcile();
 
-    // charged_fee_native = 5 * 1.2 = 6 TRX -> 1.98 USDT
-    // recovery = 13.0285 * 0.33 / 1.00 = 4.29940500 USDT
-    // total_fee = 6.27940500 USDT
-    expect($withdrawal->network_fee)->toBe('6.27940500')
-        ->and($withdrawal->amount_sent)->toBe('93.72059500')
-        ->and($sweep->fee_recovered_at)->not->toBeNull()
-        ->and($sweep->recovered_withdrawal_id)->toBe($withdrawal->id);
+    expect(GasExpense::where('expensable_type', Withdrawal::class)->count())->toBe(1)
+        ->and((string) GasExpense::where('expensable_type', Withdrawal::class)->value('amount'))->toBe('9.00000000')
+        ->and((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('9.01000000')
+        ->and((string) LedgerEntry::where('reason', 'network_fee_adjustment')->value('amount'))->toBe('-0.99000000');
+});
 
-    // A second withdrawal for the same owner recovers nothing more.
-    [$secondWithdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000', ['user_id' => $owner->id]);
-    [$secondProcessor] = feeTestProcessor(fee: '5.00000000');
-    $secondProcessor->process();
-    $secondWithdrawal->refresh();
+test('reconcile refunds the owner when actual gas is below the estimate', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    [, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $processor->process();
 
-    expect($secondWithdrawal->network_fee)->toBe('1.98000000')
-        ->and($secondWithdrawal->amount_sent)->toBe('98.02000000');
+    $broadcaster->receiptFee = '3.00000000';
+    $processor->reconcile();
+
+    expect((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('0.99000000');
 });
 
 test('token withdrawal is not sent when native valuation is missing', function () {

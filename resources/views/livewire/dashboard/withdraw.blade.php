@@ -67,15 +67,6 @@
                                 <flux:text size="sm" variant="subtle">${{ $this->usdFor($this->feeEstimate['network_fee']) }} USD</flux:text>
                             </div>
                         </div>
-                        @if (bccomp($this->feeEstimate['sweep_recovery'], '0', 8) > 0)
-                            <div class="flex items-center justify-between gap-4 text-sm">
-                                <flux:text variant="subtle">Sweep-gas recovery</flux:text>
-                                <div class="text-right font-ledger tabular-nums">
-                                    <flux:text>−{{ $this->formattedAmount((float) $this->feeEstimate['sweep_recovery']) }} {{ $this->networkMeta['symbol'] }}</flux:text>
-                                    <flux:text size="sm" variant="subtle">${{ $this->usdFor($this->feeEstimate['sweep_recovery']) }} USD</flux:text>
-                                </div>
-                            </div>
-                        @endif
                         <flux:separator variant="subtle" />
                         <div class="flex items-end justify-between gap-4">
                             <flux:heading size="lg">Estimated amount you'll receive</flux:heading>
