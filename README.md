@@ -16,7 +16,7 @@ Website owners who want customers to repeatedly top up a crypto balance.
 - **Customer deposit addresses** — permanent Bitcoin, USDT TRC20, and USDT ERC20 addresses per customer with copy-to-clipboard.
 - **API keys** — generate, name, revoke, and replace owner-scoped API keys; only the hash is stored.
 - **Signed webhooks** — configure an HTTPS endpoint and receive queued, HMAC-signed `deposit.pending` (first detection) and `deposit.credited` (after required confirmations) events, plus withdrawal-status events, with automatic retries.
-- **Withdrawals** — set per-network withdrawal addresses, request instant or approval-mode full-balance withdrawals, estimate network fees, and track on-chain sends.
+- **Withdrawals** — set per-network withdrawal addresses, request instant or approval-mode full-balance withdrawals, estimate network fees, track blocked reasons, and follow reliable on-chain sends with automatic treasury recovery.
 - **Ledger-first, batched settlement** — deposits are credited instantly in the ledger; funds are swept to treasury in gas-efficient batches triggered by threshold, age, or withdrawal need so the platform never loses money on small deposits.
 - **Transparent fee estimates & calculator** — owners see a full withdrawal fee breakdown before confirming, and guests can estimate deposit and withdrawal fees at `/fee-calculator`.
 - **Complete treasury operations** — admin treasury console shows per-network addresses, available/native/unswept balances, revenue, pending withdrawals, recent sweeps, and guarded profit-only payouts.
