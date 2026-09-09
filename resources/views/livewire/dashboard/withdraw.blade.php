@@ -36,8 +36,8 @@
             @if ($this->pendingWithdrawal)
                 <flux:card class="space-y-3 p-4">
                     <div class="flex items-center justify-between">
-                        <flux:text size="sm" class="font-medium">Pending withdrawal</flux:text>
-                        <flux:badge size="sm" color="amber">{{ ucfirst($this->pendingWithdrawal->status) }}</flux:badge>
+                        <flux:text size="sm" class="font-medium">{{ $this->pendingWithdrawal->status === 'approved' ? 'Approved — sending' : 'Pending withdrawal' }}</flux:text>
+                        <flux:badge size="sm" color="{{ $this->pendingWithdrawal->status === 'approved' ? 'blue' : 'amber' }}">{{ $this->pendingWithdrawal->status === 'approved' ? 'Approved' : 'Pending' }}</flux:badge>
                     </div>
                     <div class="flex items-center justify-between">
                         <flux:text variant="subtle" size="sm">Amount</flux:text>
@@ -49,7 +49,15 @@
                         <flux:text variant="subtle" size="sm">Requested</flux:text>
                         <flux:text size="sm">{{ $this->pendingWithdrawal->created_at->diffForHumans() }}</flux:text>
                     </div>
-                    <flux:button variant="ghost" size="sm" wire:click="confirmCancel" class="w-full">Cancel Withdrawal</flux:button>
+                    @if ($this->pendingWithdrawal->status === 'approved')
+                        <div class="flex items-center justify-between">
+                            <flux:text variant="subtle" size="sm">Approved</flux:text>
+                            <flux:text size="sm">{{ $this->pendingWithdrawal->decided_at?->diffForHumans() }}</flux:text>
+                        </div>
+                        <flux:text size="sm" variant="subtle">Your funds are queued to send as soon as treasury funds and network gas are available.</flux:text>
+                    @else
+                        <flux:button variant="ghost" size="sm" wire:click="confirmCancel" class="w-full">Cancel Withdrawal</flux:button>
+                    @endif
                 </flux:card>
             @elseif (! $this->eligible)
                 <flux:callout variant="warning" icon="exclamation-triangle" heading="Below minimum">

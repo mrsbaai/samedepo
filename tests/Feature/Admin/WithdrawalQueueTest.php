@@ -55,8 +55,8 @@ test('empty state is shown when no pending withdrawals', function () {
     $this->actingAs($admin)
         ->get(route('admin.withdrawals'))
         ->assertOk()
-        ->assertSee('Nothing pending')
-        ->assertSee('Every withdrawal request has been reviewed.');
+        ->assertSee('Nothing waiting')
+        ->assertSee('Every withdrawal request has been reviewed and sent.');
 });
 
 test('owners cannot access the withdrawal queue', function () {

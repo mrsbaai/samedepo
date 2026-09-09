@@ -12,6 +12,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Withdrawal extends Model
 {
+    public const ERROR_LABELS = [
+        'treasury_insufficient_funds' => 'Waiting for treasury funds',
+        'fee_unavailable' => 'Waiting for a network fee estimate',
+        'fee_conversion_failed' => 'Waiting for a USD valuation',
+        'gas_unavailable' => 'Waiting for treasury gas',
+        'insufficient_gas' => 'Waiting for treasury gas',
+        'broadcast_failed' => 'Last send attempt failed; retrying',
+    ];
+
     use BelongsToOwner;
     use HasFactory;
 
@@ -25,6 +34,8 @@ class Withdrawal extends Model
         'destination_address',
         'mode',
         'status',
+        'last_error',
+        'attempts',
         'tx_hash',
         'decided_at',
         'decided_by',
@@ -40,8 +51,20 @@ class Withdrawal extends Model
             'amount_sent' => 'decimal:8',
             'decided_at' => 'datetime',
             'sent_at' => 'datetime',
+            'attempts' => 'integer',
             'reconcile_attempts' => 'integer',
         ];
+    }
+
+    public function lastErrorLabel(): ?string
+    {
+        if ($this->last_error === null) {
+            return null;
+        }
+
+        $code = explode(':', $this->last_error, 2)[0];
+
+        return self::ERROR_LABELS[$code] ?? 'Retrying automatically';
     }
 
     public function user(): BelongsTo

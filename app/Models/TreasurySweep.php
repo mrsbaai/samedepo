@@ -21,6 +21,8 @@ class TreasurySweep extends Model
         'tx_hash',
         'status',
         'error_message',
+        'attempts',
+        'last_attempted_at',
         'confirmed_at',
         'fee_recovered_at',
         'recovered_withdrawal_id',
@@ -31,6 +33,8 @@ class TreasurySweep extends Model
         return [
             'amount' => 'decimal:8',
             'deposit_ids' => 'array',
+            'attempts' => 'integer',
+            'last_attempted_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'fee_recovered_at' => 'datetime',
         ];

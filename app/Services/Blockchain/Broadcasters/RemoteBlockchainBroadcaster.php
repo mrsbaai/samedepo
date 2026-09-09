@@ -10,15 +10,24 @@ use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\Withdrawal;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
-class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
+class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, ReportsLastError
 {
+    private ?string $lastError = null;
+
     public function __construct(
         private readonly string $url,
         private readonly string $apiKey,
     ) {}
+
+    public function lastError(): ?string
+    {
+        return $this->lastError;
+    }
 
     public function estimateWithdrawalFee(Withdrawal $withdrawal): ?string
     {
@@ -29,7 +38,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'token_transfer' => $tokenTransfer,
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data.fee');
         }
 
@@ -61,7 +70,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'fee' => $fee,
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data.tx_hash');
         }
 
@@ -84,7 +93,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'token_transfer' => in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true),
         ]);
 
-        if (! $fee->successful()) {
+        if (! $fee?->successful()) {
             return null;
         }
 
@@ -98,7 +107,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'fee' => (string) $fee->json('data.fee'),
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data.tx_hash');
         }
 
@@ -112,7 +121,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'index' => $index,
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data.balance');
         }
 
@@ -125,7 +134,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'index' => $index,
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data');
         }
 
@@ -139,7 +148,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'tx_hash' => $txHash,
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data');
         }
 
@@ -153,7 +162,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'token_transfer' => $tokenTransfer,
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data.fee');
         }
 
@@ -184,7 +193,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'fee' => $fee,
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data.tx_hash');
         }
 
@@ -201,26 +210,55 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster
             'fee' => $fee,
         ]);
 
-        if ($response->successful()) {
+        if ($response?->successful()) {
             return $response->json('data.tx_hash');
         }
 
         return null;
     }
 
-    private function post(string $path, array $payload): Response
+    private function post(string $path, array $payload): ?Response
     {
+        $this->lastError = null;
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
         $timestamp = (string) now()->getTimestamp();
-        $message = "{$timestamp}.{$body}";
-        $signature = hash_hmac('sha256', $message, $this->apiKey);
+        $signature = hash_hmac('sha256', "{$timestamp}.{$body}", $this->apiKey);
 
-        return Http::withHeaders([
-            'X-Signer-Timestamp' => $timestamp,
-            'X-Signer-Signature' => $signature,
-            'Content-Type' => 'application/json',
-        ])
-            ->timeout(30)
-            ->post("{$this->url}{$path}", $payload);
+        try {
+            $response = Http::withHeaders([
+                'X-Signer-Timestamp' => $timestamp,
+                'X-Signer-Signature' => $signature,
+                'Content-Type' => 'application/json',
+            ])->timeout(30)->post("{$this->url}{$path}", $payload);
+        } catch (ConnectionException $exception) {
+            $this->lastError = 'connection_failed: '.$exception->getMessage();
+            Log::error('signer.request_failed', ['path' => $path, 'payload' => $payload, 'error' => $this->lastError]);
+
+            return null;
+        }
+
+        if (! $response->successful()) {
+            $this->lastError = $this->describeFailure($response);
+            Log::error('signer.request_failed', [
+                'path' => $path,
+                'status' => $response->status(),
+                'payload' => $payload,
+                'body' => mb_substr($response->body(), 0, 1000),
+            ]);
+        }
+
+        return $response;
+    }
+
+    private function describeFailure(Response $response): string
+    {
+        $json = $response->json();
+        $error = is_array($json) ? ($json['error'] ?? null) : null;
+
+        return match ($error) {
+            'insufficient_gas' => sprintf('insufficient_gas: required %s available %s', $json['required'] ?? '?', $json['available'] ?? '?'),
+            'broadcast_failed' => 'broadcast_failed: '.($json['message'] ?? 'unknown'),
+            default => sprintf('http_%d: %s', $response->status(), mb_substr($response->body(), 0, 200)),
+        };
     }
 }

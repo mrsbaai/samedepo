@@ -13,6 +13,7 @@
                 <flux:table.column>Owner</flux:table.column>
                 <flux:table.column>Network</flux:table.column>
                 <flux:table.column>Amount</flux:table.column>
+                <flux:table.column>Status</flux:table.column>
                 <flux:table.column class="max-md:hidden">Requested</flux:table.column>
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
@@ -22,6 +23,7 @@
                         <flux:table.cell><flux:skeleton class="h-4 w-32" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-24" /></flux:table.cell>
+                        <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
                         <flux:table.cell class="max-md:hidden"><flux:skeleton class="h-4 w-20" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-8" /></flux:table.cell>
                     </flux:table.row>
@@ -34,8 +36,8 @@
         @if ($withdrawals->isEmpty())
             <div class="py-12 text-center">
                 <flux:icon icon="check-circle" variant="outline" class="mx-auto h-8 w-8 text-zinc-400" />
-                <flux:text class="mt-3">Nothing pending.</flux:text>
-                <flux:text size="sm" variant="subtle">Every withdrawal request has been reviewed.</flux:text>
+                <flux:text class="mt-3">Nothing waiting.</flux:text>
+                <flux:text size="sm" variant="subtle">Every withdrawal request has been reviewed and sent.</flux:text>
             </div>
         @else
             <flux:table :paginate="$withdrawals">
@@ -61,13 +63,25 @@
                                 {{ $this->formattedAmount((float) $withdrawal->gross_amount, $meta['decimals']) }} {{ $meta['symbol'] }}
                                 <flux:text size="sm" variant="subtle">${{ $this->usdValue((float) $withdrawal->gross_amount, $withdrawal->network) }}</flux:text>
                             </flux:table.cell>
+                            <flux:table.cell>
+                                @if ($withdrawal->status === 'approved')
+                                    <flux:badge size="sm" color="blue">Approved — sending</flux:badge>
+                                    @if ($withdrawal->lastErrorLabel())
+                                        <flux:text size="sm" variant="subtle" class="mt-1">{{ $withdrawal->lastErrorLabel() }}</flux:text>
+                                    @endif
+                                @else
+                                    <flux:badge size="sm" color="amber">Pending</flux:badge>
+                                @endif
+                            </flux:table.cell>
                             <flux:table.cell class="max-md:hidden whitespace-nowrap">
                                 <flux:tooltip content="{{ $withdrawal->created_at->format('M j, Y H:i') }} UTC">
                                     <span>{{ $withdrawal->created_at->diffForHumans() }}</span>
                                 </flux:tooltip>
                             </flux:table.cell>
                             <flux:table.cell class="py-0">
-                                <flux:button variant="ghost" size="sm" icon="chevron-right" href="{{ route('admin.withdrawals.show', $withdrawal) }}" wire:navigate />
+                                @if ($withdrawal->status === 'pending')
+                                    <flux:button variant="ghost" size="sm" icon="chevron-right" href="{{ route('admin.withdrawals.show', $withdrawal) }}" wire:navigate />
+                                @endif
                             </flux:table.cell>
                         </flux:table.row>
                     @endforeach

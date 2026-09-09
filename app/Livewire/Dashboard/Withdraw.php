@@ -171,7 +171,7 @@ class Withdraw extends Component
     {
         return Withdrawal::query()
             ->where('network', $this->networkKey())
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'approved'])
             ->latest()
             ->first();
     }
@@ -251,7 +251,7 @@ class Withdraw extends Component
     {
         $withdrawal = $this->pendingWithdrawal();
 
-        if ($withdrawal === null) {
+        if ($withdrawal === null || $withdrawal->status !== 'pending') {
             $this->showCancelModal = false;
 
             return;

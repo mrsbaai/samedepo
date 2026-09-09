@@ -10,6 +10,7 @@ use App\Models\LedgerEntry;
 use App\Models\TreasuryWallet;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\ReportsLastError;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawalProcessor
@@ -55,12 +56,16 @@ class WithdrawalProcessor
             ->first();
 
         if ($wallet === null || bccomp((string) $wallet->available_funds, (string) $withdrawal->gross_amount, 8) < 0) {
+            $this->block($withdrawal, 'treasury_insufficient_funds');
+
             return;
         }
 
         $estimatedFeeNative = $this->broadcaster->estimateWithdrawalFee($withdrawal);
 
         if ($estimatedFeeNative === null) {
+            $this->block($withdrawal, 'fee_unavailable');
+
             return;
         }
 
@@ -68,6 +73,8 @@ class WithdrawalProcessor
         $totalFee = $this->feeConverter->toNetworkUnits($withdrawal->network, $networkFeeNative);
 
         if ($totalFee === null) {
+            $this->block($withdrawal, 'fee_conversion_failed');
+
             return;
         }
 
@@ -83,17 +90,23 @@ class WithdrawalProcessor
 
         $isToken = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true);
         if ($isToken && ! $this->gasTreasury->ensureGasForWithdrawal($withdrawal)) {
+            $this->block($withdrawal, 'gas_unavailable');
+
             return;
         }
 
         $txHash = $this->broadcaster->broadcastWithdrawal($withdrawal);
 
         if ($txHash === null) {
+            $reason = $this->broadcaster instanceof ReportsLastError ? $this->broadcaster->lastError() : null;
+            $this->block($withdrawal, $reason ?? 'broadcast_failed: no transaction hash');
+
             return;
         }
 
         $withdrawal->update([
             'status' => 'sent',
+            'last_error' => null,
             'tx_hash' => $txHash,
             'sent_at' => now(),
         ]);
@@ -110,6 +123,14 @@ class WithdrawalProcessor
             'amount' => '-'.$totalFee,
             'reason' => 'network_fee',
             'withdrawal_id' => $withdrawal->id,
+        ]);
+    }
+
+    private function block(Withdrawal $withdrawal, string $code): void
+    {
+        $withdrawal->update([
+            'last_error' => mb_substr($code, 0, 255),
+            'attempts' => $withdrawal->attempts + 1,
         ]);
     }
 

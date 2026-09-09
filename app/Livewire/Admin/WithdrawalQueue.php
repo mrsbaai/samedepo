@@ -35,7 +35,8 @@ class WithdrawalQueue extends Component
         return Withdrawal::query()
             ->withoutGlobalScope('owner')
             ->with('user')
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'approved'])
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->orderBy('created_at', 'asc');
     }
 

@@ -15,6 +15,7 @@ use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\ReportsLastError;
 use Illuminate\Support\Facades\DB;
 
 class TreasurySweepService
@@ -198,6 +199,10 @@ class TreasurySweepService
             return;
         }
 
+        if ($this->inBackoff($sweep)) {
+            return;
+        }
+
         if (in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true)) {
             $ready = $this->gasTreasury->ensureGasForSweep(
                 $sweep->network,
@@ -213,13 +218,40 @@ class TreasurySweepService
         $txHash = $this->broadcaster->broadcastSweep($sweep);
 
         if ($txHash === null) {
-            $sweep->update(['error_message' => 'Broadcast failed']);
+            $this->recordFailure($sweep, $this->broadcasterError() ?? 'Broadcast failed');
 
             return;
         }
 
-        $sweep->update(['tx_hash' => $txHash]);
+        $sweep->update(['tx_hash' => $txHash, 'error_message' => null]);
         $this->pollSweep($sweep, $wallet);
+    }
+
+    private function inBackoff(TreasurySweep $sweep): bool
+    {
+        if ($sweep->attempts === 0 || $sweep->last_attempted_at === null) {
+            return false;
+        }
+
+        $base = (int) config('blockchain.provider_backoff.base_minutes', 2);
+        $max = (int) config('blockchain.provider_backoff.max_minutes', 60);
+        $wait = min($base * (2 ** ($sweep->attempts - 1)), $max);
+
+        return $sweep->last_attempted_at->addMinutes($wait)->isFuture();
+    }
+
+    private function recordFailure(TreasurySweep $sweep, string $reason): void
+    {
+        $sweep->update([
+            'error_message' => mb_substr($reason, 0, 255),
+            'attempts' => $sweep->attempts + 1,
+            'last_attempted_at' => now(),
+        ]);
+    }
+
+    private function broadcasterError(): ?string
+    {
+        return $this->broadcaster instanceof ReportsLastError ? $this->broadcaster->lastError() : null;
     }
 
     private function pollSweep(TreasurySweep $sweep, TreasuryWallet $wallet): void

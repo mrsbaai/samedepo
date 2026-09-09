@@ -148,7 +148,7 @@ class WithdrawalReview extends Component
         ]);
 
         $this->showApproveModal = false;
-        $this->successMessage = 'Withdrawal approved. The funds have been sent to the destination address.';
+        $this->successMessage = 'Withdrawal approved and queued. It will be sent automatically once treasury funds and gas are available.';
     }
 
     public function confirmDeny(): void

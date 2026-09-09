@@ -6,7 +6,9 @@ use App\Models\TreasuryWallet;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 function remoteWithdrawal(string $network): Withdrawal
 {
@@ -44,6 +46,29 @@ test('broadcast withdrawal sends deducted amount and native fee for tokens', fun
         && $request['index'] === 0
         && $request['amount'] === '98.02000000'
         && $request['fee'] === '6.00000000');
+});
+
+test('it preserves structured signer failures', function () {
+    Log::spy();
+    Http::fake(['https://signer.test/topup' => Http::response([
+        'error' => 'insufficient_gas',
+        'required' => '0.00001000',
+        'available' => '0.00000300',
+    ], 422)]);
+    $broadcaster = new RemoteBlockchainBroadcaster('https://signer.test', 'secret');
+
+    expect($broadcaster->broadcastTopUp('usdt_erc20', 0, 2, '0.0003', '0.00001'))->toBeNull()
+        ->and($broadcaster->lastError())->toBe('insufficient_gas: required 0.00001000 available 0.00000300');
+    Log::shouldHaveReceived('error')->once()->withArgs(fn ($message) => $message === 'signer.request_failed');
+});
+
+test('it handles signer connection failures without throwing', function () {
+    Log::spy();
+    Http::fake(fn () => throw new ConnectionException('cURL error 7'));
+    $broadcaster = new RemoteBlockchainBroadcaster('https://signer.test', 'secret');
+
+    expect($broadcaster->broadcastTopUp('usdt_erc20', 0, 2, '0.0003', '0.00001'))->toBeNull()
+        ->and($broadcaster->lastError())->toStartWith('connection_failed: ');
 });
 
 test('broadcast withdrawal adds fee to amount for bitcoin', function () {

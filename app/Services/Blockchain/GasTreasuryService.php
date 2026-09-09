@@ -14,10 +14,13 @@ use App\Notifications\LowGasAlert;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class GasTreasuryService
 {
+    private const TOPUP_STALE_MINUTES = 30;
+
     public function __construct(private readonly BlockchainBroadcaster $broadcaster) {}
 
     public function policy(string $network): GasPolicy
@@ -56,6 +59,20 @@ class GasTreasuryService
 
         if (bccomp($recipientBalance, $tokenFee, 8) >= 0) {
             return true;
+        }
+
+        $inFlight = GasTopup::query()
+            ->where('network', $network)
+            ->where('status', 'broadcast')
+            ->whereNotNull('tx_hash')
+            ->whereNull('confirmed_at')
+            ->where('recipient_address', '!=', $recipientAddress)
+            ->exists();
+
+        if ($inFlight) {
+            Log::debug('gas.topup_deferred', ['network' => $network, 'recipient' => $recipientAddress]);
+
+            return false;
         }
 
         $topupAmount = $this->chooseTopupAmount($tokenFee, $policy);
@@ -174,6 +191,10 @@ class GasTreasuryService
             ->where('status', 'broadcast')
             ->chunkById(100, function ($topups): void {
                 foreach ($topups as $topup) {
+                    if ($this->expireIfStale($topup)) {
+                        continue;
+                    }
+
                     $this->pollSingleTopup($topup);
                 }
             });
@@ -302,6 +323,36 @@ class GasTreasuryService
         return [$topup, $created];
     }
 
+    private function expireIfStale(GasTopup $topup): bool
+    {
+        $cutoff = now()->subMinutes(self::TOPUP_STALE_MINUTES);
+
+        if ($topup->tx_hash === null) {
+            if ($topup->created_at !== null && $topup->created_at->lt($cutoff)) {
+                $this->markTopupFailed($topup, 'Dropped: never broadcast');
+
+                return true;
+            }
+
+            return false;
+        }
+
+        if ($topup->broadcasted_at === null || $topup->broadcasted_at->gte($cutoff)) {
+            return false;
+        }
+
+        $receipt = $this->broadcaster->getTransactionReceipt($topup->network, $topup->tx_hash);
+        $unseen = $receipt === null || (($receipt['status'] ?? 'pending') === 'pending' && (int) ($receipt['confirmations'] ?? 0) === 0);
+
+        if ($unseen) {
+            $this->markTopupFailed($topup, 'Dropped: no on-chain receipt after '.self::TOPUP_STALE_MINUTES.' minutes');
+
+            return true;
+        }
+
+        return false;
+    }
+
     private function pollSingleTopup(GasTopup $topup): bool
     {
         if ($topup->tx_hash === null) {
@@ -402,8 +453,8 @@ class GasTreasuryService
     private function defaultPolicy(string $network): array
     {
         $amounts = match ($network) {
-            'usdt_erc20' => ['0.05000000', '0.02000000', '0.10000000'],
-            'usdt_trc20' => ['100.00000000', '200.00000000', '1000.00000000'],
+            'usdt_erc20' => ['0.00500000', '0.00030000', '0.00100000'],
+            'usdt_trc20' => ['10.00000000', '25.00000000', '50.00000000'],
             default => ['0.01000000', '0.02000000', '0.10000000'],
         };
 

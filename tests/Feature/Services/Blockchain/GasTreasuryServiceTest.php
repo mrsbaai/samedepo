@@ -263,8 +263,12 @@ test('it queues low gas email alerts only to active administrators', function ()
 test('it provides network-specific policy defaults', function () {
     [$service] = gasTreasury();
 
-    expect($service->policy('usdt_erc20')->reserve_threshold)->toBe('0.05000000')
-        ->and($service->policy('usdt_trc20')->reserve_threshold)->toBe('100.00000000');
+    expect($service->policy('usdt_erc20')->reserve_threshold)->toBe('0.00500000')
+        ->and($service->policy('usdt_erc20')->top_up_amount)->toBe('0.00030000')
+        ->and($service->policy('usdt_erc20')->max_top_up)->toBe('0.00100000')
+        ->and($service->policy('usdt_trc20')->reserve_threshold)->toBe('10.00000000')
+        ->and($service->policy('usdt_trc20')->top_up_amount)->toBe('25.00000000')
+        ->and($service->policy('usdt_trc20')->max_top_up)->toBe('50.00000000');
 });
 
 test('it sends an alert only after the cooldown expires', function () {
