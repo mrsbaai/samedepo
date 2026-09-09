@@ -127,9 +127,9 @@ class TreasuryOverview extends Component
 
             $networkFeeSum = (string) (LedgerEntry::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)
-                ->where('reason', 'network_fee')
+                ->whereIn('reason', ['network_fee', 'network_fee_adjustment', 'consolidation_fee'])
                 ->sum('amount') ?? '0.00000000');
-            $revenueNetworkFee = bccomp($networkFeeSum, '0', 8) < 0 ? bcsub('0', $networkFeeSum, 8) : $networkFeeSum;
+            $revenueNetworkFee = bccomp($networkFeeSum, '0', 8) < 0 ? bcsub('0', $networkFeeSum, 8) : '0.00000000';
 
             $pendingWithdrawalsCount = Withdrawal::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)

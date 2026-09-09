@@ -40,6 +40,7 @@ class Withdrawal extends Model
             'amount_sent' => 'decimal:8',
             'decided_at' => 'datetime',
             'sent_at' => 'datetime',
+            'reconcile_attempts' => 'integer',
         ];
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Models\Deposit;
+use App\Models\LedgerEntry;
 use App\Models\Withdrawal;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
@@ -171,6 +172,34 @@ class TransactionHistory extends Component
         ];
     }
 
+    private function presentLedgerEntry(LedgerEntry $entry): array
+    {
+        $meta = $this->networkMeta($entry->network);
+
+        $label = match ($entry->reason) {
+            'network_fee_adjustment' => bccomp((string) $entry->amount, '0', 8) < 0 ? 'Gas overage' : 'Gas refund',
+            'consolidation_fee' => 'Consolidation fee',
+            default => 'Adjustment',
+        };
+
+        return [
+            'id' => 'ledger-'.$entry->id,
+            'type' => 'adjustment',
+            'timestamp' => $entry->created_at->toIso8601String(),
+            'networkSlug' => $meta['slug'],
+            'networkLabel' => $meta['label'],
+            'decimals' => $meta['decimals'],
+            'gross' => $this->formatAmount('0.00000000', $meta['decimals']),
+            'fee' => null,
+            'net' => $this->formatAmount((string) $entry->amount, $meta['decimals']),
+            'status' => 'sent',
+            'statusLabel' => $label,
+            'userRef' => $label,
+            'customer' => null,
+            'txHash' => $entry->withdrawal?->tx_hash ?? $entry->deposit?->tx_hash,
+        ];
+    }
+
     /**
      * @return array<int, array>
      */
@@ -206,6 +235,19 @@ class TransactionHistory extends Component
 
             foreach ($withdrawals as $withdrawal) {
                 $entries[] = $this->presentWithdrawal($withdrawal);
+            }
+        }
+
+        if ($this->typeFilter === 'all' || $this->typeFilter === 'adjustment') {
+            if ($this->statusFilter === 'all' || $this->statusFilter === 'sent') {
+                $ledgerEntries = LedgerEntry::query()
+                    ->whereIn('reason', ['network_fee_adjustment', 'consolidation_fee'])
+                    ->when($dbNetwork !== null, fn ($query) => $query->where('network', $dbNetwork))
+                    ->get();
+
+                foreach ($ledgerEntries as $entry) {
+                    $entries[] = $this->presentLedgerEntry($entry);
+                }
             }
         }
 

@@ -54,21 +54,11 @@ final class OwnerFinanceCalculator
                     ->sum('amount_sent')
             );
 
-            $fee = $this->abs($this->sum(
-                LedgerEntry::withoutGlobalScope('owner')
-                    ->where('user_id', $owner->id)
-                    ->where('network', $network)
-                    ->where('reason', 'fee')
-                    ->sum('amount')
-            ));
+            $fee = $this->revenueFromReasons($owner->id, $network, ['fee']);
 
-            $wdFee = $this->abs($this->sum(
-                LedgerEntry::withoutGlobalScope('owner')
-                    ->where('user_id', $owner->id)
-                    ->where('network', $network)
-                    ->where('reason', 'network_fee')
-                    ->sum('amount')
-            ));
+            $wdFee = $this->revenueFromReasons($owner->id, $network, ['network_fee', 'network_fee_adjustment']);
+
+            $consolidationFee = $this->revenueFromReasons($owner->id, $network, ['consolidation_fee']);
 
             $sweepGas = $this->feeConverter->sweepGasNative($owner->id, $network);
             $unrecovered = $this->feeConverter->unrecoveredSweepGasNative($owner->id, $network);
@@ -88,7 +78,7 @@ final class OwnerFinanceCalculator
                     ->sum('gross_amount')
             );
 
-            $revenue = bcadd($fee, $wdFee, 8);
+            $revenue = bcadd(bcadd($fee, $wdFee, 8), $consolidationFee, 8);
             $owed = bcadd($balance, $reserved, 8);
 
             $networks[$network] = [
@@ -98,6 +88,7 @@ final class OwnerFinanceCalculator
                 'withdrawn_usd' => $usd($withdrawn, $network),
                 'fee_revenue' => $fee,
                 'withdrawal_fee_revenue' => $wdFee,
+                'consolidation_fee_revenue' => $consolidationFee,
                 'revenue_usd' => $usd($revenue, $network),
                 'sweep_gas_native' => $sweepGas,
                 'sweep_gas_usd' => $usd($sweepGas, self::NATIVE_KEY[$network]),
@@ -213,5 +204,16 @@ final class OwnerFinanceCalculator
     private function abs(string $value): string
     {
         return bccomp($value, '0', 8) < 0 ? bcsub('0', $value, 8) : $value;
+    }
+
+    private function revenueFromReasons(int $userId, string $network, array $reasons): string
+    {
+        $sum = (string) (LedgerEntry::withoutGlobalScope('owner')
+            ->where('user_id', $userId)
+            ->where('network', $network)
+            ->whereIn('reason', $reasons)
+            ->sum('amount') ?? '0.00000000');
+
+        return bccomp($sum, '0', 8) < 0 ? bcsub('0', $sum, 8) : '0.00000000';
     }
 }

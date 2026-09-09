@@ -211,7 +211,7 @@ test('consolidation cost is billed to the owner balance when the sweep confirms,
     expect($sweep->fee_recovered_at)->not->toBeNull()
         ->and(GasTopup::first()->fee_recovered_at)->not->toBeNull()
         ->and((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('45.70059500')
-        ->and((string) LedgerEntry::where('user_id', $owner->id)->where('reason', 'network_fee')->value('amount'))->toBe('-4.29940500');
+        ->and((string) LedgerEntry::where('user_id', $owner->id)->where('reason', 'consolidation_fee')->value('amount'))->toBe('-4.29940500');
 
     // Billing is idempotent and the withdrawal only carries its own gas.
     (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();

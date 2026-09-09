@@ -111,11 +111,11 @@ class TreasurySweepService
         foreach ($groups as $rows) {
             $first = $rows->first();
 
-            DB::transaction(fn () => $this->billOwner((int) $first->owner_id, $first->network, (int) $rows->min('sweep_id')));
+            DB::transaction(fn () => $this->billOwner((int) $first->owner_id, $first->network));
         }
     }
 
-    private function billOwner(int $userId, string $network, int $sweepId): void
+    private function billOwner(int $userId, string $network): void
     {
         $cost = $this->feeConverter->toNetworkUnits(
             $network,
@@ -134,14 +134,11 @@ class TreasurySweepService
             );
             $balance->update(['amount' => bcsub((string) $balance->amount, $cost, 8)]);
 
-            $sweep = TreasurySweep::query()->find($sweepId);
-
             LedgerEntry::create([
                 'user_id' => $userId,
                 'network' => $network,
                 'amount' => '-'.$cost,
-                'reason' => 'network_fee',
-                'deposit_id' => $sweep?->deposit_id ?? ($sweep?->deposit_ids[0] ?? null),
+                'reason' => 'consolidation_fee',
             ]);
         }
 

@@ -60,7 +60,7 @@
                         −${{ number_format((float) $f['totals']['sweep_gas_usd'], 2) }} gas · net ${{ number_format((float) $f['totals']['net_usd'], 2) }}
                     </flux:text>
                     @if (bccomp($f['totals']['unrecovered_gas_usd'], '0', 8) > 0)
-                        <flux:tooltip content="Sweep gas we paid that is billed on this owner's next withdrawal.">
+                        <flux:tooltip content="Sweep gas we paid that has not been billed to this owner yet.">
                             <flux:badge size="sm" color="amber" class="mt-1">
                                 ${{ number_format((float) $f['totals']['unrecovered_gas_usd'], 2) }} unrecovered
                             </flux:badge>
@@ -100,7 +100,7 @@
                             </flux:table.cell>
                             <flux:table.cell align="end" class="font-ledger tabular-nums">{{ number_format((float) $n['deposit_volume'], $m['decimals']) }} {{ $m['symbol'] }}</flux:table.cell>
                             <flux:table.cell align="end" class="font-ledger tabular-nums">{{ number_format((float) $n['withdrawn'], $m['decimals']) }}</flux:table.cell>
-                            <flux:table.cell align="end" class="font-ledger tabular-nums">{{ number_format((float) bcadd($n['fee_revenue'], $n['withdrawal_fee_revenue'], 8), $m['decimals']) }}</flux:table.cell>
+                            <flux:table.cell align="end" class="font-ledger tabular-nums">{{ number_format((float) bcadd(bcadd($n['fee_revenue'], $n['withdrawal_fee_revenue'], 8), $n['consolidation_fee_revenue'] ?? '0', 8), $m['decimals']) }}</flux:table.cell>
                             <flux:table.cell align="end" class="font-ledger tabular-nums">{{ rtrim(rtrim(number_format((float) $n['sweep_gas_native'], 8), '0'), '.') ?: '0' }} {{ $nativeSymbol[$network] }}</flux:table.cell>
                             <flux:table.cell align="end" class="font-ledger tabular-nums {{ bccomp($n['unrecovered_gas_native'], '0', 8) > 0 ? 'text-amber-600 dark:text-amber-400' : '' }}">{{ rtrim(rtrim(number_format((float) $n['unrecovered_gas_native'], 8), '0'), '.') ?: '0' }} {{ $nativeSymbol[$network] }}</flux:table.cell>
                             <flux:table.cell align="end" variant="strong" class="font-ledger tabular-nums">{{ number_format((float) $n['owed'], $m['decimals']) }} {{ $m['symbol'] }}</flux:table.cell>

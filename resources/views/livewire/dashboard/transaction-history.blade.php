@@ -44,6 +44,7 @@
                 <flux:select.option value="all">All types</flux:select.option>
                 <flux:select.option value="deposit">Deposits</flux:select.option>
                 <flux:select.option value="withdrawal">Withdrawals</flux:select.option>
+                <flux:select.option value="adjustment">Adjustments</flux:select.option>
             </flux:select>
             <flux:select size="sm" wire:model.live="networkFilter" class="w-auto">
                 <flux:select.option value="all">All networks</flux:select.option>

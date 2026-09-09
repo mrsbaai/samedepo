@@ -17,7 +17,6 @@ class ProcessWithdrawals extends Command
     public function handle(WithdrawalProcessor $processor, TreasuryPayoutService $payouts): int
     {
         $processor->process();
-        $processor->reconcile();
         $payouts->poll();
 
         return self::SUCCESS;

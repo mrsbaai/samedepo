@@ -123,6 +123,8 @@ class WithdrawalProcessor
             ->withoutGlobalScope('owner')
             ->where('status', 'sent')
             ->whereNotNull('tx_hash')
+            ->whereNotNull('network_fee_native')
+            ->where('reconcile_attempts', '<', 5)
             ->where('sent_at', '>=', now()->subDays(7))
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')->from('gas_expenses')
@@ -138,29 +140,39 @@ class WithdrawalProcessor
 
     private function reconcileOne(Withdrawal $withdrawal): void
     {
-        $receipt = $this->broadcaster->getTransactionReceipt($withdrawal->network, (string) $withdrawal->tx_hash);
+        $withdrawal->increment('reconcile_attempts');
 
-        if (($receipt['status'] ?? null) !== 'confirmed' || ! isset($receipt['fee'])) {
+        if ($withdrawal->reconcile_attempts >= 5) {
+            $this->finalizeReconciliation($withdrawal, (string) $withdrawal->network_fee_native);
+
             return;
         }
 
-        $actualNative = (string) $receipt['fee'];
+        $receipt = $this->broadcaster->getTransactionReceipt($withdrawal->network, (string) $withdrawal->tx_hash);
+
+        if ($receipt === null || ($receipt['status'] ?? null) !== 'confirmed' || ! isset($receipt['fee'])) {
+            return;
+        }
+
+        $this->finalizeReconciliation($withdrawal, (string) $receipt['fee']);
+    }
+
+    private function finalizeReconciliation(Withdrawal $withdrawal, string $actualNative): void
+    {
         $varianceNative = bcsub($actualNative, (string) $withdrawal->network_fee_native, 8);
         $variance = $this->feeConverter->toNetworkUnits($withdrawal->network, $varianceNative);
 
-        if ($variance === null) {
-            return;
+        if (! GasExpense::query()->where('expensable_type', Withdrawal::class)->where('expensable_id', $withdrawal->id)->exists()) {
+            GasExpense::create([
+                'network' => $withdrawal->network,
+                'tx_hash' => $withdrawal->tx_hash,
+                'amount' => $actualNative,
+                'expensable_type' => Withdrawal::class,
+                'expensable_id' => $withdrawal->id,
+            ]);
         }
 
-        GasExpense::create([
-            'network' => $withdrawal->network,
-            'tx_hash' => $withdrawal->tx_hash,
-            'amount' => $actualNative,
-            'expensable_type' => Withdrawal::class,
-            'expensable_id' => $withdrawal->id,
-        ]);
-
-        if (bccomp($variance, '0', 8) === 0) {
+        if ($variance === null || bccomp($variance, '0', 8) === 0) {
             return;
         }
 
