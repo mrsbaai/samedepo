@@ -429,3 +429,96 @@ test('refresh treasury data does not call broadcaster while cache lock is held',
 
     expect($wallet->refresh()->native_balance)->toBe('999.00000000');
 });
+
+test('pending withdrawals are shown on the admin overview with accept and decline actions', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner', 'email' => 'withdrawals@example.com']);
+    UsdValuation::create(['network' => 'usdt_trc20', 'conversion_value' => 1]);
+    Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '12.50000000',
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Pending withdrawals')
+        ->assertSee('withdrawals@example.com')
+        ->assertSee('USDT (TRC20)')
+        ->assertSee('12.50 USDT')
+        ->assertSee('$12.50')
+        ->assertSee('Accept')
+        ->assertSee('Decline');
+});
+
+test('a pending withdrawal can be accepted from the admin overview', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $withdrawal = Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '5.00000000',
+        'status' => 'pending',
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test(AdminDashboard::class)
+        ->call('approve', $withdrawal->id)
+        ->assertHasNoErrors();
+
+    $withdrawal->refresh();
+    expect($withdrawal->status)->toBe('approved');
+    expect($withdrawal->decided_by)->toBe($admin->id);
+    expect($withdrawal->decided_at)->not->toBeNull();
+});
+
+test('a pending withdrawal can be declined from the admin overview and returns the gross amount', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $balance = Balance::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'amount' => '10.00000000',
+    ]);
+    $withdrawal = Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '5.00000000',
+        'status' => 'pending',
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test(AdminDashboard::class)
+        ->call('deny', $withdrawal->id)
+        ->assertHasNoErrors();
+
+    $withdrawal->refresh();
+    expect($withdrawal->status)->toBe('denied');
+    expect($withdrawal->decided_by)->toBe($admin->id);
+    expect((string) $balance->fresh()->amount)->toBe('15.00000000');
+});
+
+test('accept and decline only affect still-pending withdrawals', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $withdrawal = Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '3.00000000',
+        'status' => 'approved',
+        'decided_at' => now(),
+        'decided_by' => $admin->id,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test(AdminDashboard::class)
+        ->call('approve', $withdrawal->id)
+        ->call('deny', $withdrawal->id)
+        ->assertHasNoErrors();
+
+    $withdrawal->refresh();
+    expect($withdrawal->status)->toBe('approved');
+    expect($withdrawal->decided_by)->toBe($admin->id);
+});

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Dashboard;
 
+use App\Models\Balance;
 use App\Models\Deposit;
 use App\Models\GasPolicy;
 use App\Models\GasTopup;
@@ -21,6 +22,8 @@ use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\TreasuryProfitCalculator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -58,6 +61,71 @@ class AdminDashboard extends Component
     public function closeTicket(int $id): void
     {
         SupportTicket::findOrFail($id)->update(['status' => SupportTicket::STATUS_CLOSED]);
+    }
+
+    public function approve(int $id): void
+    {
+        $withdrawal = Withdrawal::query()
+            ->withoutGlobalScope('owner')
+            ->where('status', 'pending')
+            ->find($id);
+
+        if ($withdrawal === null) {
+            return;
+        }
+
+        $withdrawal->update([
+            'status' => 'approved',
+            'decided_at' => now(),
+            'decided_by' => Auth::id(),
+        ]);
+    }
+
+    public function deny(int $id): void
+    {
+        $withdrawal = Withdrawal::query()
+            ->withoutGlobalScope('owner')
+            ->where('status', 'pending')
+            ->find($id);
+
+        if ($withdrawal === null) {
+            return;
+        }
+
+        DB::transaction(function () use ($withdrawal): void {
+            $balance = Balance::query()
+                ->withoutGlobalScope('owner')
+                ->where('user_id', $withdrawal->user_id)
+                ->where('network', $withdrawal->network)
+                ->first();
+
+            Balance::query()->withoutGlobalScope('owner')->updateOrCreate(
+                ['user_id' => $withdrawal->user_id, 'network' => $withdrawal->network],
+                ['amount' => (float) ($balance?->amount ?? 0) + (float) $withdrawal->gross_amount]
+            );
+
+            $withdrawal->update([
+                'status' => 'denied',
+                'decided_at' => now(),
+                'decided_by' => Auth::id(),
+            ]);
+        });
+    }
+
+    public function formattedAmount(float $amount, int $decimals): string
+    {
+        return number_format($amount, $decimals);
+    }
+
+    public function usdValue(float $cryptoAmount, string $networkKey): string
+    {
+        $valuation = UsdValuation::query()->where('network', $networkKey)->first();
+
+        if ($valuation === null) {
+            return '0.00';
+        }
+
+        return number_format($cryptoAmount * (float) $valuation->conversion_value, 2);
     }
 
     /** @return Collection<int, SupportTicket> */
@@ -150,7 +218,12 @@ class AdminDashboard extends Component
         $conversions = $this->latestConversions();
         $deposit24h = $this->depositStats(now()->subDay(), $conversions);
         $deposit7d = $this->depositStats(now()->subDays(7), $conversions);
-        $pendingWithdrawals = Withdrawal::query()->withoutGlobalScope('owner')->where('status', 'pending')->get();
+        $pendingWithdrawals = Withdrawal::query()
+            ->withoutGlobalScope('owner')
+            ->with('user')
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'asc')
+            ->get();
         $pendingUsd = $pendingWithdrawals->sum(fn (Withdrawal $w) => (float) $w->gross_amount * ($conversions[$w->network] ?? 0));
 
         return [
@@ -161,6 +234,7 @@ class AdminDashboard extends Component
             'pendingWithdrawals' => [
                 'count' => $pendingWithdrawals->count(),
                 'usdValue' => $pendingUsd,
+                'items' => $pendingWithdrawals->take(10),
             ],
         ];
     }

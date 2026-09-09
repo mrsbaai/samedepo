@@ -185,6 +185,60 @@
         </flux:card>
     </section>
 
+    <section>
+        <flux:card>
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center gap-2">
+                    <flux:icon name="clock" class="size-5 text-zinc-400" />
+                    <flux:heading size="md">Pending withdrawals</flux:heading>
+                </div>
+                @if ($platformStatus['pendingWithdrawals']['count'] > count($platformStatus['pendingWithdrawals']['items']))
+                    <flux:link href="{{ route('admin.withdrawals') }}" variant="subtle">View all</flux:link>
+                @endif
+            </div>
+
+            @if ($platformStatus['pendingWithdrawals']['items']->isEmpty())
+                <flux:text class="mt-4 text-zinc-500">No pending withdrawals.</flux:text>
+            @else
+                <flux:table container:class="mt-4">
+                    <flux:table.columns>
+                        <flux:table.column><span class="max-lg:hidden">Owner</span></flux:table.column>
+                        <flux:table.column class="max-sm:hidden">Network</flux:table.column>
+                        <flux:table.column align="end">Amount</flux:table.column>
+                        <flux:table.column class="max-md:hidden">Requested</flux:table.column>
+                        <flux:table.column></flux:table.column>
+                    </flux:table.columns>
+                    <flux:table.rows>
+                        @foreach ($platformStatus['pendingWithdrawals']['items'] as $withdrawal)
+                            @php
+                                $meta = $networkMeta[$withdrawal->network] ?? ['label' => $withdrawal->network, 'symbol' => '', 'decimals' => 8];
+                            @endphp
+                            <flux:table.row wire:key="pw-{{ $withdrawal->id }}">
+                                <flux:table.cell variant="strong" class="max-w-48 truncate max-lg:max-w-full">{{ $withdrawal->user?->email ?? 'Unknown owner' }}</flux:table.cell>
+                                <flux:table.cell class="max-sm:hidden whitespace-nowrap">{{ $meta['label'] }}</flux:table.cell>
+                                <flux:table.cell align="end" class="whitespace-nowrap font-mono">
+                                    {{ $this->formattedAmount((float) $withdrawal->gross_amount, $meta['decimals']) }} {{ $meta['symbol'] }}
+                                    <flux:text size="sm" variant="subtle">${{ $this->usdValue((float) $withdrawal->gross_amount, $withdrawal->network) }}</flux:text>
+                                </flux:table.cell>
+                                <flux:table.cell class="max-md:hidden whitespace-nowrap">
+                                    <flux:tooltip content="{{ $withdrawal->created_at->format('M j, Y H:i') }} UTC">
+                                        <span>{{ $withdrawal->created_at->diffForHumans() }}</span>
+                                    </flux:tooltip>
+                                </flux:table.cell>
+                                <flux:table.cell class="py-0">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <flux:button size="sm" variant="primary" wire:click="approve({{ $withdrawal->id }})">Accept</flux:button>
+                                        <flux:button size="sm" variant="danger" wire:click="deny({{ $withdrawal->id }})" wire:confirm="Are you sure you want to decline this withdrawal? The full amount will be returned to the owner.">Decline</flux:button>
+                                    </div>
+                                </flux:table.cell>
+                            </flux:table.row>
+                        @endforeach
+                    </flux:table.rows>
+                </flux:table>
+            @endif
+        </flux:card>
+    </section>
+
     @php
         $hasSecuritySummary = $securitySummary['events24h'] > 0 || $securitySummary['blockedIps'] > 0 || $securitySummary['blockedDevices'] > 0;
     @endphp
