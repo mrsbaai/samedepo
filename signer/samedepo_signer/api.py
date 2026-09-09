@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from decimal import Decimal, InvalidOperation
@@ -11,13 +12,28 @@ from flask import Flask, request, jsonify, abort
 
 from samedepo_signer import auth, fees, keys, transactions
 from samedepo_signer.config import Config
+from samedepo_signer.transactions import InsufficientGas
 
 app = Flask(__name__)
+log = logging.getLogger(__name__)
 
 
 def _json_response(data: dict) -> tuple:
     payload = json.dumps(data, sort_keys=True)
     return jsonify({"data": data, "signature": auth.sign_response(payload)})
+
+
+def _broadcast(fn, *args):
+    try:
+        tx_hash = fn(*args)
+    except InsufficientGas as exc:
+        return jsonify({"error": "insufficient_gas", "required": exc.required, "available": exc.available}), 422
+    except Exception as exc:
+        log.exception("broadcast failed")
+        return jsonify({"error": "broadcast_failed", "message": str(exc)[:500]}), 503
+    if tx_hash is None:
+        return jsonify({"error": "broadcast_failed", "message": "Provider returned no transaction hash"}), 503
+    return _json_response({"tx_hash": tx_hash})
 
 
 def _require_body(keys_req: list[str]) -> dict:
@@ -116,16 +132,14 @@ def withdraw():
     if Config.manual_approval:
         # ponytail: simple manual-approval queue stored in memory; use a persistent queue if volume grows.
         abort(202, "Withdrawal queued for manual approval")
-    tx_hash = transactions.broadcast_withdrawal(
+    return _broadcast(
+        transactions.broadcast_withdrawal,
         body["network"],
         int(body["index"]),
         body["destination"],
         body["amount"],
         body["fee"],
     )
-    if tx_hash is None:
-        abort(503, "Broadcast failed")
-    return _json_response({"tx_hash": tx_hash})
 
 
 @app.route("/sweep", methods=["POST"])
@@ -133,16 +147,14 @@ def sweep():
     body = _require_body(["network", "source_index", "destination_index", "amount", "fee"])
     if Config.manual_approval:
         abort(202, "Sweep queued for manual approval")
-    tx_hash = transactions.broadcast_sweep(
+    return _broadcast(
+        transactions.broadcast_sweep,
         body["network"],
         int(body["source_index"]),
         int(body["destination_index"]),
         body["amount"],
         body["fee"],
     )
-    if tx_hash is None:
-        abort(503, "Broadcast failed")
-    return _json_response({"tx_hash": tx_hash})
 
 
 @app.route("/balance", methods=["POST"])
@@ -184,16 +196,14 @@ def topup():
     _validate_amount(body["fee"], "fee")
     if Config.manual_approval:
         abort(202, "Top-up queued for manual approval")
-    tx_hash = transactions.broadcast_topup(
+    return _broadcast(
+        transactions.broadcast_topup,
         body["network"],
         source_index,
         destination_index,
         body["amount"],
         body["fee"],
     )
-    if tx_hash is None:
-        abort(503, "Top-up broadcast failed")
-    return _json_response({"tx_hash": tx_hash})
 
 
 @app.route("/approve", methods=["POST"])

@@ -2,18 +2,41 @@
 from __future__ import annotations
 
 import hashlib
+import threading
+from collections import defaultdict
 from decimal import Decimal
 from typing import Optional
 
 import requests
 from ecdsa import SigningKey, SECP256k1, util
 from tronpy import Tron
+from tronpy.exceptions import AddressNotFound
 from tronpy.keys import PrivateKey
 from tronpy.providers.http import HTTPProvider
 from web3 import Web3
+from web3.exceptions import TransactionNotFound
 
 from samedepo_signer.config import Config
+from samedepo_signer.fees import ERC20_GAS_LIMIT
 from samedepo_signer import keys
+
+GAS_HEADROOM = Decimal("1.2")
+
+
+class InsufficientGas(Exception):
+    def __init__(self, required: str, available: str):
+        super().__init__(f"insufficient gas: required {required}, available {available}")
+        self.required = required
+        self.available = available
+
+
+_SEND_LOCKS: dict[str, threading.Lock] = defaultdict(threading.Lock)
+_SEND_LOCKS_GUARD = threading.Lock()
+
+
+def _send_lock(address: str) -> threading.Lock:
+    with _SEND_LOCKS_GUARD:
+        return _SEND_LOCKS[address.lower()]
 
 
 def _to_sats(btc: str) -> int:
@@ -87,6 +110,14 @@ def _w3(network: str = "usdt_erc20") -> Optional[Web3]:
     return w3
 
 
+def _estimate_erc20_gas(transfer_fn, source: str) -> int:
+    try:
+        estimate = transfer_fn.estimate_gas({"from": source})
+    except Exception:
+        return ERC20_GAS_LIMIT
+    return max(ERC20_GAS_LIMIT, int(Decimal(estimate) * GAS_HEADROOM))
+
+
 def _erc20_transfer(source_index: int, destination: str, amount: str, fee_eth: str, network: str = "usdt_erc20") -> Optional[str]:
     w3 = _w3(network)
     if w3 is None:
@@ -100,19 +131,20 @@ def _erc20_transfer(source_index: int, destination: str, amount: str, fee_eth: s
     decimals = contract.functions.decimals().call()
     value = int(Decimal(amount) * (10 ** decimals))
 
-    nonce = w3.eth.get_transaction_count(source, "latest")
-    gas = 55000
-    gas_price = _to_wei(fee_eth, gas)
-
-    tx = contract.functions.transfer(Web3.to_checksum_address(destination), value).build_transaction({
-        "from": source,
-        "nonce": nonce,
-        "gas": gas,
-        "gasPrice": gas_price,
-        "chainId": w3.eth.chain_id,
-    })
-    signed = w3.eth.account.sign_transaction(tx, source_private)
-    return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
+    with _send_lock(source):
+        transfer = contract.functions.transfer(Web3.to_checksum_address(destination), value)
+        gas = _estimate_erc20_gas(transfer, source)
+        gas_price = _to_wei(fee_eth, gas)
+        nonce = w3.eth.get_transaction_count(source, "pending")
+        tx = transfer.build_transaction({
+            "from": source,
+            "nonce": nonce,
+            "gas": gas,
+            "gasPrice": gas_price,
+            "chainId": w3.eth.chain_id,
+        })
+        signed = w3.eth.account.sign_transaction(tx, source_private)
+        return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
 
 
 def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, fee_eth: str, network: str = "usdt_erc20") -> Optional[str]:
@@ -123,17 +155,18 @@ def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, f
     source = Web3.to_checksum_address(keys.derive_address(network, source_index))
     source_private = keys.derive_private_key(network, source_index)
 
-    nonce = w3.eth.get_transaction_count(source, "latest")
-    tx = {
-        "to": Web3.to_checksum_address(destination),
-        "value": w3.to_wei(amount_eth, "ether"),
-        "gas": 21000,
-        "gasPrice": _to_wei(fee_eth, 21000),
-        "nonce": nonce,
-        "chainId": w3.eth.chain_id,
-    }
-    signed = w3.eth.account.sign_transaction(tx, source_private)
-    return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
+    with _send_lock(source):
+        nonce = w3.eth.get_transaction_count(source, "pending")
+        tx = {
+            "to": Web3.to_checksum_address(destination),
+            "value": w3.to_wei(amount_eth, "ether"),
+            "gas": 21000,
+            "gasPrice": _to_wei(fee_eth, 21000),
+            "nonce": nonce,
+            "chainId": w3.eth.chain_id,
+        }
+        signed = w3.eth.account.sign_transaction(tx, source_private)
+        return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
 
 
 def _trx_client() -> Tron:
@@ -152,8 +185,9 @@ def _trx_transfer(source_index: int, destination: str, amount_trx: str, fee_trx:
     amount_sun = _sun(amount_trx)
     fee_sun = _sun(fee_trx)
 
-    tx = client.trx.transfer(source, destination, amount_sun).fee_limit(fee_sun).build().sign(source_private).broadcast()
-    return tx.get("txid") or tx.txid
+    with _send_lock(source):
+        tx = client.trx.transfer(source, destination, amount_sun).fee_limit(fee_sun).build().sign(source_private).broadcast()
+        return tx.get("txid") or tx.txid
 
 
 def _trc20_transfer(source_index: int, destination: str, amount: str, fee_trx: str) -> Optional[str]:
@@ -165,52 +199,51 @@ def _trc20_transfer(source_index: int, destination: str, amount: str, fee_trx: s
     value = _sun(amount)
     fee_sun = _sun(fee_trx)
 
-    tx = contract.functions.transfer(destination, value).with_owner(source).fee_limit(fee_sun).build()
-    signed_tx = tx.sign(source_private)
-    result = signed_tx.broadcast()
-    return result.get("txid") or result.get("transaction", {}).get("txID")
+    with _send_lock(source):
+        tx = contract.functions.transfer(destination, value).with_owner(source).fee_limit(fee_sun).build()
+        signed_tx = tx.sign(source_private)
+        result = signed_tx.broadcast()
+        return result.get("txid") or result.get("transaction", {}).get("txID")
 
 
 def _trc20_sweep(source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
-    """Sweep TRC20 USDT. Auto top-up TRX, then transfer burning TRX for energy."""
+    """Sweep TRC20 USDT. Laravel provisions TRX; this only signs and broadcasts."""
     client = _trx_client()
     source = keys.derive_address("usdt_trc20", source_index)
     dest = keys.derive_address("usdt_trc20", destination_index)
     fee_sun = _sun(fee)
-    topup_sun = max(30_000_000, fee_sun)
 
     try:
         account = client.get_account(source)
-        if account is None or account.get("balance", 0) < fee_sun:
-            _trx_transfer(destination_index, source, str(Decimal(topup_sun) / Decimal(10 ** 6)), fee)
-            return None
-    except Exception:
-        _trx_transfer(destination_index, source, str(Decimal(topup_sun) / Decimal(10 ** 6)), fee)
-        return None
+        balance_sun = int(account.get("balance", 0)) if account else 0
+    except AddressNotFound:
+        balance_sun = 0
+
+    if balance_sun < fee_sun:
+        raise InsufficientGas(
+            f"{Decimal(fee_sun) / Decimal(10 ** 6):.8f}",
+            f"{Decimal(balance_sun) / Decimal(10 ** 6):.8f}",
+        )
 
     return _trc20_transfer(source_index, dest, amount, fee)
 
 
 def _erc20_sweep(source_index: int, destination_index: int, amount: str, fee: str, network: str = "usdt_erc20") -> Optional[str]:
-    """Sweep ERC-20 USDT. Auto top-up ETH if the source address is not funded."""
+    """Sweep ERC-20 USDT. Laravel provisions gas; this only signs and broadcasts."""
     w3 = _w3(network)
     if w3 is None:
         return None
 
     source = Web3.to_checksum_address(keys.derive_address(network, source_index))
     dest = Web3.to_checksum_address(keys.derive_address(network, destination_index))
-    fee_wei = _to_wei(fee, 65000)
 
-    # Top-up enough ETH to cover this fee plus a small reserve.
-    topup_eth = max(Decimal("0.001"), Decimal(fee) * 2)
-    try:
-        balance = w3.eth.get_balance(source)
-    except Exception:
-        balance = 0
-
-    if balance < fee_wei:
-        _eth_native_transfer(destination_index, source, str(topup_eth), fee, network)
-        return None
+    required_wei = int(Decimal(fee) * Decimal(10 ** 18))
+    balance_wei = w3.eth.get_balance(source)
+    if balance_wei < required_wei:
+        raise InsufficientGas(
+            f"{Decimal(required_wei) / Decimal(10 ** 18):.8f}",
+            f"{Decimal(balance_wei) / Decimal(10 ** 18):.8f}",
+        )
 
     return _erc20_transfer(source_index, dest, amount, fee, network)
 
@@ -253,11 +286,13 @@ def get_native_balance(network: str, index: int) -> Optional[str]:
         address = keys.derive_address("usdt_trc20", index)
         try:
             account = client.get_account(address)
-            if account is None:
-                return "0.00000000"
-            return f"{Decimal(account.get('balance', 0)) / Decimal(10 ** 6):.8f}"
+        except AddressNotFound:
+            return "0.00000000"
         except Exception:
             return None
+        if not account:
+            return "0.00000000"
+        return f"{Decimal(account.get('balance', 0)) / Decimal(10 ** 6):.8f}"
 
     return None
 
@@ -273,6 +308,8 @@ def get_tron_resource(index: int) -> Optional[dict]:
             "bandwidth_limit": resource.get("NetLimit", 0),
             "bandwidth_used": resource.get("NetUsed", 0),
         }
+    except AddressNotFound:
+        return {"energy_limit": 0, "energy_used": 0, "bandwidth_limit": 0, "bandwidth_used": 0}
     except Exception:
         return None
 
@@ -284,6 +321,8 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
             return None
         try:
             receipt = w3.eth.get_transaction_receipt(tx_hash)
+        except TransactionNotFound:
+            return {"status": "pending", "fee": None, "confirmations": 0}
         except Exception:
             return None
         if receipt is None:
@@ -314,6 +353,23 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
         result = info.get("receipt", {}).get("result")
         status = "confirmed" if result == "SUCCESS" else "failed" if result else "pending"
         return {"status": status, "fee": fee, "confirmations": 20}
+
+    if network == "bitcoin":
+        if not Config.blockcypher_token:
+            return None
+        url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}/txs/{tx_hash}"
+        try:
+            response = requests.get(url, params={"token": Config.blockcypher_token}, timeout=15)
+        except Exception:
+            return None
+        if response.status_code == 404:
+            return {"status": "pending", "fee": None, "confirmations": 0}
+        if not response.ok:
+            return None
+        data = response.json()
+        confirmations = int(data.get("confirmations", 0))
+        fee = f"{Decimal(data.get('fees', 0)) / Decimal(10 ** 8):.8f}"
+        return {"status": "confirmed" if confirmations >= 1 else "pending", "fee": fee, "confirmations": confirmations}
 
     return None
 

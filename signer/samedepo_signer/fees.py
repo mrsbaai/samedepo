@@ -11,6 +11,9 @@ from web3 import Web3
 
 from samedepo_signer.config import Config
 
+ERC20_GAS_LIMIT = 65000
+ETH_GAS_LIMIT = 21000
+
 
 def _btc() -> Optional[str]:
     if not Config.blockcypher_token:
@@ -45,7 +48,7 @@ def _eth() -> Optional[str]:
         r = requests.post(url, json=payload, auth=auth, timeout=15)
         r.raise_for_status()
         wei = int(r.json()["result"], 16)
-        eth = Decimal(wei) * Decimal("21000") / Decimal(10 ** 18)
+        eth = Decimal(wei) * Decimal(ETH_GAS_LIMIT) / Decimal(10 ** 18)
         return f"{eth:.8f}"
     except Exception:
         return None
@@ -66,7 +69,7 @@ def _erc20() -> Optional[str]:
         r = requests.post(url, json=payload, auth=auth, timeout=15)
         r.raise_for_status()
         wei = int(r.json()["result"], 16)
-        eth = Decimal(wei) * Decimal("55000") / Decimal(10 ** 18)
+        eth = Decimal(wei) * Decimal(ERC20_GAS_LIMIT) / Decimal(10 ** 18)
         return f"{eth:.8f}"
     except Exception:
         return None
