@@ -60,21 +60,21 @@ class FeeCalculator extends Component
     #[Computed]
     public function usdPrice(): ?string
     {
-        if ($this->network !== 'bitcoin') {
-            return '1';
+        $price = UsdValuation::query()->where('network', $this->network)->value('conversion_value');
+
+        if ($price !== null && bccomp((string) $price, '0', 8) > 0) {
+            return (string) $price;
         }
 
-        $price = UsdValuation::query()->where('network', 'bitcoin')->value('conversion_value');
-
-        return $price !== null && bccomp((string) $price, '0', 8) > 0 ? (string) $price : null;
+        return $this->network === 'bitcoin' ? null : '1';
     }
 
     #[Computed]
     public function minimumMessage(): string
     {
         $usd = '$'.number_format((float) $this->withdrawalMinimumUsd(), 2).' USD';
-        $native = $this->network === 'bitcoin' && $this->usdPrice() !== null
-            ? ' ('.$this->formatted(bcdiv($this->withdrawalMinimumUsd(), $this->usdPrice(), 8)).' BTC)'
+        $native = $this->usdPrice() !== null
+            ? ' ('.$this->formatted(bcdiv($this->withdrawalMinimumUsd(), $this->usdPrice(), 8)).' '.$this->networkMeta()['symbol'].')'
             : '';
 
         return "The minimum withdrawal is {$usd}{$native} for {$this->networkMeta()['label']}.";
@@ -90,8 +90,10 @@ class FeeCalculator extends Component
     #[Computed]
     public function withdrawalEstimate(): ?array
     {
+        // Share the owner/admin cache key so the public calculator and logged-in
+        // withdrawal page never show different fee estimates for the same network.
         $nativeFee = Cache::remember(
-            'public-withdraw-fee-estimate:'.$this->network,
+            'withdraw-fee-estimate:'.$this->network,
             300,
             fn (): string|false => rescue(
                 fn () => app(BlockchainBroadcaster::class)->estimateFee($this->network, tokenTransfer: $this->network !== 'bitcoin') ?? false,
@@ -122,7 +124,9 @@ class FeeCalculator extends Component
 
     public function formatted(string $amount): string
     {
-        return number_format((float) $amount, $this->networkMeta()['decimals']);
+        $decimals = $this->networkMeta()['decimals'];
+
+        return number_format((float) bcadd($amount, '0', $decimals), $decimals);
     }
 
     public function formattedUsd(string $amount): string
@@ -133,7 +137,7 @@ class FeeCalculator extends Component
             return '$—';
         }
 
-        return '$'.number_format((float) bcmul($amount, $price, 8), 2).' USD';
+        return '$'.number_format((float) bcadd(bcmul($amount, $price, 8), '0', 2), 2).' USD';
     }
 
     public function render(): mixed

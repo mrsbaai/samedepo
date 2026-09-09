@@ -28,7 +28,7 @@
             <flux:card variant="soft" class="py-4 px-5">
                 <flux:text size="sm">Available balance</flux:text>
                 <flux:heading size="xl" class="font-ledger mt-1">
-                    {{ $this->formattedAmount((float) $this->balanceModel->amount) }} {{ $this->networkMeta['symbol'] }}
+                    {{ $this->formattedAmount((string) $this->balanceModel->amount) }} {{ $this->networkMeta['symbol'] }}
                 </flux:heading>
                 <flux:text size="sm" variant="subtle">${{ $this->formattedUsd() }} USD</flux:text>
             </flux:card>
@@ -42,7 +42,7 @@
                     <div class="flex items-center justify-between">
                         <flux:text variant="subtle" size="sm">Amount</flux:text>
                         <flux:text class="font-ledger">
-                            {{ $this->formattedAmount((float) $this->pendingWithdrawal->gross_amount) }} {{ $this->networkMeta['symbol'] }}
+                            {{ $this->formattedAmount((string) $this->pendingWithdrawal->gross_amount) }} {{ $this->networkMeta['symbol'] }}
                         </flux:text>
                     </div>
                     <div class="flex items-center justify-between">
@@ -63,7 +63,7 @@
                         <div class="flex items-center justify-between gap-4 text-sm">
                             <flux:text variant="subtle">Estimated network fee</flux:text>
                             <div class="text-right font-ledger tabular-nums">
-                                <flux:text>−{{ $this->formattedAmount((float) $this->feeEstimate['network_fee']) }} {{ $this->networkMeta['symbol'] }}</flux:text>
+                                <flux:text>−{{ $this->formattedAmount($this->feeEstimate['network_fee']) }} {{ $this->networkMeta['symbol'] }}</flux:text>
                                 <flux:text size="sm" variant="subtle">${{ $this->usdFor($this->feeEstimate['network_fee']) }} USD</flux:text>
                             </div>
                         </div>
@@ -71,7 +71,7 @@
                         <div class="flex items-end justify-between gap-4">
                             <flux:heading size="lg">Estimated amount you'll receive</flux:heading>
                             <div class="text-right font-ledger tabular-nums">
-                                <flux:heading size="xl">{{ $this->formattedAmount((float) $this->feeEstimate['receive']) }} {{ $this->networkMeta['symbol'] }}</flux:heading>
+                                <flux:heading size="xl">{{ $this->formattedAmount($this->feeEstimate['receive']) }} {{ $this->networkMeta['symbol'] }}</flux:heading>
                                 <flux:text size="sm" variant="subtle">${{ $this->usdFor($this->feeEstimate['receive']) }} USD</flux:text>
                             </div>
                         </div>
@@ -99,10 +99,10 @@
                 <flux:heading size="lg">Confirm withdrawal?</flux:heading>
                 <flux:text class="mt-2">
                     This sends your full {{ $this->networkMeta['label'] }} balance —
-                    {{ $this->formattedAmount((float) $this->balanceModel->amount) }} {{ $this->networkMeta['symbol'] }},
+                    {{ $this->formattedAmount((string) $this->balanceModel->amount) }} {{ $this->networkMeta['symbol'] }},
                     @if ($this->feeEstimate)
-                        minus an estimated total fee of {{ $this->formattedAmount((float) $this->feeEstimate['total_fee']) }} {{ $this->networkMeta['symbol'] }}.
-                        Estimated amount you'll receive: {{ $this->formattedAmount((float) $this->feeEstimate['receive']) }} {{ $this->networkMeta['symbol'] }}.
+                        minus an estimated total fee of {{ $this->formattedAmount($this->feeEstimate['total_fee']) }} {{ $this->networkMeta['symbol'] }}.
+                        Estimated amount you'll receive: {{ $this->formattedAmount($this->feeEstimate['receive']) }} {{ $this->networkMeta['symbol'] }}.
                     @else
                         The exact fee will be deducted when it is sent.
                     @endif

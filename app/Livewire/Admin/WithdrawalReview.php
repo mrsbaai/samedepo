@@ -7,7 +7,10 @@ namespace App\Livewire\Admin;
 use App\Models\Balance;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
+use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\FeeConverter;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -30,12 +33,6 @@ class WithdrawalReview extends Component
         'bitcoin' => ['label' => 'Bitcoin', 'symbol' => 'BTC', 'decimals' => 8, 'slug' => 'bitcoin'],
         'usdt_trc20' => ['label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'decimals' => 2, 'slug' => 'usdt-trc20'],
         'usdt_erc20' => ['label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'decimals' => 2, 'slug' => 'usdt-erc20'],
-    ];
-
-    private const ESTIMATED_FEES = [
-        'bitcoin' => 0.0002,
-        'usdt_trc20' => 1.0,
-        'usdt_erc20' => 5.0,
     ];
 
     public function mount(int $withdrawal): void
@@ -70,22 +67,55 @@ class WithdrawalReview extends Component
         return self::NETWORKS[$this->withdrawalRecord->network] ?? ['label' => $this->withdrawalRecord->network, 'symbol' => '', 'decimals' => 8, 'slug' => $this->withdrawalRecord->network];
     }
 
-    public function estimatedFee(): float
+    /**
+     * Same live signer estimate, buffer, and native-to-token conversion the
+     * owner's Withdraw page shows and WithdrawalProcessor locks at send time.
+     * Shares the owner page's cache key so both screens read the same number.
+     */
+    #[Computed]
+    public function feeEstimate(): ?array
     {
-        return self::ESTIMATED_FEES[$this->withdrawalRecord->network] ?? 0;
+        $network = $this->withdrawalRecord->network;
+
+        try {
+            $estimatedNative = Cache::remember(
+                'withdraw-fee-estimate:'.$network,
+                300,
+                fn (): ?string => app(BlockchainBroadcaster::class)->estimateFee($network, tokenTransfer: $network !== 'bitcoin'),
+            );
+
+            if ($estimatedNative === null) {
+                return null;
+            }
+
+            return (new FeeConverter)->estimate($network, $estimatedNative);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
-    public function estimatedReceive(): float
+    public function estimatedFee(): ?string
     {
-        return max(0, (float) $this->withdrawalRecord->gross_amount - $this->estimatedFee());
+        $estimate = $this->feeEstimate();
+
+        return $estimate === null ? null : $estimate['total_fee'];
     }
 
-    public function formattedAmount(float $amount): string
+    public function estimatedReceive(): ?string
     {
-        return number_format($amount, $this->networkMeta()['decimals']);
+        $fee = $this->estimatedFee();
+
+        return $fee === null ? null : bcsub((string) $this->withdrawalRecord->gross_amount, $fee, 8);
     }
 
-    public function usdValue(float $cryptoAmount): string
+    public function formattedAmount(string $amount): string
+    {
+        $decimals = $this->networkMeta()['decimals'];
+
+        return number_format((float) bcadd($amount, '0', $decimals), $decimals);
+    }
+
+    public function usdValue(string $cryptoAmount): string
     {
         $valuation = UsdValuation::query()
             ->where('network', $this->withdrawalRecord->network)
@@ -95,7 +125,7 @@ class WithdrawalReview extends Component
             return '0.00';
         }
 
-        return number_format($cryptoAmount * (float) $valuation->conversion_value, 2);
+        return number_format((float) bcadd(bcmul($cryptoAmount, (string) $valuation->conversion_value, 8), '0', 2), 2);
     }
 
     public function confirmApprove(): void

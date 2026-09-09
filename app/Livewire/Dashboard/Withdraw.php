@@ -97,7 +97,7 @@ class Withdraw extends Component
             return 0;
         }
 
-        return (float) $this->balanceModel()->amount * (float) $valuation->conversion_value;
+        return (float) bcmul((string) $this->balanceModel()->amount, (string) $valuation->conversion_value, 8);
     }
 
     #[Computed]
@@ -149,7 +149,7 @@ class Withdraw extends Component
     {
         $valuation = UsdValuation::query()->where('network', $this->networkKey())->value('conversion_value') ?? 0;
 
-        return number_format((float) bcmul($amount, (string) $valuation, 8), 2);
+        return number_format((float) bcadd(bcmul($amount, (string) $valuation, 8), '0', 2), 2);
     }
 
     #[Computed]
@@ -176,14 +176,16 @@ class Withdraw extends Component
             ->first();
     }
 
-    public function formattedAmount(float $amount): string
+    public function formattedAmount(string $amount): string
     {
-        return number_format($amount, $this->networkMeta()['decimals']);
+        $decimals = $this->networkMeta()['decimals'];
+
+        return number_format((float) bcadd($amount, '0', $decimals), $decimals);
     }
 
     public function formattedUsd(): string
     {
-        return number_format($this->usdValue(), 2);
+        return number_format((float) bcadd((string) $this->usdValue(), '0', 2), 2);
     }
 
     public function formattedMinimum(): string

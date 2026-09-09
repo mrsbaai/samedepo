@@ -53,24 +53,31 @@
                 <div class="flex items-center justify-between text-sm">
                     <flux:text variant="subtle">Reserved amount</flux:text>
                     <span class="font-ledger">
-                        {{ $this->formattedAmount((float) $this->withdrawalRecord->gross_amount) }} {{ $this->networkMeta['symbol'] }}
-                        <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue((float) $this->withdrawalRecord->gross_amount) }})</flux:text>
+                        {{ $this->formattedAmount((string) $this->withdrawalRecord->gross_amount) }} {{ $this->networkMeta['symbol'] }}
+                        <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue((string) $this->withdrawalRecord->gross_amount) }})</flux:text>
                     </span>
                 </div>
-                <div class="flex items-center justify-between text-sm">
-                    <flux:text variant="subtle">Estimated network fee</flux:text>
-                    <span class="font-ledger">
-                        {{ $this->formattedAmount($this->estimatedFee()) }} {{ $this->networkMeta['symbol'] }}
-                        <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($this->estimatedFee()) }})</flux:text>
-                    </span>
-                </div>
-                <div class="flex items-center justify-between text-sm font-medium">
-                    <flux:text variant="subtle">Estimated amount to send</flux:text>
-                    <span class="font-ledger">
-                        {{ $this->formattedAmount($this->estimatedReceive()) }} {{ $this->networkMeta['symbol'] }}
-                        <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($this->estimatedReceive()) }})</flux:text>
-                    </span>
-                </div>
+                @if ($this->estimatedFee() !== null)
+                    <div class="flex items-center justify-between text-sm">
+                        <flux:text variant="subtle">Estimated network fee</flux:text>
+                        <span class="font-ledger">
+                            {{ $this->formattedAmount($this->estimatedFee()) }} {{ $this->networkMeta['symbol'] }}
+                            <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($this->estimatedFee()) }})</flux:text>
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm font-medium">
+                        <flux:text variant="subtle">Estimated amount to send</flux:text>
+                        <span class="font-ledger">
+                            {{ $this->formattedAmount($this->estimatedReceive()) }} {{ $this->networkMeta['symbol'] }}
+                            <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($this->estimatedReceive()) }})</flux:text>
+                        </span>
+                    </div>
+                    <flux:text size="sm" variant="subtle">Estimates — the final fee is locked when the withdrawal is sent.</flux:text>
+                @else
+                    <flux:callout variant="secondary" icon="information-circle">
+                        <flux:callout.text>Fee estimate unavailable — the exact fee will be deducted at send time.</flux:callout.text>
+                    </flux:callout>
+                @endif
                 <flux:separator variant="subtle" />
                 <div class="flex items-center justify-between text-sm">
                     <flux:text variant="subtle">Destination</flux:text>
@@ -103,7 +110,7 @@
             <div>
                 <flux:heading size="lg">Approve withdrawal?</flux:heading>
                 <flux:text class="mt-2">
-                    Approving this withdrawal sends {{ $this->withdrawalRecord ? $this->formattedAmount($this->estimatedReceive()) : '' }} {{ $this->withdrawalRecord ? $this->networkMeta['symbol'] : '' }} on {{ $this->withdrawalRecord ? $this->networkMeta['label'] : '' }} to {{ $this->withdrawalRecord ? $this->withdrawalRecord->user->email : '' }}.
+                    Approving this withdrawal sends {{ $this->withdrawalRecord && $this->estimatedReceive() !== null ? $this->formattedAmount($this->estimatedReceive()).' '.$this->networkMeta['symbol'] : 'the reserved balance minus the network fee' }} on {{ $this->withdrawalRecord ? $this->networkMeta['label'] : '' }} to {{ $this->withdrawalRecord ? $this->withdrawalRecord->user->email : '' }}.
                     This action cannot be reversed.
                 </flux:text>
             </div>
@@ -121,7 +128,7 @@
             <div>
                 <flux:heading size="lg">Deny withdrawal?</flux:heading>
                 <flux:text class="mt-2">
-                    Denying this withdrawal returns {{ $this->withdrawalRecord ? $this->formattedAmount((float) $this->withdrawalRecord->gross_amount) : '' }} {{ $this->withdrawalRecord ? $this->networkMeta['symbol'] : '' }} on {{ $this->withdrawalRecord ? $this->networkMeta['label'] : '' }} to {{ $this->withdrawalRecord ? $this->withdrawalRecord->user->email : '' }}'s available balance.
+                    Denying this withdrawal returns {{ $this->withdrawalRecord ? $this->formattedAmount((string) $this->withdrawalRecord->gross_amount) : '' }} {{ $this->withdrawalRecord ? $this->networkMeta['symbol'] : '' }} on {{ $this->withdrawalRecord ? $this->networkMeta['label'] : '' }} to {{ $this->withdrawalRecord ? $this->withdrawalRecord->user->email : '' }}'s available balance.
                     This action cannot be reversed.
                 </flux:text>
             </div>

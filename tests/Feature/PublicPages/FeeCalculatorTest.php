@@ -88,6 +88,6 @@ test('below minimum amounts show the withdrawal minimum and no negative result',
     Livewire::test(FeeCalculator::class)
         ->set('network', 'usdt_trc20')
         ->set('amount', '5')
-        ->assertSee('The minimum withdrawal is $100.00 USD for USDT (TRC20).')
+        ->assertSee('The minimum withdrawal is $100.00 USD (100.00 USDT) for USDT (TRC20).')
         ->assertDontSee('Estimated amount received');
 });
