@@ -18,8 +18,8 @@ use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
 use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\PriceFeed\CoinGeckoProvider;
 use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
-use App\Services\Blockchain\Providers\BlockCypherProvider;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
+use App\Services\Blockchain\Providers\EsploraProvider;
 use App\Services\Blockchain\Providers\InfuraProvider;
 use App\Services\Blockchain\Providers\NullBlockchainProvider;
 use App\Services\Blockchain\Providers\TronGridProvider;
@@ -72,11 +72,9 @@ class AppServiceProvider extends ServiceProvider
         $driver = $config['driver'] ?? null;
 
         return match ($driver) {
-            'blockcypher' => new BlockCypherProvider(
+            'esplora' => new EsploraProvider(
                 network: $network,
-                coinSymbol: 'btc',
-                token: $config['token'] ?? null,
-                apiNetwork: $config['network'] ?? 'main',
+                baseUrl: $config['base_url'] ?? 'https://mempool.space/api',
             ),
             'trongrid' => new TronGridProvider(
                 network: $network,

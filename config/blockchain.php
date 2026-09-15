@@ -45,9 +45,8 @@ return [
 
     'providers' => [
         'bitcoin' => [
-            'driver' => 'blockcypher',
-            'token' => env('BLOCKCYPHER_TOKEN'),
-            'network' => env('BLOCKCYPHER_NETWORK', 'main'),
+            'driver' => 'esplora',
+            'base_url' => env('MEMPOOL_API_URL', 'https://mempool.space/api'),
         ],
         'usdt_trc20' => [
             'driver' => 'trongrid',

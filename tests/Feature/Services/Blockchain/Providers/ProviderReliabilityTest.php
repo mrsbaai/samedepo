@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\Blockchain\Providers\BlockCypherProvider;
+use App\Services\Blockchain\Providers\EsploraProvider;
 use App\Services\Blockchain\Providers\InfuraProvider;
 use App\Services\Blockchain\Providers\TronGridProvider;
 use Illuminate\Support\Facades\Http;
@@ -30,13 +30,12 @@ test('infura raises json rpc errors returned with a successful http status', fun
         ->toThrow(InvalidArgumentException::class, 'range exceeds limit');
 });
 
-test('blockcypher raises provider http failures', function () {
-    Http::fake(['api.blockcypher.com/*' => Http::response(['error' => 'rate limited'], 429)]);
-
-    $provider = new BlockCypherProvider('bitcoin', 'btc', 'token');
+test('esplora raises provider http failures', function () {
+    Http::fake(['mempool.space/*' => Http::response('Too many requests', 429)]);
+    $provider = new EsploraProvider('bitcoin');
 
     expect(fn () => $provider->fetchTransactions(['btc-address']))
-        ->toThrow(InvalidArgumentException::class, 'rate limited');
+        ->toThrow(InvalidArgumentException::class, 'Too many requests');
 });
 
 test('trongrid raises provider http failures', function () {
