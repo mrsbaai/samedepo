@@ -23,7 +23,7 @@
                 @elseif ($this->withdrawalEstimate)
                     <dl class="space-y-4">
                         <div class="flex items-center justify-between gap-4">
-                            <flux:text variant="subtle">Estimated network fee</flux:text>
+                            <flux:text variant="subtle">Estimated network fee (up to)</flux:text>
                             <div class="text-right">
                                 <flux:text class="font-ledger tabular-nums">{{ $this->formattedUsd($this->withdrawalEstimate['network_fee']) }}</flux:text>
                                 <flux:text size="sm" variant="subtle" class="font-ledger tabular-nums block">({{ $this->formatted($this->withdrawalEstimate['network_fee']) }} {{ $this->networkMeta['symbol'] }})</flux:text>

@@ -11,6 +11,7 @@ use App\Models\TreasuryPayout;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
 use Illuminate\Support\Facades\DB;
 
 class TreasuryPayoutService
@@ -50,7 +51,9 @@ class TreasuryPayoutService
             return $this->blocked($result, 'Amount exceeds withdrawable profit.');
         }
 
-        $result['fee_native'] = $this->broadcaster->estimateFee($network, $network !== 'bitcoin');
+        $result['fee_native'] = $this->broadcaster instanceof EstimatesTransferFee
+            ? $this->broadcaster->estimateTransferFee($network, $network !== 'bitcoin', $savedDestination)
+            : $this->broadcaster->estimateFee($network, $network !== 'bitcoin');
 
         if ($result['fee_native'] === null) {
             return $this->blocked($result, 'Fee estimate unavailable');

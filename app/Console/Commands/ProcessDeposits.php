@@ -24,6 +24,7 @@ class ProcessDeposits extends Command
         $scanner->scan();
         $creditor->credit();
         $gasTreasury->pollTopups();
+        $gasTreasury->recoverStrandedGas();
         $sweeper->sweep();
 
         Log::info('Deposit processing completed.');

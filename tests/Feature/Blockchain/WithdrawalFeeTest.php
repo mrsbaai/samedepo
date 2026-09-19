@@ -16,8 +16,10 @@ use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
 use App\Services\Blockchain\TreasurySweepService;
 use App\Services\Blockchain\WithdrawalProcessor;
+use Illuminate\Support\Facades\Http;
 
 class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
 {
@@ -328,4 +330,36 @@ test('amount sent floors at zero when fees exceed gross', function () {
 
     expect($withdrawal->status)->toBe('sent')
         ->and($withdrawal->amount_sent)->toBe('0.00000000');
+});
+
+test('estimateWithdrawalFee sends the destination to the signer', function () {
+    Http::fake(['https://signer.test/fee' => Http::response(['data' => ['fee' => '6.77350000']])]);
+
+    $withdrawal = Withdrawal::factory()->make([
+        'network' => 'usdt_trc20',
+        'destination_address' => 'TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna',
+    ]);
+
+    $fee = (new RemoteBlockchainBroadcaster('https://signer.test', 'secret'))->estimateWithdrawalFee($withdrawal);
+
+    expect($fee)->toBe('6.77350000');
+    Http::assertSent(fn ($request) => $request->data()['destination'] === 'TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna'
+        && $request->data()['token_transfer'] === true
+        && $request->data()['network'] === 'usdt_trc20');
+});
+
+test('estimateTransferFee posts destination and source_index', function () {
+    Http::fake(['https://signer.test/fee' => Http::response(['data' => ['fee' => '6.77350000']])]);
+    $broadcaster = new RemoteBlockchainBroadcaster('https://signer.test', 'secret');
+
+    expect($broadcaster->estimateTransferFee('usdt_trc20', true, 'TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna', 3))
+        ->toBe('6.77350000');
+    expect($broadcaster->estimateTransferFee('usdt_trc20', true))->toBe('6.77350000');
+
+    Http::assertSentCount(2);
+    Http::assertSent(fn ($request) => ($request->data()['destination'] ?? null) === 'TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna'
+        && ($request->data()['source_index'] ?? null) === 3);
+    Http::assertSent(fn ($request) => ! array_key_exists('destination', $request->data())
+        && ! array_key_exists('source_index', $request->data())
+        && $request->data()['token_transfer'] === true);
 });

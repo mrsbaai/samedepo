@@ -16,6 +16,7 @@ class GasTopup extends Model
     protected $fillable = [
         'treasury_wallet_id',
         'network',
+        'kind',
         'recipient_address',
         'recipient_index',
         'amount',

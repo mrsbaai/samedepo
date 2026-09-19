@@ -25,6 +25,12 @@ return [
         'max_minutes' => 60,
     ],
 
+    'gas_recovery' => [
+        'min_native' => [
+            'usdt_trc20' => env('GAS_RECOVERY_MIN_NATIVE_TRC20', '5'),
+        ],
+    ],
+
     'bitcoin' => [
         'xpub' => env('BLOCKCHAIN_BITCOIN_XPUB'),
         'coin_type' => 0,

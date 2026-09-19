@@ -7,6 +7,8 @@ use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Models\WithdrawalAddress;
+use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\NullBlockchainBroadcaster;
 use Livewire\Livewire;
 
 test('an owner can view the withdraw page', function () {
@@ -28,6 +30,36 @@ test('an owner can view the withdraw page', function () {
         ->get(route('withdraw', ['network' => 'usdt-trc20']))
         ->assertOk()
         ->assertSee('Withdraw USDT (TRC20)', false);
+});
+
+test('the withdraw page labels the estimated network fee as up to', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    WithdrawalAddress::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'address' => 'TN2xQz5vGbR9eqAFfbGZvFvgkhLGc4f2sA',
+    ]);
+    Balance::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'amount' => 1000,
+    ]);
+    UsdValuation::factory()->create(['network' => 'usdt_trc20', 'conversion_value' => 1]);
+    UsdValuation::factory()->create(['network' => 'native_trx', 'conversion_value' => '0.33']);
+    PlatformSettings::instance();
+
+    $this->app->instance(BlockchainBroadcaster::class, new class extends NullBlockchainBroadcaster
+    {
+        public function estimateFee(string $network, bool $tokenTransfer = true): ?string
+        {
+            return '6.77350000';
+        }
+    });
+
+    Livewire::actingAs($owner)
+        ->test(Withdraw::class, ['network' => 'usdt-trc20'])
+        ->assertSee('Estimated network fee (up to)', false);
 });
 
 test('withdraw redirects to withdrawal settings when no address is saved', function () {

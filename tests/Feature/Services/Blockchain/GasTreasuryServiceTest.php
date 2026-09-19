@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\GasExpense;
 use App\Models\GasPolicy;
 use App\Models\GasTopup;
+use App\Models\PlatformSettings;
 use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
@@ -12,11 +13,18 @@ use App\Models\User;
 use App\Models\Withdrawal;
 use App\Notifications\LowGasAlert;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
 use App\Services\Blockchain\GasTreasuryService;
 use Illuminate\Support\Facades\Notification;
 
-class GasTreasuryBroadcasterFake implements BlockchainBroadcaster
+class GasTreasuryBroadcasterFake implements BlockchainBroadcaster, EstimatesTransferFee
 {
+    public ?string $transferFee = null;
+
+    public array $transferFeeCalls = [];
+
+    public array $topupCalls = [];
+
     public ?string $topupHash = 'topup-tx-123';
 
     public ?string $fee = '0.00100000';
@@ -90,9 +98,77 @@ class GasTreasuryBroadcasterFake implements BlockchainBroadcaster
         return $tokenTransfer ? ($this->tokenFee ?? $this->fee) : ($this->nativeTopupFee ?? $this->fee);
     }
 
+    public function estimateTransferFee(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?string
+    {
+        $this->transferFeeCalls[] = compact('network', 'tokenTransfer', 'destination', 'sourceIndex');
+
+        return $this->transferFee ?? $this->estimateFee($network, $tokenTransfer);
+    }
+
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
     {
+        $this->topupCalls[] = compact('network', 'sourceIndex', 'destinationIndex', 'amount', 'fee');
+
         return $this->topupHash;
+    }
+
+    public function broadcastPayout(TreasuryPayout $payout): ?string
+    {
+        return null;
+    }
+}
+
+class LegacyGasTreasuryBroadcasterFake implements BlockchainBroadcaster
+{
+    public ?string $fee = '6.77350000';
+
+    public ?string $recipientBalance = '0.00000000';
+
+    public ?string $treasuryBalance = '30.00000000';
+
+    public function broadcastSweep(TreasurySweep $sweep): ?string
+    {
+        return null;
+    }
+
+    public function broadcastWithdrawal(Withdrawal $withdrawal): ?string
+    {
+        return null;
+    }
+
+    public function estimateWithdrawalFee(Withdrawal $withdrawal): ?string
+    {
+        return null;
+    }
+
+    public function getNativeBalance(string $network, int $index): ?string
+    {
+        return $index === 0 ? $this->treasuryBalance : $this->recipientBalance;
+    }
+
+    public function getTokenBalance(string $network, int $index): ?string
+    {
+        return null;
+    }
+
+    public function getTronResource(int $index): ?array
+    {
+        return null;
+    }
+
+    public function getTransactionReceipt(string $network, string $txHash): ?array
+    {
+        return ['status' => 'confirmed', 'fee' => '0.27000000', 'confirmations' => 20];
+    }
+
+    public function estimateFee(string $network, bool $tokenTransfer = true): ?string
+    {
+        return $this->fee;
+    }
+
+    public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
+    {
+        return 'legacy-topup-tx';
     }
 
     public function broadcastPayout(TreasuryPayout $payout): ?string
@@ -108,8 +184,10 @@ function gasTreasury(array $options = []): array
     $broadcaster->recipientBalance = $options['recipientBalance'] ?? null;
     $broadcaster->treasuryBalance = $options['treasuryBalance'] ?? null;
     $broadcaster->receiptStatus = $options['receiptStatus'] ?? 'confirmed';
+    $broadcaster->receiptConfirmations = $options['receiptConfirmations'] ?? 12;
     $broadcaster->tokenFee = $options['tokenFee'] ?? null;
     $broadcaster->nativeTopupFee = $options['nativeTopupFee'] ?? null;
+    $broadcaster->transferFee = $options['transferFee'] ?? null;
 
     return [new GasTreasuryService($broadcaster), $broadcaster];
 }
@@ -272,8 +350,8 @@ test('it provides network-specific policy defaults', function () {
         ->and($service->policy('usdt_erc20')->top_up_amount)->toBe('0.00030000')
         ->and($service->policy('usdt_erc20')->max_top_up)->toBe('0.00100000')
         ->and($service->policy('usdt_trc20')->reserve_threshold)->toBe('10.00000000')
-        ->and($service->policy('usdt_trc20')->top_up_amount)->toBe('25.00000000')
-        ->and($service->policy('usdt_trc20')->max_top_up)->toBe('50.00000000');
+        ->and($service->policy('usdt_trc20')->top_up_amount)->toBe('1.00000000')
+        ->and($service->policy('usdt_trc20')->max_top_up)->toBe('20.00000000');
 });
 
 test('it sends an alert only after the cooldown expires', function () {
@@ -528,4 +606,190 @@ test('it does not compare recipient TRX balance to the treasury reserve threshol
 
     expect($ready)->toBeTrue();
     expect(GasTopup::query()->count())->toBe(0);
+});
+
+test('it sizes the top-up to the buffered fee minus the recipient balance', function () {
+    PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
+    $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'top_up_amount' => '1.00000000',
+        'max_top_up' => '20.00000000',
+    ]);
+
+    [$service, $broadcaster] = gasTreasury([
+        'tokenFee' => '6.77350000',
+        'nativeTopupFee' => '0.27000000',
+        'recipientBalance' => '0.00000000',
+        'treasuryBalance' => '30.00000000',
+        'receiptConfirmations' => 20,
+    ]);
+
+    $ready = $service->ensureGasForSweep('usdt_trc20', 5, 'TRecipient');
+
+    expect($ready)->toBeTrue();
+
+    $topup = GasTopup::query()->sole();
+    expect((string) $topup->amount)->toBe('8.12820000');
+    expect($topup->kind)->toBe('topup');
+
+    expect($broadcaster->transferFeeCalls[0])->toMatchArray([
+        'tokenTransfer' => true,
+        'destination' => (string) $wallet->address,
+        'sourceIndex' => 5,
+    ]);
+    expect($broadcaster->transferFeeCalls[1])->toMatchArray([
+        'tokenTransfer' => false,
+        'destination' => 'TRecipient',
+        'sourceIndex' => 0,
+    ]);
+});
+
+test('it floors the top-up at the policy minimum', function () {
+    PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
+    TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'top_up_amount' => '1.00000000',
+        'max_top_up' => '20.00000000',
+    ]);
+
+    [$service] = gasTreasury([
+        'tokenFee' => '0.50000000',
+        'nativeTopupFee' => '0.27000000',
+        'recipientBalance' => '0.00000000',
+        'treasuryBalance' => '30.00000000',
+        'receiptConfirmations' => 20,
+    ]);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 5, 'TRecipient'))->toBeTrue();
+    expect((string) GasTopup::query()->sole()->amount)->toBe('1.00000000');
+});
+
+test('it creates no top-up above the policy cap', function () {
+    PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
+    TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'top_up_amount' => '1.00000000',
+        'max_top_up' => '20.00000000',
+    ]);
+
+    [$service, $broadcaster] = gasTreasury([
+        'tokenFee' => '18.00000000',
+        'nativeTopupFee' => '0.27000000',
+        'recipientBalance' => '0.00000000',
+        'treasuryBalance' => '30.00000000',
+    ]);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 5, 'TRecipient'))->toBeFalse();
+    expect(GasTopup::query()->count())->toBe(0);
+    expect($broadcaster->topupCalls)->toBeEmpty();
+});
+
+test('it skips the top-up when the recipient already holds enough', function () {
+    PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
+    TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'top_up_amount' => '1.00000000',
+        'max_top_up' => '20.00000000',
+    ]);
+
+    [$service, $broadcaster] = gasTreasury([
+        'tokenFee' => '6.77350000',
+        'recipientBalance' => '7.00000000',
+        'treasuryBalance' => '30.00000000',
+    ]);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 5, 'TRecipient'))->toBeTrue();
+    expect(GasTopup::query()->count())->toBe(0);
+    expect($broadcaster->topupCalls)->toBeEmpty();
+});
+
+test('the reserve check uses the real native transfer fee', function () {
+    PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
+    TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'top_up_amount' => '1.00000000',
+        'max_top_up' => '20.00000000',
+    ]);
+
+    [$service, $broadcaster] = gasTreasury([
+        'tokenFee' => '6.77350000',
+        'nativeTopupFee' => '0.27000000',
+        'recipientBalance' => '0.00000000',
+        'treasuryBalance' => '19.00000000',
+        'receiptConfirmations' => 20,
+    ]);
+
+    // 19 - (8.1282 top-up + 0.27 native fee) = 10.6018 >= 10 reserve — under the
+    // old flat 20-TRX estimate this same treasury would have been rejected.
+    expect($service->ensureGasForSweep('usdt_trc20', 5, 'TRecipient'))->toBeTrue();
+    expect(GasTopup::query()->count())->toBe(1);
+
+    $broadcaster->treasuryBalance = '18.00000000';
+    expect($service->ensureGasForSweep('usdt_trc20', 6, 'TRecipient2'))->toBeFalse();
+    expect(GasTopup::query()->where('recipient_address', 'TRecipient2')->count())->toBe(0);
+    expect(GasTopup::query()->count())->toBe(1);
+});
+
+test('it falls back to estimateFee when the broadcaster lacks EstimatesTransferFee', function () {
+    PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
+    TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'top_up_amount' => '1.00000000',
+        'max_top_up' => '20.00000000',
+    ]);
+
+    $service = new GasTreasuryService(new LegacyGasTreasuryBroadcasterFake);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 5, 'TRecipient'))->toBeTrue();
+    expect(GasTopup::query()->count())->toBe(1);
+});
+
+test('it provisions a sweep top-up while a recovery is in flight', function () {
+    PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
+    $wallet = TreasuryWallet::factory()->create([
+        'network' => 'usdt_trc20',
+        'derivation_index' => 0,
+        'address' => 'TTreasury',
+    ]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'top_up_amount' => '1.00000000',
+        'max_top_up' => '20.00000000',
+    ]);
+    GasTopup::create([
+        'treasury_wallet_id' => $wallet->id,
+        'network' => 'usdt_trc20',
+        'kind' => 'recovery',
+        'recipient_address' => 'TTreasury',
+        'recipient_index' => 0,
+        'amount' => '23.07000000',
+        'tx_hash' => 'recovery-tx-1',
+        'status' => 'broadcast',
+        'broadcasted_at' => now(),
+        'is_open' => 'open',
+    ]);
+
+    [$service] = gasTreasury([
+        'tokenFee' => '6.77350000',
+        'nativeTopupFee' => '0.27000000',
+        'recipientBalance' => '0.00000000',
+        'treasuryBalance' => '30.00000000',
+        'receiptConfirmations' => 20,
+    ]);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 5, 'TRecipient'))->toBeTrue();
+    expect(GasTopup::query()->where('kind', 'topup')->where('recipient_address', 'TRecipient')->count())->toBe(1);
 });

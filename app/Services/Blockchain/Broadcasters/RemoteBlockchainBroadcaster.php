@@ -15,7 +15,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, ReportsLastError
+class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTransferFee, ReportsLastError
 {
     private ?string $lastError = null;
 
@@ -31,18 +31,11 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, ReportsLastE
 
     public function estimateWithdrawalFee(Withdrawal $withdrawal): ?string
     {
-        $tokenTransfer = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true);
-
-        $response = $this->post('/fee', [
-            'network' => $withdrawal->network,
-            'token_transfer' => $tokenTransfer,
-        ]);
-
-        if ($response?->successful()) {
-            return $response->json('data.fee');
-        }
-
-        return null;
+        return $this->estimateTransferFee(
+            $withdrawal->network,
+            in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true),
+            $withdrawal->destination_address,
+        );
     }
 
     public function broadcastWithdrawal(Withdrawal $withdrawal): ?string
@@ -176,6 +169,22 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, ReportsLastE
             'network' => $network,
             'token_transfer' => $tokenTransfer,
         ]);
+
+        if ($response?->successful()) {
+            return $response->json('data.fee');
+        }
+
+        return null;
+    }
+
+    public function estimateTransferFee(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?string
+    {
+        $response = $this->post('/fee', array_filter([
+            'network' => $network,
+            'token_transfer' => $tokenTransfer,
+            'destination' => $destination,
+            'source_index' => $sourceIndex,
+        ], fn ($value) => $value !== null));
 
         if ($response?->successful()) {
             return $response->json('data.fee');

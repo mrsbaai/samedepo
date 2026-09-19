@@ -69,7 +69,7 @@
                 <div class="space-y-3">
                     @if ($this->feeEstimate)
                         <div class="flex items-center justify-between gap-4 text-sm">
-                            <flux:text variant="subtle">Estimated network fee</flux:text>
+                            <flux:text variant="subtle">Estimated network fee (up to)</flux:text>
                             <div class="text-right font-ledger tabular-nums">
                                 <flux:text>−{{ $this->formattedAmount($this->feeEstimate['network_fee']) }} {{ $this->networkMeta['symbol'] }}</flux:text>
                                 <flux:text size="sm" variant="subtle">${{ $this->usdFor($this->feeEstimate['network_fee']) }} USD</flux:text>

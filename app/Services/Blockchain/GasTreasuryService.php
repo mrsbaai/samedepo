@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain;
 
+use App\Models\DepositAddress;
 use App\Models\GasExpense;
 use App\Models\GasPolicy;
 use App\Models\GasTopup;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Models\Withdrawal;
 use App\Notifications\LowGasAlert;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -45,7 +47,7 @@ class GasTreasuryService
             return false;
         }
 
-        $tokenFee = $this->broadcaster->estimateFee($network, true);
+        $tokenFee = $this->estimateTransferFee($network, true, (string) $wallet->address, $recipientIndex);
 
         if ($tokenFee === null) {
             return false;
@@ -63,6 +65,7 @@ class GasTreasuryService
 
         $inFlight = GasTopup::query()
             ->where('network', $network)
+            ->where('kind', 'topup')
             ->where('status', 'broadcast')
             ->whereNotNull('tx_hash')
             ->whereNull('confirmed_at')
@@ -75,13 +78,13 @@ class GasTreasuryService
             return false;
         }
 
-        $topupAmount = $this->chooseTopupAmount($tokenFee, $policy);
+        $topupAmount = $this->chooseTopupAmount($tokenFee, $recipientBalance, $policy);
 
         if ($topupAmount === null) {
             return false;
         }
 
-        $topupFee = $this->broadcaster->estimateFee($network, false);
+        $topupFee = $this->estimateTransferFee($network, false, $recipientAddress, (int) $wallet->derivation_index);
 
         if ($topupFee === null) {
             return false;
@@ -200,6 +203,103 @@ class GasTreasuryService
             });
     }
 
+    public function recoverStrandedGas(): void
+    {
+        $network = 'usdt_trc20';
+        $wallet = TreasuryWallet::query()->where('network', $network)->first();
+
+        if ($wallet === null) {
+            return;
+        }
+
+        // One recovery in flight at a time — pollTopups() confirms/expires it.
+        $recoveryInFlight = GasTopup::query()
+            ->where('network', $network)
+            ->where('kind', 'recovery')
+            ->where('is_open', 'open')
+            ->exists();
+
+        if ($recoveryInFlight) {
+            return;
+        }
+
+        $minimum = (string) config('blockchain.gas_recovery.min_native.usdt_trc20', '5');
+
+        DepositAddress::query()
+            ->where('network', $network)
+            // Stranded TRX can only exist where we sent a top-up.
+            ->whereExists(fn ($query) => $query->selectRaw('1')->from('gas_topups')
+                ->whereColumn('gas_topups.recipient_address', 'deposit_addresses.address')
+                ->where('gas_topups.network', $network)
+                ->where('gas_topups.kind', 'topup')
+                ->where('gas_topups.status', 'confirmed'))
+            ->whereDoesntHave('deposits', fn ($query) => $query
+                ->where('deposits.status', 'credited')
+                ->whereNull('deposits.swept_at'))
+            ->chunkById(100, function ($addresses) use ($network, $wallet, $minimum) {
+                foreach ($addresses as $address) {
+                    $topupOpen = GasTopup::query()
+                        ->where('network', $network)
+                        ->where('recipient_address', $address->address)
+                        ->where('is_open', 'open')
+                        ->exists();
+                    if ($topupOpen) {
+                        continue;
+                    }
+
+                    $held = $this->broadcaster->getTokenBalance($network, (int) $address->derivation_index);
+                    if ($held === null || bccomp($held, '0', 8) !== 0) {
+                        continue; // null = provider hiccup; non-zero = still holds tokens
+                    }
+
+                    $native = $this->broadcaster->getNativeBalance($network, (int) $address->derivation_index);
+                    if ($native === null || bccomp($native, $minimum, 8) < 0) {
+                        continue;
+                    }
+
+                    $amount = bcsub($native, '0.50000000', 8); // leave 0.5 TRX for future bandwidth
+
+                    [$topup, $created] = $this->findOrCreateOpenTopup(
+                        $network,
+                        (string) $wallet->address,
+                        (int) $wallet->derivation_index,
+                        (int) $wallet->id,
+                        $amount,
+                        'recovery',
+                    );
+
+                    if (! $created) {
+                        return false; // raced with another worker — pollTopups owns it now
+                    }
+
+                    $txHash = $this->broadcaster->broadcastTopUp(
+                        $network,
+                        (int) $address->derivation_index,   // source: the deposit address
+                        (int) $wallet->derivation_index,    // destination: treasury
+                        $amount,
+                        '0.30000000',
+                    );
+
+                    if ($txHash === null) {
+                        $this->markTopupFailed($topup, 'Broadcast failed');
+
+                        return false;
+                    }
+
+                    $topup->update(['tx_hash' => $txHash, 'broadcasted_at' => now()]);
+
+                    $receipt = $this->broadcaster->getTransactionReceipt($network, $txHash);
+                    if ($receipt !== null && $receipt['status'] === 'failed') {
+                        $this->markTopupFailed($topup, 'Receipt failed');
+                    } elseif ($receipt !== null && $this->isConfirmed($receipt, $network)) {
+                        $this->confirmTopup($topup, $receipt);
+                    }
+
+                    return false; // at most one new recovery per run (false stops chunkById)
+                }
+            });
+    }
+
     public function refreshTreasuryWallet(TreasuryWallet $wallet): ?array
     {
         $balance = $this->broadcaster->getNativeBalance($wallet->network, (int) $wallet->derivation_index);
@@ -256,11 +356,20 @@ class GasTreasuryService
             });
     }
 
-    private function chooseTopupAmount(string $tokenFee, GasPolicy $policy): ?string
+    private function estimateTransferFee(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?string
     {
-        $buffered = (new FeeConverter)->bufferedNativeFee($tokenFee);
-        $amount = bccomp($buffered, (string) $policy->top_up_amount, 8) > 0
-            ? $buffered
+        if ($this->broadcaster instanceof EstimatesTransferFee) {
+            return $this->broadcaster->estimateTransferFee($network, $tokenTransfer, $destination, $sourceIndex);
+        }
+
+        return $this->broadcaster->estimateFee($network, $tokenTransfer);
+    }
+
+    private function chooseTopupAmount(string $tokenFee, string $recipientBalance, GasPolicy $policy): ?string
+    {
+        $needed = bcsub((new FeeConverter)->bufferedNativeFee($tokenFee), $recipientBalance, 8);
+        $amount = bccomp($needed, (string) $policy->top_up_amount, 8) > 0
+            ? $needed
             : (string) $policy->top_up_amount;
 
         if (bccomp($amount, (string) $policy->max_top_up, 8) > 0) {
@@ -297,11 +406,12 @@ class GasTreasuryService
         return $balance;
     }
 
-    private function findOrCreateOpenTopup(string $network, string $recipientAddress, int $recipientIndex, int $walletId, string $amount): array
+    private function findOrCreateOpenTopup(string $network, string $recipientAddress, int $recipientIndex, int $walletId, string $amount, string $kind = 'topup'): array
     {
         $now = now();
         $attributes = [
             'network' => $network,
+            'kind' => $kind,
             'recipient_address' => $recipientAddress,
             'recipient_index' => $recipientIndex,
             'treasury_wallet_id' => $walletId,
@@ -316,6 +426,7 @@ class GasTreasuryService
 
         $topup = GasTopup::query()
             ->where('network', $network)
+            ->where('kind', $kind)
             ->where('recipient_address', $recipientAddress)
             ->where('is_open', 'open')
             ->first();
@@ -454,7 +565,7 @@ class GasTreasuryService
     {
         $amounts = match ($network) {
             'usdt_erc20' => ['0.00500000', '0.00030000', '0.00100000'],
-            'usdt_trc20' => ['10.00000000', '25.00000000', '50.00000000'],
+            'usdt_trc20' => ['10.00000000', '1.00000000', '20.00000000'],
             default => ['0.01000000', '0.02000000', '0.10000000'],
         };
 

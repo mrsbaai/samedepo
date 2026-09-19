@@ -168,7 +168,7 @@ class AdminDashboard extends Component
         $since = now()->subDay();
         $failures24h = TreasurySweep::query()->where('status', 'failed')->where('updated_at', '>=', $since)->count()
             + TreasuryPayout::query()->where('status', 'failed')->where('updated_at', '>=', $since)->count()
-            + GasTopup::query()->where('status', 'failed')->where('updated_at', '>=', $since)->count();
+            + GasTopup::query()->where('status', 'failed')->where('kind', 'topup')->where('updated_at', '>=', $since)->count();
 
         $unsweptUsd = '0.00000000';
         $unsweptAddresses = 0;

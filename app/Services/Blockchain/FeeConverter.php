@@ -79,6 +79,7 @@ class FeeConverter
         return GasTopup::query()
             ->where('gas_topups.network', $network)
             ->where('gas_topups.status', 'confirmed')
+            ->where('gas_topups.kind', 'topup')
             ->join('deposit_addresses', function ($join): void {
                 $join->on('deposit_addresses.address', '=', 'gas_topups.recipient_address')
                     ->on('deposit_addresses.network', '=', 'gas_topups.network');

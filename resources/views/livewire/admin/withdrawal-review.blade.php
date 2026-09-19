@@ -59,7 +59,7 @@
                 </div>
                 @if ($this->estimatedFee() !== null)
                     <div class="flex items-center justify-between text-sm">
-                        <flux:text variant="subtle">Estimated network fee</flux:text>
+                        <flux:text variant="subtle">Estimated network fee (up to)</flux:text>
                         <span class="font-ledger">
                             {{ $this->formattedAmount($this->estimatedFee()) }} {{ $this->networkMeta['symbol'] }}
                             <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($this->estimatedFee()) }})</flux:text>
