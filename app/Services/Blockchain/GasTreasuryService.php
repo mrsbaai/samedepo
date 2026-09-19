@@ -46,7 +46,11 @@ class GasTreasuryService
         );
     }
 
-    public function ensureGasForSweep(string $network, int $recipientIndex, string $recipientAddress, ?TreasurySweep $sweep = null): bool
+    /**
+     * @param  int  $transfers  number of token transfers one top-up must fund
+     *                          (1 + same-chain piggyback siblings)
+     */
+    public function ensureGasForSweep(string $network, int $recipientIndex, string $recipientAddress, ?TreasurySweep $sweep = null, int $transfers = 1): bool
     {
         $policy = $this->policy($network);
 
@@ -65,6 +69,8 @@ class GasTreasuryService
         if ($tokenFee === null) {
             return false;
         }
+
+        $tokenFee = bcmul($tokenFee, (string) max(1, $transfers), 8);
 
         $recipientBalance = $this->broadcaster->getNativeBalance($network, $recipientIndex);
 
@@ -521,7 +527,10 @@ class GasTreasuryService
                         continue;
                     }
 
-                    $amount = bcsub($native, '0.50000000', 8); // leave 0.5 TRX for future bandwidth
+                    $chain = Network::chain($network);
+                    $leave = (string) config("blockchain.gas_recovery.leave_native.{$chain}", '0.5');
+                    $recoveryFee = bcadd((string) config("blockchain.gas_recovery.fee_native.{$chain}", '0.3'), '0', 8);
+                    $amount = bcsub($native, $leave, 8);
 
                     [$topup, $created] = $this->findOrCreateOpenTopup(
                         $network,
@@ -541,7 +550,7 @@ class GasTreasuryService
                         (int) $address->derivation_index,   // source: the deposit address
                         (int) $wallet->derivation_index,    // destination: treasury
                         $amount,
-                        '0.30000000',
+                        $recoveryFee,
                     );
 
                     if ($txHash === null) {
@@ -936,6 +945,7 @@ class GasTreasuryService
         $amounts = match ($nativeKey) {
             'native_eth' => ['0.00500000', '0.00030000', '0.00100000'],
             'native_trx' => ['10.00000000', '1.00000000', '20.00000000'],
+            'native_bnb' => ['0.00500000', '0.00020000', '0.00200000'],
             default => ['0.01000000', '0.02000000', '0.10000000'],
         };
 

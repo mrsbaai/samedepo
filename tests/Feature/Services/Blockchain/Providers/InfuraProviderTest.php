@@ -43,7 +43,7 @@ test('it scans one ten thousand block chunk and resumes the next chunk on the ne
 
     $provider = new InfuraProvider(
         network: 'usdt_erc20',
-        usdtContract: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+        contract: '0xdac17f958d2ee523a2206206994597c13d831ec7',
         projectId: 'project',
     );
     $transactions = $provider->fetchTransactions($addresses);

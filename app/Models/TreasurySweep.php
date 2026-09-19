@@ -26,6 +26,7 @@ class TreasurySweep extends Model
         'confirmed_at',
         'fee_recovered_at',
         'recovered_withdrawal_id',
+        'piggybacked_on_sweep_id',
     ];
 
     protected function casts(): array
@@ -53,5 +54,10 @@ class TreasurySweep extends Model
     public function recoveredByWithdrawal(): BelongsTo
     {
         return $this->belongsTo(Withdrawal::class, 'recovered_withdrawal_id');
+    }
+
+    public function piggybackedOn(): BelongsTo
+    {
+        return $this->belongsTo(TreasurySweep::class, 'piggybacked_on_sweep_id');
     }
 }

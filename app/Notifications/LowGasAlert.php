@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Support\Network;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -26,10 +27,12 @@ class LowGasAlert extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $symbol = Network::nativeSymbol($this->network);
+
         return (new MailMessage)
-            ->subject("Low gas reserve: {$this->network}")
+            ->subject("Low gas reserve: {$symbol}")
             ->greeting('Hello,')
-            ->line("The {$this->network} treasury gas balance is {$this->balance}, below the configured reserve threshold of {$this->threshold}.")
+            ->line("The {$symbol} treasury gas balance is {$this->balance}, below the configured reserve threshold of {$this->threshold}.")
             ->line('Gas-funded transfers may remain pending until the treasury is replenished.')
             ->action('Review Treasury', route('admin.treasury'));
     }

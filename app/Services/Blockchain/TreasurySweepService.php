@@ -6,6 +6,7 @@ namespace App\Services\Blockchain;
 
 use App\Models\Balance;
 use App\Models\Deposit;
+use App\Models\DepositAddress;
 use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\GasTopup;
@@ -201,7 +202,7 @@ class TreasurySweepService
         return $thresholdTriggered || $ageTriggered || $withdrawalTriggered;
     }
 
-    private function processSweep(TreasurySweep $sweep, TreasuryWallet $wallet): void
+    private function processSweep(TreasurySweep $sweep, TreasuryWallet $wallet, bool $allowPiggyback = true): void
     {
         $address = $sweep->depositAddress ?? $sweep->deposit?->depositAddress;
 
@@ -219,6 +220,8 @@ class TreasurySweepService
             return;
         }
 
+        $piggybackSiblings = [];
+
         if (Network::isToken($sweep->network)) {
             $held = $this->broadcaster->getTokenBalance($sweep->network, (int) $address->derivation_index);
 
@@ -232,11 +235,16 @@ class TreasurySweepService
                 return;
             }
 
+            if ($allowPiggyback && Network::family($sweep->network) === 'evm') {
+                $piggybackSiblings = $this->findPiggybackSiblings($sweep, $address);
+            }
+
             $ready = $this->gasTreasury->ensureGasForSweep(
                 $sweep->network,
                 (int) $address->derivation_index,
                 $address->address,
                 $sweep,
+                1 + count($piggybackSiblings),
             );
 
             if (! $ready) {
@@ -253,7 +261,75 @@ class TreasurySweepService
         }
 
         $sweep->update(['tx_hash' => $txHash, 'error_message' => null]);
+
+        // The shared gas top-up is already in flight — sweep each sibling token
+        // on the same address now instead of waiting for its own threshold.
+        foreach ($piggybackSiblings as $siblingSpec) {
+            $sibling = TreasurySweep::create([
+                'deposit_address_id' => $siblingSpec['address']->id,
+                'deposit_ids' => $siblingSpec['deposit_ids'],
+                'network' => $siblingSpec['address']->network,
+                'amount' => $siblingSpec['amount'],
+                'piggybacked_on_sweep_id' => $sweep->id,
+            ]);
+            $siblingWallet = TreasuryWallet::query()->where('network', $sibling->network)->lockForUpdate()->first();
+
+            if ($siblingWallet !== null) {
+                $this->processSweep($sibling, $siblingWallet, false);
+            }
+        }
+
         $this->pollSweep($sweep, $wallet);
+    }
+
+    /**
+     * Same-chain token deposit addresses sharing this EVM address that hold
+     * credited, unswept deposits — swept together so one gas top-up covers all.
+     *
+     * @return array<int, array{address: DepositAddress, deposit_ids: array<int>, amount: string}>
+     */
+    private function findPiggybackSiblings(TreasurySweep $sweep, $address): array
+    {
+        $siblings = [];
+
+        $addresses = DepositAddress::query()
+            ->where('address', $address->address)
+            ->where('id', '!=', $address->id)
+            ->whereIn('network', Network::sameChainTokens($sweep->network))
+            ->get();
+
+        foreach ($addresses as $siblingAddress) {
+            if (! TreasuryWallet::query()->where('network', $siblingAddress->network)->exists()) {
+                continue;
+            }
+
+            $hasSweep = TreasurySweep::query()
+                ->where('deposit_address_id', $siblingAddress->id)
+                ->whereIn('status', ['pending', 'broadcast'])
+                ->exists();
+
+            if ($hasSweep) {
+                continue;
+            }
+
+            $deposits = Deposit::query()
+                ->withoutGlobalScope('owner')
+                ->where('deposit_address_id', $siblingAddress->id)
+                ->where('status', 'credited')
+                ->whereNull('swept_at');
+
+            if (! $deposits->exists()) {
+                continue;
+            }
+
+            $siblings[] = [
+                'address' => $siblingAddress,
+                'deposit_ids' => $deposits->pluck('id')->all(),
+                'amount' => (string) $deposits->sum('gross_amount'),
+            ];
+        }
+
+        return $siblings;
     }
 
     private function inBackoff(TreasurySweep $sweep): bool

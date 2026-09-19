@@ -20,7 +20,7 @@ use App\Services\Blockchain\PriceFeed\CoinGeckoProvider;
 use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\Providers\EsploraProvider;
-use App\Services\Blockchain\Providers\InfuraProvider;
+use App\Services\Blockchain\Providers\EvmLogsProvider;
 use App\Services\Blockchain\Providers\NullBlockchainProvider;
 use App\Services\Blockchain\Providers\TronGridProvider;
 use App\Support\Network;
@@ -82,13 +82,13 @@ class AppServiceProvider extends ServiceProvider
                 usdtContract: $options['contract'] ?? (string) Network::contract($network),
                 apiKey: $options['api_key'] ?? null,
             ),
-            'evm_logs' => new InfuraProvider(
+            'evm_logs' => new EvmLogsProvider(
                 network: $network,
-                usdtContract: (string) Network::contract($network),
+                contract: (string) Network::contract($network),
+                rpcUrl: $options['rpc'] ?? null,
                 projectId: $options['project_id'] ?? null,
                 projectSecret: $options['project_secret'] ?? null,
                 infuraNetwork: $options['infura_network'] ?? 'mainnet',
-                rpcUrl: $options['rpc'] ?? null,
                 tokenDecimals: Network::tokenDecimals($network) ?? 6,
             ),
             'etherscan_native' => throw new RuntimeException(

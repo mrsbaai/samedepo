@@ -26,6 +26,18 @@ return [
     'gas_recovery' => [
         'min_native' => [
             'tron' => env('GAS_RECOVERY_MIN_NATIVE_TRC20', '5'),
+            'bsc' => env('GAS_RECOVERY_MIN_NATIVE_BSC', '0.001'),
+        ],
+        // Native units left behind on the deposit address (covers the recovery
+        // tx's own gas on EVM; bandwidth headroom on TRON) and the fee budget
+        // passed to the signer for the recovery transfer.
+        'leave_native' => [
+            'tron' => env('GAS_RECOVERY_LEAVE_NATIVE_TRC20', '0.5'),
+            'bsc' => env('GAS_RECOVERY_LEAVE_NATIVE_BSC', '0.0001'),
+        ],
+        'fee_native' => [
+            'tron' => env('GAS_RECOVERY_FEE_NATIVE_TRC20', '0.3'),
+            'bsc' => env('GAS_RECOVERY_FEE_NATIVE_BSC', '0.0001'),
         ],
     ],
 
