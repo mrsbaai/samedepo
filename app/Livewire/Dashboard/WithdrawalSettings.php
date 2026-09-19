@@ -83,10 +83,22 @@ class WithdrawalSettings extends Component
         $this->showConfirmModal = false;
     }
 
+    private function addressRules(): array
+    {
+        $group = config('networks.address_groups.'.Network::addressGroup($this->editingNetwork));
+
+        return [
+            'required',
+            'string',
+            'max:255',
+            'regex:'.$group['address_regex'],
+        ];
+    }
+
     public function confirmSave(): void
     {
         $this->validate([
-            'editingAddress' => ['required', 'string', 'max:255'],
+            'editingAddress' => $this->addressRules(),
         ]);
 
         $this->showConfirmModal = true;
@@ -95,7 +107,7 @@ class WithdrawalSettings extends Component
     public function saveAddress(): void
     {
         $validated = $this->validate([
-            'editingAddress' => ['required', 'string', 'max:255'],
+            'editingAddress' => $this->addressRules(),
         ]);
 
         WithdrawalAddress::updateOrCreate(

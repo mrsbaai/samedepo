@@ -42,13 +42,13 @@ test('an owner can update a withdrawal address', function () {
     WithdrawalAddress::factory()->create([
         'user_id' => $owner->id,
         'network' => 'bitcoin',
-        'address' => 'bc1qold',
+        'address' => 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
     ]);
 
     Livewire::actingAs($owner)
         ->test(WithdrawalSettings::class)
-        ->call('startEdit', 'bitcoin', 'bc1qold')
-        ->set('editingAddress', 'bc1qnew')
+        ->call('startEdit', 'bitcoin', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq')
+        ->set('editingAddress', 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')
         ->call('confirmSave')
         ->call('saveAddress')
         ->assertHasNoErrors();
@@ -56,7 +56,7 @@ test('an owner can update a withdrawal address', function () {
     $this->assertDatabaseHas('withdrawal_addresses', [
         'user_id' => $owner->id,
         'network' => 'bitcoin',
-        'address' => 'bc1qnew',
+        'address' => 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
     ]);
 });
 
