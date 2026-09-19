@@ -3,16 +3,12 @@ from __future__ import annotations
 
 import hashlib
 
-from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes, Bip84, Bip84Coins, Base58Encoder
+from bip_utils import Bip39SeedGenerator, Bip44, Bip44Changes, Bip84, Base58Encoder
 from cryptography.fernet import Fernet
 from mnemonic import Mnemonic
 
+from samedepo_signer import config
 from samedepo_signer.config import wallet_enc_path, wallet_key_path
-
-_NETWORK_COIN = {
-    "usdt_erc20": (Bip44Coins.ETHEREUM, 0),
-    "usdt_trc20": (Bip44Coins.TRON, 0),
-}
 
 
 def _decrypt_seeds() -> str:
@@ -22,69 +18,45 @@ def _decrypt_seeds() -> str:
 
 
 def _seed_for(network: str) -> str:
-    text = _decrypt_seeds()
-    blocks = {
-        "bitcoin": "BITCOIN",
-        "usdt_erc20": "ETHEREUM / USDT ERC20",
-        "usdt_trc20": "TRON / USDT TRC20",
-    }
-    label = blocks[network]
-    lines = text.splitlines()
+    label = config.network(network)["seed_label"]
+    lines = _decrypt_seeds().splitlines()
     for i, line in enumerate(lines):
         if line.strip() == label:
             return lines[i + 1].strip()
-    raise RuntimeError(f"Seed not found for {network}")
+    raise RuntimeError(f"Seed not found for {label}")
 
 
-def _bip84_account():
-    seed = _seed_for("bitcoin")
-    seed_bytes = Bip39SeedGenerator(seed).Generate()
-    return Bip84.FromSeed(seed_bytes, Bip84Coins.BITCOIN).Purpose().Coin().Account(0)
-
-
-def _bip44_account(network: str):
-    seed = _seed_for(network)
-    seed_bytes = Bip39SeedGenerator(seed).Generate()
-    coin, account = _NETWORK_COIN[network]
-    return Bip44.FromSeed(seed_bytes, coin).Purpose().Coin().Account(account)
+def _account(network: str):
+    entry = config.network(network)
+    seed_bytes = Bip39SeedGenerator(_seed_for(network)).Generate()
+    coin = config.coin(network)
+    if entry["family"] == "utxo":
+        return Bip84.FromSeed(seed_bytes, coin).Purpose().Coin().Account(0)
+    return Bip44.FromSeed(seed_bytes, coin).Purpose().Coin().Account(0)
 
 
 def get_xpub(network: str) -> str:
-    if network == "bitcoin":
-        return _bip84_account().PublicKey().ToExtended()
-    return _bip44_account(network).PublicKey().ToExtended()
+    return _account(network).PublicKey().ToExtended()
+
+
+def _change(network: str):
+    return _account(network).Change(Bip44Changes.CHAIN_EXT)
 
 
 def derive_address(network: str, index: int) -> str:
-    if network == "bitcoin":
-        change = _bip84_account().Change(Bip44Changes.CHAIN_EXT)
-        return change.AddressIndex(index).PublicKey().ToAddress()
-    change = _bip44_account(network).Change(Bip44Changes.CHAIN_EXT)
-    return change.AddressIndex(index).PublicKey().ToAddress()
+    return _change(network).AddressIndex(index).PublicKey().ToAddress()
 
 
 def derive_private_key(network: str, index: int) -> bytes:
-    if network == "bitcoin":
-        change = _bip84_account().Change(Bip44Changes.CHAIN_EXT)
-        return bytes.fromhex(change.AddressIndex(index).PrivateKey().Raw().ToHex())
-    change = _bip44_account(network).Change(Bip44Changes.CHAIN_EXT)
-    return bytes.fromhex(change.AddressIndex(index).PrivateKey().Raw().ToHex())
+    return bytes.fromhex(_change(network).AddressIndex(index).PrivateKey().Raw().ToHex())
 
 
 def derive_public_key(network: str, index: int) -> str:
-    if network == "bitcoin":
-        change = _bip84_account().Change(Bip44Changes.CHAIN_EXT)
-        return change.AddressIndex(index).PublicKey().RawCompressed().ToHex()
-    change = _bip44_account(network).Change(Bip44Changes.CHAIN_EXT)
-    return change.AddressIndex(index).PublicKey().RawCompressed().ToHex()
+    return _change(network).AddressIndex(index).PublicKey().RawCompressed().ToHex()
 
 
 def derive_wif(network: str, index: int) -> str:
-    if network == "bitcoin":
-        change = _bip84_account().Change(Bip44Changes.CHAIN_EXT)
-        return change.AddressIndex(index).PrivateKey().ToWif()
-    change = _bip44_account(network).Change(Bip44Changes.CHAIN_EXT)
-    return change.AddressIndex(index).PrivateKey().ToWif()
+    return _change(network).AddressIndex(index).PrivateKey().ToWif()
 
 
 def tron_address_from_eth(eth_address: str) -> str:

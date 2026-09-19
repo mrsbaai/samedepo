@@ -10,7 +10,7 @@ from typing import Any
 
 from flask import Flask, request, jsonify, abort
 
-from samedepo_signer import auth, fees, keys, transactions
+from samedepo_signer import auth, config, fees, keys, transactions
 from samedepo_signer.config import Config
 from samedepo_signer.transactions import InsufficientGas
 
@@ -44,7 +44,7 @@ def _require_body(keys_req: list[str]) -> dict:
     return body
 
 
-ALLOWED_NETWORKS = {"bitcoin", "usdt_erc20", "usdt_trc20"}
+ALLOWED_NETWORKS = set(config.NETWORKS)
 
 
 def _validate_network(network: str) -> None:
@@ -75,10 +75,10 @@ def _validate_amount(value: str, field: str = "amount") -> Decimal:
 
 
 def _validate_tx_hash(network: str, tx_hash: str) -> None:
-    if network == "usdt_erc20":
+    if config.family(network) == "evm":
         if not re.fullmatch(r"0x[0-9a-fA-F]{64}", tx_hash):
             abort(400, "Invalid tx_hash")
-    elif network == "usdt_trc20" or network == "bitcoin":
+    else:
         if not re.fullmatch(r"[0-9a-fA-F]{64}", tx_hash):
             abort(400, "Invalid tx_hash")
 
@@ -97,11 +97,18 @@ def health():
 
 @app.route("/derive-xpubs", methods=["POST"])
 def derive_xpubs():
-    result = {
-        "bitcoin": keys.get_xpub("bitcoin"),
-        "usdt_erc20": keys.get_xpub("usdt_erc20"),
-        "usdt_trc20": keys.get_xpub("usdt_trc20"),
+    # One xpub per address group, plus the legacy per-network keys Laravel already reads.
+    # A missing seed (e.g. LITECOIN not yet installed) omits that entry instead of erroring.
+    entries = {
+        "bitcoin": "bitcoin", "litecoin": "litecoin", "evm": "ethereum", "tron": "usdt_trc20",
+        "usdt_erc20": "usdt_erc20", "usdt_trc20": "usdt_trc20", "ethereum": "ethereum",
     }
+    result = {}
+    for label, network in entries.items():
+        try:
+            result[label] = keys.get_xpub(network)
+        except RuntimeError:
+            continue
     return _json_response(result)
 
 
@@ -129,7 +136,10 @@ def fee():
     )
     if estimated is None:
         abort(503, "Fee estimation unavailable")
-    return _json_response({"network": body["network"], "fee": estimated, "token_transfer": token_transfer})
+    return _json_response({
+        "network": body["network"], "fee": estimated, "token_transfer": token_transfer,
+        "native_symbol": config.native_symbol(body["network"]),
+    })
 
 
 @app.route("/withdraw", methods=["POST"])

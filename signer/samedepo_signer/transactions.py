@@ -16,6 +16,7 @@ from tronpy.providers.http import HTTPProvider
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
 
+from samedepo_signer import config
 from samedepo_signer.config import Config
 from samedepo_signer.fees import ERC20_GAS_LIMIT
 from samedepo_signer import fees
@@ -31,31 +32,32 @@ class InsufficientGas(Exception):
         self.available = available
 
 
-_SEND_LOCKS: dict[str, threading.Lock] = defaultdict(threading.Lock)
+_SEND_LOCKS: dict[tuple, threading.Lock] = defaultdict(threading.Lock)
 _SEND_LOCKS_GUARD = threading.Lock()
 
 
-def _send_lock(address: str) -> threading.Lock:
+def _send_lock(chain: str, address: str) -> threading.Lock:
     with _SEND_LOCKS_GUARD:
-        return _SEND_LOCKS[address.lower()]
+        return _SEND_LOCKS[(chain, address.lower())]
 
 
 def _to_sats(btc: str) -> int:
     return int(Decimal(btc) * Decimal(10 ** 8))
 
 
-def _btc_transfer(source_index: int, destination: str, amount: str, fee: str) -> Optional[str]:
+def _utxo_transfer(network: str, source_index: int, destination: str, amount: str, fee: str) -> Optional[str]:
     if not Config.blockcypher_token:
         return None
 
+    coin = config.network(network)["blockcypher_coin"]
     to_send = _to_sats(amount) - _to_sats(fee)
     if to_send <= 0:
         raise ValueError("Amount must be greater than fee")
 
     fee_sats = _to_sats(fee)
-    source = keys.derive_address("bitcoin", source_index)
+    source = keys.derive_address(network, source_index)
 
-    new_url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}/txs/new"
+    new_url = f"https://api.blockcypher.com/v1/{coin}/{Config.blockcypher_network}/txs/new"
     payload = {
         "inputs": [{"addresses": [source]}],
         "outputs": [{"addresses": [destination], "value": to_send}],
@@ -70,8 +72,8 @@ def _btc_transfer(source_index: int, destination: str, amount: str, fee: str) ->
     if not tosign:
         return None
 
-    source_private = keys.derive_private_key("bitcoin", source_index)
-    public_key = keys.derive_public_key("bitcoin", source_index)
+    source_private = keys.derive_private_key(network, source_index)
+    public_key = keys.derive_public_key(network, source_index)
     sk = SigningKey.from_string(source_private, curve=SECP256k1, hashfunc=hashlib.sha256)
 
     signatures = []
@@ -84,7 +86,7 @@ def _btc_transfer(source_index: int, destination: str, amount: str, fee: str) ->
     skeleton["signatures"] = signatures
     skeleton["pubkeys"] = pubkeys
 
-    send_url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}/txs/send"
+    send_url = f"https://api.blockcypher.com/v1/{coin}/{Config.blockcypher_network}/txs/send"
     s = requests.post(send_url, json=skeleton, params={"token": Config.blockcypher_token}, timeout=30)
     if not s.ok:
         return None
@@ -100,14 +102,26 @@ def _to_wei(fee_eth: str, gas: int) -> int:
     return int(fee // Decimal(gas))
 
 
-def _w3(network: str = "usdt_erc20") -> Optional[Web3]:
-    if not Config.infura_project_id:
+_W3_CACHE: dict[str, Web3] = {}
+
+
+def _w3(network: str) -> Optional[Web3]:
+    chain = config.chain(network)
+    if chain in _W3_CACHE:
+        return _W3_CACHE[chain]
+    url = config.rpc_url(network)
+    if not url:
         return None
-    auth = (Config.infura_project_id, Config.infura_project_secret) if Config.infura_project_secret else None
-    url = f"https://{Config.infura_network}.infura.io/v3/{Config.infura_project_id}"
-    w3 = Web3(Web3.HTTPProvider(url, request_kwargs={"auth": auth} if auth else {}))
+    if chain == "ethereum":
+        if not Config.infura_project_id:
+            return None
+        auth = (Config.infura_project_id, Config.infura_project_secret) if Config.infura_project_secret else None
+        w3 = Web3(Web3.HTTPProvider(url, request_kwargs={"auth": auth} if auth else {}))
+    else:
+        w3 = Web3(Web3.HTTPProvider(url))
     if not w3.is_connected():
         return None
+    _W3_CACHE[chain] = w3
     return w3
 
 
@@ -119,31 +133,69 @@ def _estimate_erc20_gas(transfer_fn, source: str) -> int:
     return max(ERC20_GAS_LIMIT, int(Decimal(estimate) * GAS_HEADROOM))
 
 
-def _erc20_transfer(source_index: int, destination: str, amount: str, fee_eth: str, network: str = "usdt_erc20") -> Optional[str]:
+def _evm_token_transfer(network: str, source_index: int, destination: str, amount: str, fee_native: str) -> Optional[str]:
     w3 = _w3(network)
     if w3 is None:
         return None
 
-    contract_address = Config.infura_usdt_contract
+    entry = config.network(network)
     source = Web3.to_checksum_address(keys.derive_address(network, source_index))
     source_private = keys.derive_private_key(network, source_index)
 
-    contract = w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=ERC20_ABI)
-    decimals = contract.functions.decimals().call()
-    value = int(Decimal(amount) * (10 ** decimals))
+    contract = w3.eth.contract(address=Web3.to_checksum_address(entry["contract"]), abi=ERC20_ABI)
+    value = int(Decimal(amount) * (10 ** entry["decimals"]))
 
-    with _send_lock(source):
+    with _send_lock(entry["chain"], source):
         transfer = contract.functions.transfer(Web3.to_checksum_address(destination), value)
         gas = _estimate_erc20_gas(transfer, source)
-        gas_price = _to_wei(fee_eth, gas)
+        gas_price = _to_wei(fee_native, gas)
         nonce = w3.eth.get_transaction_count(source, "pending")
         tx = transfer.build_transaction({
             "from": source,
             "nonce": nonce,
             "gas": gas,
             "gasPrice": gas_price,
-            "chainId": w3.eth.chain_id,
+            "chainId": entry["chain_id"],
         })
+        signed = w3.eth.account.sign_transaction(tx, source_private)
+        return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
+
+
+def _erc20_transfer(source_index: int, destination: str, amount: str, fee_eth: str, network: str = "usdt_erc20") -> Optional[str]:
+    return _evm_token_transfer(network, source_index, destination, amount, fee_eth)
+
+
+def _evm_native_transfer(network: str, source_index: int, destination: str, amount: str, fee: str, *, deduct: str) -> Optional[str]:
+    """deduct='fee': value = amount − fee (withdrawals; Laravel passes amount_sent + fee).
+    deduct='gas': value = amount − 21000 × gas_price (sweeps; deposit holds exactly amount)."""
+    w3 = _w3(network)
+    if w3 is None:
+        return None
+
+    entry = config.network(network)
+    source = Web3.to_checksum_address(keys.derive_address(network, source_index))
+    source_private = keys.derive_private_key(network, source_index)
+
+    with _send_lock(entry["chain"], source):
+        gas_price = w3.eth.gas_price
+        value = w3.to_wei(amount, "ether")
+        if deduct == "fee":
+            value -= w3.to_wei(fee, "ether")
+        elif deduct == "gas":
+            value -= 21000 * gas_price
+        else:
+            raise ValueError(f"Invalid deduct mode: {deduct}")
+        if value <= 0:
+            raise ValueError("Amount must be greater than fee")
+        nonce = w3.eth.get_transaction_count(source, "pending")
+        tx = {
+            "to": Web3.to_checksum_address(destination),
+            "value": value,
+            "gas": 21000,
+            "gasPrice": gas_price,
+            "nonce": nonce,
+            "chainId": entry["chain_id"],
+        }
         signed = w3.eth.account.sign_transaction(tx, source_private)
         return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
 
@@ -153,10 +205,11 @@ def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, f
     if w3 is None:
         return None
 
+    entry = config.network(network)
     source = Web3.to_checksum_address(keys.derive_address(network, source_index))
     source_private = keys.derive_private_key(network, source_index)
 
-    with _send_lock(source):
+    with _send_lock(entry["chain"], source):
         nonce = w3.eth.get_transaction_count(source, "pending")
         tx = {
             "to": Web3.to_checksum_address(destination),
@@ -164,7 +217,7 @@ def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, f
             "gas": 21000,
             "gasPrice": _to_wei(fee_eth, 21000),
             "nonce": nonce,
-            "chainId": w3.eth.chain_id,
+            "chainId": entry["chain_id"],
         }
         signed = w3.eth.account.sign_transaction(tx, source_private)
         return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
@@ -186,7 +239,7 @@ def _trx_transfer(source_index: int, destination: str, amount_trx: str, fee_trx:
     amount_sun = _sun(amount_trx)
     fee_sun = _sun(fee_trx)
 
-    with _send_lock(source):
+    with _send_lock("tron", source):
         tx = client.trx.transfer(source, destination, amount_sun).fee_limit(fee_sun).build().sign(source_private).broadcast()
         return tx.get("txid") or tx.txid
 
@@ -200,7 +253,7 @@ def _trc20_transfer(source_index: int, destination: str, amount: str, fee_trx: s
     value = _sun(amount)
     fee_sun = _sun(fee_trx)
 
-    with _send_lock(source):
+    with _send_lock("tron", source):
         tx = contract.functions.transfer(destination, value).with_owner(source).fee_limit(fee_sun).build()
         signed_tx = tx.sign(source_private)
         result = signed_tx.broadcast()
@@ -247,6 +300,26 @@ def _trc20_sweep(source_index: int, destination_index: int, amount: str, fee: st
     return _trc20_transfer(source_index, dest, amount, fee)
 
 
+def _evm_token_sweep(network: str, source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
+    """Sweep an EVM token. Laravel provisions gas; this only signs and broadcasts."""
+    w3 = _w3(network)
+    if w3 is None:
+        return None
+
+    source = Web3.to_checksum_address(keys.derive_address(network, source_index))
+    dest = Web3.to_checksum_address(keys.derive_address(network, destination_index))
+
+    required_wei = int(Decimal(fee) * Decimal(10 ** 18))
+    balance_wei = w3.eth.get_balance(source)
+    if balance_wei < required_wei:
+        raise InsufficientGas(
+            f"{Decimal(required_wei) / Decimal(10 ** 18):.8f}",
+            f"{Decimal(balance_wei) / Decimal(10 ** 18):.8f}",
+        )
+
+    return _evm_token_transfer(network, source_index, dest, amount, fee)
+
+
 def _erc20_sweep(source_index: int, destination_index: int, amount: str, fee: str, network: str = "usdt_erc20") -> Optional[str]:
     """Sweep ERC-20 USDT. Laravel provisions gas; this only signs and broadcasts."""
     w3 = _w3(network)
@@ -268,28 +341,51 @@ def _erc20_sweep(source_index: int, destination_index: int, amount: str, fee: st
 
 
 def broadcast_withdrawal(network: str, index: int, destination: str, amount: str, fee: str) -> Optional[str]:
-    if network == "bitcoin":
-        return _btc_transfer(index, destination, amount, fee)
-    if network == "usdt_erc20":
-        return _erc20_transfer(index, destination, amount, fee, "usdt_erc20")
-    if network == "usdt_trc20":
+    entry = config.network(network)
+    if entry["family"] == "utxo":
+        return _utxo_transfer(network, index, destination, amount, fee)
+    if entry["family"] == "evm":
+        if config.is_token(network):
+            return _evm_token_transfer(network, index, destination, amount, fee)
+        return _evm_native_transfer(network, index, destination, amount, fee, deduct="fee")
+    if entry["family"] == "tron":
         return _trc20_transfer(index, destination, amount, fee)
     raise ValueError(f"Unsupported network: {network}")
 
 
 def broadcast_sweep(network: str, source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
-    if network == "bitcoin":
-        destination = keys.derive_address("bitcoin", destination_index)
-        return _btc_transfer(source_index, destination, amount, fee)
-    if network == "usdt_erc20":
-        return _erc20_sweep(source_index, destination_index, amount, fee, "usdt_erc20")
-    if network == "usdt_trc20":
+    entry = config.network(network)
+    if entry["family"] == "utxo":
+        destination = keys.derive_address(network, destination_index)
+        return _utxo_transfer(network, source_index, destination, amount, fee)
+    if entry["family"] == "evm":
+        if config.is_token(network):
+            return _evm_token_sweep(network, source_index, destination_index, amount, fee)
+        destination = keys.derive_address(network, destination_index)
+        return _evm_native_transfer(network, source_index, destination, amount, fee, deduct="gas")
+    if entry["family"] == "tron":
         return _trc20_sweep(source_index, destination_index, amount, fee)
     raise ValueError(f"Unsupported network: {network}")
 
 
 def get_native_balance(network: str, index: int) -> Optional[str]:
-    if network == "usdt_erc20":
+    entry = config.network(network)
+
+    if entry["family"] == "utxo":
+        if not Config.blockcypher_token:
+            return None
+        address = keys.derive_address(network, index)
+        url = f"https://api.blockcypher.com/v1/{entry['blockcypher_coin']}/{Config.blockcypher_network}/addrs/{address}/balance"
+        try:
+            response = requests.get(url, params={"token": Config.blockcypher_token}, timeout=15)
+        except Exception:
+            return None
+        if not response.ok:
+            return None
+        sats = int(response.json().get("final_balance", response.json().get("balance", 0)))
+        return f"{Decimal(sats) / Decimal(10 ** 8):.8f}"
+
+    if entry["family"] == "evm":
         w3 = _w3(network)
         if w3 is None:
             return None
@@ -300,7 +396,7 @@ def get_native_balance(network: str, index: int) -> Optional[str]:
         except Exception:
             return None
 
-    if network == "usdt_trc20":
+    if entry["family"] == "tron":
         client = _trx_client()
         address = keys.derive_address("usdt_trc20", index)
         try:
@@ -317,20 +413,21 @@ def get_native_balance(network: str, index: int) -> Optional[str]:
 
 
 def get_token_balance(network: str, index: int) -> Optional[str]:
-    if network == "usdt_erc20":
+    entry = config.network(network)
+
+    if entry["family"] == "evm" and config.is_token(network):
         w3 = _w3(network)
         if w3 is None:
             return None
         try:
-            contract = w3.eth.contract(address=Web3.to_checksum_address(Config.infura_usdt_contract), abi=ERC20_ABI)
+            contract = w3.eth.contract(address=Web3.to_checksum_address(entry["contract"]), abi=ERC20_ABI)
             address = Web3.to_checksum_address(keys.derive_address(network, index))
             raw = contract.functions.balanceOf(address).call()
-            decimals = contract.functions.decimals().call()
-            return f"{Decimal(raw) / Decimal(10 ** decimals):.8f}"
+            return f"{Decimal(raw) / Decimal(10 ** entry['decimals']):.8f}"
         except Exception:
             return None
 
-    if network == "usdt_trc20":
+    if entry["family"] == "tron" and config.is_token(network):
         client = _trx_client()
         address = keys.derive_address("usdt_trc20", index)
         try:
@@ -366,7 +463,9 @@ def get_tron_resource(index: int) -> Optional[dict]:
 
 
 def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
-    if network == "usdt_erc20":
+    entry = config.network(network)
+
+    if entry["family"] == "evm":
         w3 = _w3(network)
         if w3 is None:
             return None
@@ -391,7 +490,7 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
             pass
         return {"status": status, "fee": fee, "confirmations": confirmations}
 
-    if network == "usdt_trc20":
+    if entry["family"] == "tron":
         client = _trx_client()
         try:
             info = client.get_transaction_info(tx_hash)
@@ -409,10 +508,10 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
             status = "confirmed" if result == "SUCCESS" else "failed"
         return {"status": status, "fee": fee, "confirmations": 20 if status == "confirmed" else 0}
 
-    if network == "bitcoin":
+    if entry["family"] == "utxo":
         if not Config.blockcypher_token:
             return None
-        url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}/txs/{tx_hash}"
+        url = f"https://api.blockcypher.com/v1/{entry['blockcypher_coin']}/{Config.blockcypher_network}/txs/{tx_hash}"
         try:
             response = requests.get(url, params={"token": Config.blockcypher_token}, timeout=15)
         except Exception:
@@ -430,9 +529,11 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
 
 
 def broadcast_topup(network: str, source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
-    if network == "usdt_erc20":
-        return _eth_native_transfer(source_index, keys.derive_address(network, destination_index), amount, fee, "usdt_erc20")
-    if network == "usdt_trc20":
+    entry = config.network(network)
+    if entry["family"] == "evm":
+        destination = keys.derive_address(network, destination_index)
+        return _eth_native_transfer(source_index, destination, amount, fee, network)
+    if entry["family"] == "tron":
         return _trx_transfer(source_index, keys.derive_address("usdt_trc20", destination_index), amount, fee)
     return None
 
