@@ -116,6 +116,7 @@ beforeEach(function () {
 test('a failed sweep seeds backoff on its replacement instead of rebroadcasting', function () {
     trc20Group();
     $broadcaster = new SweepRetryBroadcasterFake;
+    $broadcaster->tokenBalance = '1000000.00000000';
     $broadcaster->receiptStatus = 'failed';
     $service = new TreasurySweepService($broadcaster);
 
@@ -159,14 +160,23 @@ test('a sweep for tokens the address does not hold fails before gas top-up', fun
         ->and(GasTopup::count())->toBe(0);
 });
 
-test('a null token balance leaves the sweep flow unchanged', function () {
+test('a null token balance skips the sweep without broadcasting or provisioning gas', function () {
     trc20Group();
     $broadcaster = new SweepRetryBroadcasterFake;
-    $broadcaster->receiptStatus = 'confirmed';
+    $broadcaster->recipientBalance = '0.00000000';
     $service = new TreasurySweepService($broadcaster);
 
     $service->sweep();
 
-    expect($broadcaster->broadcasts)->toBe(1)
-        ->and(TreasurySweep::sole()->status)->toBe('confirmed');
+    $sweep = TreasurySweep::sole();
+    expect($broadcaster->broadcasts)->toBe(0)
+        ->and($sweep->status)->toBe('pending')
+        ->and($sweep->attempts)->toBe(0)
+        ->and(GasTopup::count())->toBe(0);
+
+    $broadcaster->tokenBalance = '1000000.00000000';
+    $broadcaster->recipientBalance = '1000.00000000';
+    $service->sweep();
+
+    expect($broadcaster->broadcasts)->toBe(1);
 });

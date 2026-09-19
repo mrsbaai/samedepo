@@ -30,7 +30,7 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
 
     public ?string $treasuryBalance = null;
 
-    public ?string $tokenBalance = null;
+    public ?string $tokenBalance = '1000000.00000000';
 
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {

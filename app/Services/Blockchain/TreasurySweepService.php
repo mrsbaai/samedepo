@@ -216,7 +216,11 @@ class TreasurySweepService
         if (in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true)) {
             $held = $this->broadcaster->getTokenBalance($sweep->network, (int) $address->derivation_index);
 
-            if ($held !== null && bccomp($held, (string) $sweep->amount, 8) < 0) {
+            if ($held === null) {
+                return;
+            }
+
+            if (bccomp($held, (string) $sweep->amount, 8) < 0) {
                 $this->recordFailure($sweep, "on_chain_balance_short: holds {$held}, sweep needs {$sweep->amount}");
 
                 return;
