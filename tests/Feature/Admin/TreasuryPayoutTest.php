@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Balance;
+use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\GasPolicy;
 use App\Models\PlatformSettings;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\TreasuryPayoutService;
+use Illuminate\Support\Facades\Http;
 
 class PayoutBroadcasterFake implements BlockchainBroadcaster
 {
@@ -24,6 +26,8 @@ class PayoutBroadcasterFake implements BlockchainBroadcaster
     public ?string $fee = '0.00100000';
 
     public int $broadcastCalls = 0;
+
+    public ?array $tronResource = null;
 
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
@@ -52,7 +56,7 @@ class PayoutBroadcasterFake implements BlockchainBroadcaster
 
     public function getTronResource(int $index): ?array
     {
-        return null;
+        return $this->tronResource;
     }
 
     public function getTransactionReceipt(string $network, string $txHash): ?array
@@ -260,4 +264,78 @@ test('treasury payout poll marks a failed receipt as failed', function () {
 
     expect($payout->refresh()->status)->toBe('failed')
         ->and($payout->error_message)->not->toBeNull();
+});
+
+test('a payout waits for an ordered rental', function () {
+    [$payout] = payoutFixture(amount: '100.00000000', available: '200.00000000');
+    GasPolicy::where('network', 'usdt_trc20')->update([
+        'energy_mode' => 'rent',
+        'rent_max_price_sun' => 90,
+        'rent_duration_sec' => 3600,
+    ]);
+    Http::fake([
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 100000]]),
+        'https://api.tronsave.io/v2/buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['orderId' => 'order-123']]),
+    ]);
+    $broadcaster = new PayoutBroadcasterFake;
+    $broadcaster->tronResource = [
+        'energy_limit' => 0,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 600,
+        'free_bandwidth_used' => 0,
+    ];
+
+    expect((new TreasuryPayoutService($broadcaster))->send($payout))->toBeFalse();
+    expect($payout->refresh()->status)->toBe('pending')
+        ->and($payout->error_message)->toContain('Renting network energy')
+        ->and($broadcaster->broadcastCalls)->toBe(0);
+
+    $rental = EnergyRental::sole();
+    expect($rental->purpose)->toBe('payout')
+        ->and($rental->receiver_address)->toBe('treasury-usdt_trc20')
+        ->and($rental->purposable_type)->toBe($payout->getMorphClass())
+        ->and($rental->purposable_id)->toBe($payout->id)
+        ->and($rental->status)->toBe('ordered');
+});
+
+test('the payout sends once the rental fills', function () {
+    [$payout] = payoutFixture(amount: '100.00000000', available: '200.00000000');
+    GasPolicy::where('network', 'usdt_trc20')->update([
+        'energy_mode' => 'rent',
+        'rent_max_price_sun' => 90,
+        'rent_duration_sec' => 3600,
+    ]);
+    Http::fake();
+    EnergyRental::create([
+        'network' => 'usdt_trc20',
+        'receiver_address' => 'treasury-usdt_trc20',
+        'receiver_index' => 0,
+        'purpose' => 'payout',
+        'purposable_type' => $payout->getMorphClass(),
+        'purposable_id' => $payout->id,
+        'energy' => 65000,
+        'duration_sec' => 3600,
+        'order_id' => 'order-123',
+        'cost_native' => '4.16000000',
+        'status' => 'filled',
+        'filled_at' => now(),
+        'expires_at' => now()->addHour(),
+    ]);
+    $broadcaster = new PayoutBroadcasterFake;
+    // The delegation landed: the treasury now holds enough rented energy.
+    $broadcaster->tronResource = [
+        'energy_limit' => 80000,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 600,
+        'free_bandwidth_used' => 0,
+    ];
+
+    expect((new TreasuryPayoutService($broadcaster))->send($payout))->toBeTrue();
+    expect($payout->refresh()->status)->toBe('sent')
+        ->and($payout->tx_hash)->toBe('payout-tx-123')
+        ->and($broadcaster->broadcastCalls)->toBe(1);
 });

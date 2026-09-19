@@ -19,6 +19,7 @@ class TreasuryWallet extends Model
         'native_balance',
         'energy',
         'bandwidth',
+        'rental_balance',
         'refreshed_at',
     ];
 
@@ -29,6 +30,7 @@ class TreasuryWallet extends Model
             'native_balance' => 'decimal:8',
             'energy' => 'integer',
             'bandwidth' => 'integer',
+            'rental_balance' => 'decimal:8',
             'refreshed_at' => 'datetime',
         ];
     }

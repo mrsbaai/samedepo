@@ -190,6 +190,28 @@
                                             <flux:input size="sm" type="number" label="Alert cooldown (minutes)" wire:model="policies.{{ $network }}.alert_cooldown" />
                                             <div class="flex items-end"><flux:button class="w-full" size="sm" variant="primary" wire:click="savePolicy('{{ $network }}')">Save policy</flux:button></div>
                                         </div>
+                                        @if ($network === 'usdt_trc20')
+                                            <flux:separator class="my-4" />
+                                            <flux:subheading>Energy rental (TronSave)</flux:subheading>
+                                            <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                                <flux:select size="sm" label="Energy mode" wire:model="policies.usdt_trc20.energy_mode">
+                                                    <flux:select.option value="burn">Burn TRX</flux:select.option>
+                                                    <flux:select.option value="rent">Rent energy</flux:select.option>
+                                                </flux:select>
+                                                <flux:input size="sm" type="number" label="Max unit price (sun)" wire:model="policies.usdt_trc20.rent_max_price_sun" />
+                                                <flux:input size="sm" type="number" label="Rent duration (sec)" wire:model="policies.usdt_trc20.rent_duration_sec" />
+                                                <flux:input size="sm" type="number" label="Float alert (TRX)" wire:model="policies.usdt_trc20.rent_float_alert_trx" />
+                                            </div>
+                                            @if ($this->energyFloat)
+                                                <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                                                    <flux:text size="sm">TronSave float: <span class="font-mono font-medium">{{ $this->energyFloat['balance_trx'] }} TRX</span></flux:text>
+                                                    @if ($this->energyFloat['deposit_address'])
+                                                        <flux:text size="sm" class="font-mono">{{ $this->energyFloat['deposit_address'] }}</flux:text>
+                                                        <flux:button size="xs" variant="ghost" icon="clipboard-document" x-on:click="navigator.clipboard.writeText('{{ $this->energyFloat['deposit_address'] }}')">Copy</flux:button>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        @endif
                                     </flux:card>
                                 @endforeach
                             </div>

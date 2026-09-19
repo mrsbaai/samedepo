@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace App\Services\Blockchain;
 
 use App\Models\DepositAddress;
+use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\GasPolicy;
 use App\Models\GasTopup;
+use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\User;
 use App\Models\Withdrawal;
+use App\Notifications\EnergyFloatLow;
 use App\Notifications\LowGasAlert;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
+use App\Services\Blockchain\Energy\TronSaveClient;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +28,12 @@ class GasTreasuryService
 {
     private const TOPUP_STALE_MINUTES = 30;
 
-    public function __construct(private readonly BlockchainBroadcaster $broadcaster) {}
+    private TronSaveClient $tronSave;
+
+    public function __construct(private readonly BlockchainBroadcaster $broadcaster, ?TronSaveClient $tronSave = null)
+    {
+        $this->tronSave = $tronSave ?? new TronSaveClient;
+    }
 
     public function policy(string $network): GasPolicy
     {
@@ -33,7 +43,7 @@ class GasTreasuryService
         );
     }
 
-    public function ensureGasForSweep(string $network, int $recipientIndex, string $recipientAddress): bool
+    public function ensureGasForSweep(string $network, int $recipientIndex, string $recipientAddress, ?TreasurySweep $sweep = null): bool
     {
         $policy = $this->policy($network);
 
@@ -61,6 +71,26 @@ class GasTreasuryService
 
         if (bccomp($recipientBalance, $tokenFee, 8) >= 0) {
             return true;
+        }
+
+        if ($network === 'usdt_trc20' && $policy->energy_mode === 'rent') {
+            $rented = $this->ensureEnergyViaRental(
+                $network,
+                $recipientIndex,
+                $recipientAddress,
+                'sweep',
+                $sweep,
+                $this->estimateNeededEnergy($tokenFee),
+            );
+
+            if ($rented === true) {
+                return true;
+            }
+
+            if ($rented === false) {
+                return false; // order in flight — the sweep retries next tick
+            }
+            // null → fall through to the existing burn/top-up path unchanged
         }
 
         $inFlight = GasTopup::query()
@@ -104,57 +134,10 @@ class GasTreasuryService
             return false;
         }
 
-        [$topup, $created] = $this->findOrCreateOpenTopup($network, $recipientAddress, $recipientIndex, (int) $wallet->id, $topupAmount);
-
-        if ($topup === null) {
-            return false;
-        }
-
-        if (! $created) {
-            return $this->pollSingleTopup($topup);
-        }
-
-        $txHash = $this->broadcaster->broadcastTopUp(
-            $network,
-            (int) $wallet->derivation_index,
-            $recipientIndex,
-            $topupAmount,
-            $topupFee,
-        );
-
-        if ($txHash === null) {
-            $this->markTopupFailed($topup, 'Broadcast failed');
-
-            return false;
-        }
-
-        $topup->update([
-            'tx_hash' => $txHash,
-            'broadcasted_at' => now(),
-        ]);
-
-        $receipt = $this->broadcaster->getTransactionReceipt($network, $txHash);
-
-        if ($receipt === null) {
-            return false;
-        }
-
-        if ($receipt['status'] === 'failed') {
-            $this->markTopupFailed($topup, 'Receipt failed');
-
-            return false;
-        }
-
-        if ($this->isConfirmed($receipt, $network)) {
-            $this->confirmTopup($topup, $receipt);
-
-            return true;
-        }
-
-        return false;
+        return $this->sendTopup($network, $wallet, $recipientAddress, $recipientIndex, $topupAmount, $topupFee);
     }
 
-    public function ensureGasForWithdrawal(Withdrawal $withdrawal): bool
+    public function ensureGasForWithdrawal(Withdrawal $withdrawal, ?string $estimatedFeeNative = null): bool
     {
         $policy = $this->policy($withdrawal->network);
 
@@ -179,6 +162,27 @@ class GasTreasuryService
             'refreshed_at' => now(),
         ]);
 
+        if ($withdrawal->network === 'usdt_trc20' && $policy->energy_mode === 'rent') {
+            $burnFee = $estimatedFeeNative ?? $this->estimateTransferFee($withdrawal->network, true, $withdrawal->destination_address);
+            $rented = $burnFee === null ? null : $this->ensureEnergyViaRental(
+                $withdrawal->network,
+                (int) $wallet->derivation_index,
+                (string) $wallet->address,
+                'withdrawal',
+                $withdrawal,
+                $this->estimateNeededEnergy($burnFee),
+            );
+
+            if ($rented === true) {
+                return true;
+            }
+
+            if ($rented === false) {
+                return false; // rental ordered — send() blocks with energy_rental_pending
+            }
+            // null → burn fallback: continue to the reserve check below
+        }
+
         if (bccomp($balance, (string) $policy->reserve_threshold, 8) >= 0) {
             return true;
         }
@@ -201,6 +205,248 @@ class GasTreasuryService
                     $this->pollSingleTopup($topup);
                 }
             });
+    }
+
+    /**
+     * Energy the sweep/withdrawal needs, derived from the burn fee estimate.
+     * The signer /fee returns TRX, not raw energy, so we invert the formula:
+     * energy = (feeSun − bandwidth) / energyPrice.
+     */
+    public function estimateNeededEnergy(string $tokenFeeNative): int
+    {
+        $priceSun = (int) config('blockchain.tron_energy_price_sun', 100);
+        $feeSun = (int) bcmul($tokenFeeNative, '1000000', 0);
+        $energySun = max(0, $feeSun - 345000); // strip the bandwidth part
+        $energy = $priceSun > 0 ? intdiv($energySun * 11 + ($priceSun * 10) - 1, $priceSun * 10) : 0;
+
+        return max(65000, $energy);
+    }
+
+    /**
+     * true = provisioned, false = wait (order in flight / bandwidth top-up pending),
+     * null = fall back to burn.
+     */
+    public function ensureEnergyViaRental(
+        string $network,
+        int $receiverIndex,
+        string $receiverAddress,
+        string $purpose,
+        ?Model $purposable,
+        int $neededEnergy,
+    ): ?bool {
+        $policy = $this->policy($network);
+        $wallet = TreasuryWallet::query()->where('network', $network)->first();
+
+        if ($policy->energy_mode !== 'rent' || $wallet === null) {
+            return null;
+        }
+
+        // (1) Already provisioned? Rented energy shows up in the account resource.
+        $resource = $this->broadcaster->getTronResource($receiverIndex);
+
+        if ($resource !== null) {
+            $availableEnergy = (int) ($resource['energy_limit'] ?? 0) - (int) ($resource['energy_used'] ?? 0);
+            $availableBandwidth = ((int) ($resource['bandwidth_limit'] ?? 0) - (int) ($resource['bandwidth_used'] ?? 0))
+                + ((int) ($resource['free_bandwidth_limit'] ?? 0) - (int) ($resource['free_bandwidth_used'] ?? 0));
+
+            if ($availableEnergy >= $neededEnergy && $availableBandwidth >= 345) {
+                return true;
+            }
+
+            // (5) Energy fine, bandwidth short — a small top-up covers it; never more.
+            if ($availableEnergy >= $neededEnergy) {
+                // The treasury receiver (withdrawals/payouts) pays the ~0.345 TRX
+                // bandwidth burn from its own balance — never top itself up.
+                if ($receiverIndex === (int) $wallet->derivation_index) {
+                    return true;
+                }
+
+                $this->sendTopup($network, $wallet, $receiverAddress, $receiverIndex, '0.40000000', '0.30000000');
+
+                return false;
+            }
+        }
+
+        // (2) An order is already in flight for this address.
+        $ordered = EnergyRental::query()
+            ->where('network', $network)
+            ->where('receiver_address', $receiverAddress)
+            ->where('status', 'ordered')
+            ->where('expires_at', '>', now())
+            ->exists();
+
+        if ($ordered) {
+            return false;
+        }
+
+        // A previously unfilled order for this same job — do not re-order; burn.
+        // Scoped to a specific purposable: without one, a failed order would
+        // block renting for that address forever.
+        $failedForJob = $purposable !== null && EnergyRental::query()
+            ->where('network', $network)
+            ->where('receiver_address', $receiverAddress)
+            ->where('status', 'failed')
+            ->where('purposable_type', $purposable->getMorphClass())
+            ->where('purposable_id', $purposable->getKey())
+            ->exists();
+
+        if ($failedForJob) {
+            Log::warning('energy.rent_fallback', [
+                'network' => $network,
+                'receiver' => $receiverAddress,
+                'purpose' => $purpose,
+                'reason' => 'previous_order_unfilled',
+            ]);
+
+            return null;
+        }
+
+        // (3) Price / market guards. estimateTrx is in SUN despite the name.
+        $estimate = $this->tronSave->estimate($receiverAddress, $neededEnergy, (int) $policy->rent_duration_sec);
+        $burnCostSun = $neededEnergy * (int) config('blockchain.tron_energy_price_sun', 100);
+
+        $fallback = match (true) {
+            $estimate === null => 'estimate_unavailable',
+            (int) ($estimate['availableResource'] ?? 0) < $neededEnergy => 'market_short',
+            (int) ($estimate['unitPrice'] ?? PHP_INT_MAX) > (int) $policy->rent_max_price_sun => 'price_cap',
+            (int) ($estimate['estimateTrx'] ?? PHP_INT_MAX) >= $burnCostSun => 'not_cheaper_than_burn',
+            default => null,
+        };
+
+        if ($fallback !== null) {
+            Log::warning('energy.rent_fallback', [
+                'network' => $network,
+                'receiver' => $receiverAddress,
+                'purpose' => $purpose,
+                'reason' => $fallback,
+                'unit_price_sun' => $estimate['unitPrice'] ?? null,
+            ]);
+
+            return null;
+        }
+
+        // (4) Place the order.
+        $orderId = $this->tronSave->buy($receiverAddress, $neededEnergy, (int) $policy->rent_duration_sec, (int) $policy->rent_max_price_sun);
+
+        if ($orderId === null) {
+            Log::warning('energy.rent_fallback', [
+                'network' => $network,
+                'receiver' => $receiverAddress,
+                'purpose' => $purpose,
+                'reason' => 'buy_failed',
+            ]);
+
+            return null;
+        }
+
+        EnergyRental::create([
+            'network' => $network,
+            'receiver_address' => $receiverAddress,
+            'receiver_index' => $receiverIndex,
+            'purpose' => $purpose,
+            'purposable_type' => $purposable?->getMorphClass(),
+            'purposable_id' => $purposable?->getKey(),
+            'energy' => $neededEnergy,
+            'duration_sec' => (int) $policy->rent_duration_sec,
+            'order_id' => $orderId,
+            'status' => 'ordered',
+            'ordered_at' => now(),
+            'expires_at' => now()->addSeconds((int) $policy->rent_duration_sec),
+        ]);
+
+        return false; // delegation lands seconds-to-minutes later; pollRentals() confirms it
+    }
+
+    public function hasPendingRental(Model $purposable): bool
+    {
+        return EnergyRental::query()
+            ->where('purposable_type', $purposable->getMorphClass())
+            ->where('purposable_id', $purposable->getKey())
+            ->where('status', 'ordered')
+            ->where('expires_at', '>', now())
+            ->exists();
+    }
+
+    /**
+     * The rental fee estimate for a withdrawal/payout, or null when renting is
+     * off / unavailable — callers then keep the burn estimate.
+     */
+    public function rentalFeeEstimateNative(string $network, int $neededEnergy): ?string
+    {
+        if ($network !== 'usdt_trc20' || $this->policy($network)->energy_mode !== 'rent') {
+            return null;
+        }
+
+        $wallet = TreasuryWallet::query()->where('network', $network)->first();
+
+        if ($wallet === null) {
+            return null;
+        }
+
+        $estimate = $this->tronSave->estimate((string) $wallet->address, $neededEnergy, (int) $this->policy($network)->rent_duration_sec);
+
+        // estimateTrx is SUN → TRX
+        return isset($estimate['estimateTrx']) ? bcdiv((string) $estimate['estimateTrx'], '1000000', 8) : null;
+    }
+
+    public function pollRentals(): void
+    {
+        EnergyRental::query()->where('status', 'ordered')->chunkById(100, function ($rentals): void {
+            foreach ($rentals as $rental) {
+                $order = $this->tronSave->order((string) $rental->order_id);
+
+                if ($order === null) {
+                    continue; // transient failure — retry next tick
+                }
+
+                $fulfilled = (int) ($order['fulfilledPercent'] ?? 0);
+
+                if ($fulfilled >= 100) {
+                    $costNative = isset($order['payoutAmount'])
+                        ? bcdiv((string) $order['payoutAmount'], '1000000', 8)
+                        : null;
+
+                    $rental->update([
+                        'status' => 'filled',
+                        'cost_native' => $costNative,
+                        'unit_price_sun' => isset($order['price']) ? (int) $order['price'] : null,
+                        'filled_at' => now(),
+                    ]);
+
+                    // Withdrawals: expensable = the rental itself, NOT the withdrawal.
+                    // WithdrawalProcessor::reconcile() skips any withdrawal that already has a
+                    // GasExpense (whereNotExists), so pointing this row at the withdrawal would
+                    // silently disable the fee-variance refund. Sweeps/payouts keep their purposable.
+                    $isWithdrawal = $rental->purposable_type === (new Withdrawal)->getMorphClass();
+
+                    GasExpense::firstOrCreate(
+                        ['energy_rental_id' => $rental->id],
+                        [
+                            'network' => $rental->network,
+                            'tx_hash' => $order['delegates'][0]['txid'] ?? null,
+                            'amount' => $costNative ?? '0.00000000',
+                            'expensable_type' => $isWithdrawal ? $rental->getMorphClass() : $rental->purposable_type,
+                            'expensable_id' => $isWithdrawal ? $rental->id : $rental->purposable_id,
+                        ],
+                    );
+
+                    continue;
+                }
+
+                if ($rental->ordered_at !== null && $rental->ordered_at->lte(now()->subMinutes(10))) {
+                    $rental->update([
+                        'status' => 'failed',
+                        'error_message' => 'Order unfilled after 10 minutes',
+                    ]);
+                }
+            }
+        });
+
+        // Rental period lapsed — row is done, nothing more to poll.
+        EnergyRental::query()
+            ->where('status', 'filled')
+            ->where('expires_at', '<=', now())
+            ->update(['status' => 'expired']);
     }
 
     public function recoverStrandedGas(): void
@@ -313,6 +559,10 @@ class GasTreasuryService
             'refreshed_at' => now(),
         ];
 
+        $policy = in_array($wallet->network, ['usdt_erc20', 'usdt_trc20'], true)
+            ? $this->policy($wallet->network)
+            : null;
+
         if ($wallet->network === 'usdt_trc20') {
             $resource = $this->broadcaster->getTronResource((int) $wallet->derivation_index);
 
@@ -320,12 +570,25 @@ class GasTreasuryService
                 $update['energy'] = $resource['energy_limit'] ?? null;
                 $update['bandwidth'] = $resource['bandwidth_limit'] ?? null;
             }
+
+            // Rent mode only — burn mode never touches TronSave, so no key is needed.
+            if ($policy?->energy_mode === 'rent') {
+                $info = $this->tronSave->userInfo();
+
+                if ($info !== null) {
+                    $update['rental_balance'] = bcdiv((string) ($info['balance'] ?? '0'), '1000000', 8);
+                }
+            }
         }
 
         $wallet->update($update);
 
-        if (in_array($wallet->network, ['usdt_erc20', 'usdt_trc20'], true)) {
-            $this->alertIfNeeded($this->policy($wallet->network), $balance);
+        if ($policy !== null) {
+            $this->alertIfNeeded($policy, $balance);
+
+            if ($wallet->network === 'usdt_trc20' && $policy->energy_mode === 'rent') {
+                $this->alertFloatIfNeeded($policy, $wallet->fresh()->rental_balance);
+            }
         }
 
         return $update;
@@ -404,6 +667,58 @@ class GasTreasuryService
         $wallet->update($update);
 
         return $balance;
+    }
+
+    private function sendTopup(string $network, TreasuryWallet $wallet, string $recipientAddress, int $recipientIndex, string $amount, string $fee): bool
+    {
+        [$topup, $created] = $this->findOrCreateOpenTopup($network, $recipientAddress, $recipientIndex, (int) $wallet->id, $amount);
+
+        if ($topup === null) {
+            return false;
+        }
+
+        if (! $created) {
+            return $this->pollSingleTopup($topup);
+        }
+
+        $txHash = $this->broadcaster->broadcastTopUp(
+            $network,
+            (int) $wallet->derivation_index,
+            $recipientIndex,
+            $amount,
+            $fee,
+        );
+
+        if ($txHash === null) {
+            $this->markTopupFailed($topup, 'Broadcast failed');
+
+            return false;
+        }
+
+        $topup->update([
+            'tx_hash' => $txHash,
+            'broadcasted_at' => now(),
+        ]);
+
+        $receipt = $this->broadcaster->getTransactionReceipt($network, $txHash);
+
+        if ($receipt === null) {
+            return false;
+        }
+
+        if ($receipt['status'] === 'failed') {
+            $this->markTopupFailed($topup, 'Receipt failed');
+
+            return false;
+        }
+
+        if ($this->isConfirmed($receipt, $network)) {
+            $this->confirmTopup($topup, $receipt);
+
+            return true;
+        }
+
+        return false;
     }
 
     private function findOrCreateOpenTopup(string $network, string $recipientAddress, int $recipientIndex, int $walletId, string $amount, string $kind = 'topup'): array
@@ -561,6 +876,43 @@ class GasTreasuryService
         return true;
     }
 
+    // Shares last_alert_at with alertIfNeeded — one alert per cooldown across gas+float.
+    private function alertFloatIfNeeded(GasPolicy $policy, ?string $rentalBalance): bool
+    {
+        if ($rentalBalance === null || bccomp($rentalBalance, (string) $policy->rent_float_alert_trx, 8) >= 0) {
+            return false;
+        }
+
+        if ($policy->last_alert_at !== null && $policy->last_alert_at->diffInMinutes(now()) < $policy->alert_cooldown) {
+            return false;
+        }
+
+        $administrators = User::query()
+            ->where('role', 'admin')
+            ->where('is_admin', true)
+            ->where('is_active', true)
+            ->get();
+
+        if ($administrators->isEmpty()) {
+            return false;
+        }
+
+        Log::warning('energy.float_low', [
+            'network' => $policy->network,
+            'rental_balance' => $rentalBalance,
+            'threshold' => (string) $policy->rent_float_alert_trx,
+        ]);
+
+        Notification::send($administrators, new EnergyFloatLow(
+            $policy->network,
+            $rentalBalance,
+            (string) $policy->rent_float_alert_trx,
+        ));
+        $policy->update(['last_alert_at' => now()]);
+
+        return true;
+    }
+
     private function defaultPolicy(string $network): array
     {
         $amounts = match ($network) {
@@ -575,6 +927,10 @@ class GasTreasuryService
             'max_top_up' => $amounts[2],
             'manual_paused' => false,
             'alert_cooldown' => 60,
+            'energy_mode' => 'burn',
+            'rent_max_price_sun' => 90,
+            'rent_duration_sec' => 3600,
+            'rent_float_alert_trx' => '20.00000000',
         ];
     }
 }

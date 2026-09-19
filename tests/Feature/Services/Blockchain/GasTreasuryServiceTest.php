@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\GasPolicy;
 use App\Models\GasTopup;
@@ -11,10 +12,13 @@ use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\User;
 use App\Models\Withdrawal;
+use App\Notifications\EnergyFloatLow;
 use App\Notifications\LowGasAlert;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
 use App\Services\Blockchain\GasTreasuryService;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class GasTreasuryBroadcasterFake implements BlockchainBroadcaster, EstimatesTransferFee
@@ -44,6 +48,8 @@ class GasTreasuryBroadcasterFake implements BlockchainBroadcaster, EstimatesTran
     public ?string $receiptFee = '0.00010000';
 
     public ?int $receiptConfirmations = 12;
+
+    public ?array $tronResource = null;
 
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
@@ -76,11 +82,13 @@ class GasTreasuryBroadcasterFake implements BlockchainBroadcaster, EstimatesTran
 
     public function getTronResource(int $index): ?array
     {
-        return [
+        return $this->tronResource ?? [
             'energy_limit' => 100000,
             'energy_used' => 0,
             'bandwidth_limit' => 100000,
             'bandwidth_used' => 0,
+            'free_bandwidth_limit' => 600,
+            'free_bandwidth_used' => 0,
         ];
     }
 
@@ -792,4 +800,91 @@ test('it provisions a sweep top-up while a recovery is in flight', function () {
 
     expect($service->ensureGasForSweep('usdt_trc20', 5, 'TRecipient'))->toBeTrue();
     expect(GasTopup::query()->where('kind', 'topup')->where('recipient_address', 'TRecipient')->count())->toBe(1);
+});
+
+test('refreshTreasuryWallet stores the tronsave float in rent mode', function () {
+    $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'energy_mode' => 'rent',
+    ]);
+    Http::fake([
+        'https://api.tronsave.io/v2/user-info' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => '50000000', 'depositAddress' => 'TDep']]),
+    ]);
+
+    [$service] = gasTreasury(['balance' => '50.00000000']);
+    $service->refreshTreasuryWallet($wallet);
+
+    expect($wallet->refresh()->rental_balance)->toBe('50.00000000');
+});
+
+test('a low float sends the energy.float_low alert once per cooldown', function () {
+    Notification::fake();
+    Log::spy();
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true, 'is_active' => true]);
+    $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'energy_mode' => 'rent',
+        'rent_float_alert_trx' => '20.00000000',
+        'alert_cooldown' => 60,
+        'last_alert_at' => null,
+    ]);
+    Http::fake([
+        'https://api.tronsave.io/v2/user-info' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => '5000000', 'depositAddress' => 'TDep']]),
+    ]);
+
+    [$service] = gasTreasury(['balance' => '50.00000000']);
+    $service->refreshTreasuryWallet($wallet);
+
+    Notification::assertSentTo($admin, EnergyFloatLow::class);
+    Log::shouldHaveReceived('warning')
+        ->with('energy.float_low', Mockery::on(fn ($context) => $context['network'] === 'usdt_trc20'));
+
+    $service->refreshTreasuryWallet($wallet);
+
+    Notification::assertSentTimes(EnergyFloatLow::class, 1);
+});
+
+test('a bandwidth shortfall on the treasury receiver needs no top-up', function () {
+    // Withdrawals/payouts pay the ~0.345 TRX bandwidth burn from the treasury's
+    // own balance — the treasury never sends TRX to itself.
+    TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'energy_mode' => 'rent',
+    ]);
+    [$service, $broadcaster] = gasTreasury(['treasuryBalance' => '30.00000000']);
+    $broadcaster->tronResource = [
+        'bandwidth_used' => 0, 'bandwidth_limit' => 0,
+        'free_bandwidth_used' => 600, 'free_bandwidth_limit' => 600,
+        'energy_used' => 0, 'energy_limit' => 80000,
+    ];
+    Http::fake();
+
+    $withdrawal = Withdrawal::factory()->make(['network' => 'usdt_trc20', 'destination_address' => 'TDest']);
+
+    expect($service->ensureGasForWithdrawal($withdrawal, '5.00000000'))->toBeTrue()
+        ->and(GasTopup::count())->toBe(0)
+        ->and($broadcaster->topupCalls)->toHaveCount(0)
+        ->and(EnergyRental::count())->toBe(0);
+});
+
+test('burn mode never calls tronsave', function () {
+    Http::fake();
+    $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'energy_mode' => 'burn',
+    ]);
+
+    [$service] = gasTreasury(['balance' => '50.00000000']);
+    $service->refreshTreasuryWallet($wallet);
+
+    expect($wallet->refresh()->rental_balance)->toBeNull();
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.tronsave.io'));
 });

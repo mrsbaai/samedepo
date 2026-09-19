@@ -16,11 +16,14 @@ use Illuminate\Support\Facades\DB;
 
 class TreasuryPayoutService
 {
+    private ?GasTreasuryService $gasTreasury = null;
+
     public function __construct(
         private readonly BlockchainBroadcaster $broadcaster,
         private ?TreasuryProfitCalculator $profit = null,
     ) {
         $this->profit ??= new TreasuryProfitCalculator;
+        $this->gasTreasury ??= new GasTreasuryService($this->broadcaster);
     }
 
     public function preview(string $network, string $amount, ?string $destination = null): array
@@ -30,6 +33,7 @@ class TreasuryPayoutService
         $withdrawable = $this->profit->forNetwork($network)['withdrawable'];
         $result = [
             'fee_native' => null,
+            'burn_fee_native' => null,
             'fee_usd' => null,
             'amount_usd' => null,
             'fee_percent' => null,
@@ -57,6 +61,17 @@ class TreasuryPayoutService
 
         if ($result['fee_native'] === null) {
             return $this->blocked($result, 'Fee estimate unavailable');
+        }
+
+        // Under rent mode the honest estimate is the rental price, not the burn cost.
+        $rentalFee = $this->gasTreasury->rentalFeeEstimateNative(
+            $network,
+            $this->gasTreasury->estimateNeededEnergy((string) $result['fee_native']),
+        );
+
+        if ($rentalFee !== null) {
+            $result['burn_fee_native'] = $result['fee_native'];
+            $result['fee_native'] = $rentalFee;
         }
 
         if ($network === 'bitcoin' && bccomp(bcadd($amount, $result['fee_native'], 8), $withdrawable, 8) > 0) {
@@ -131,6 +146,25 @@ class TreasuryPayoutService
             $payout->update(['status' => 'failed', 'error_message' => 'Amount exceeds available funds']);
 
             return false;
+        }
+
+        if ($payout->network === 'usdt_trc20' && $this->gasTreasury->policy('usdt_trc20')->energy_mode === 'rent') {
+            $burnFeeNative = (string) ($preview['burn_fee_native'] ?? $preview['fee_native']);
+            $rented = $this->gasTreasury->ensureEnergyViaRental(
+                $payout->network,
+                (int) $wallet->derivation_index,
+                (string) $wallet->address,
+                'payout',
+                $payout,
+                $this->gasTreasury->estimateNeededEnergy($burnFeeNative),
+            );
+
+            if ($rented === false) {
+                $payout->update(['error_message' => 'Renting network energy — retry in a minute.']);
+
+                return false; // payout stays 'pending'; the admin clicks send again once the order fills
+            }
+            // null → burn path (preview's reserve check already guarded it)
         }
 
         $estimatedFeeNative = $preview['fee_native'];

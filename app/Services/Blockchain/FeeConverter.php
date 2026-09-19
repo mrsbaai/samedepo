@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain;
 
+use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\GasTopup;
 use App\Models\PlatformSettings;
@@ -63,7 +64,11 @@ class FeeConverter
             ->selectRaw('COALESCE(SUM(gas_topups.amount + COALESCE(gas_expenses.amount, 0)), 0) as total')
             ->value('total');
 
-        return bcadd((string) $sum, '0', 8);
+        $rentalSum = $this->attributableRentalQuery($userId, $network)
+            ->when($unrecoveredOnly, fn (Builder $query) => $query->whereNull('energy_rentals.fee_recovered_at'))
+            ->sum('energy_rentals.cost_native');
+
+        return bcadd((string) $sum, (string) $rentalSum, 8);
     }
 
     public function unrecoveredSweepGasNative(int $userId, string $network): string
@@ -86,6 +91,35 @@ class FeeConverter
             })
             ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
             ->where('customers.user_id', $userId);
+    }
+
+    /**
+     * @return Builder<EnergyRental>
+     */
+    public function attributableRentalQuery(int $userId, string $network): Builder
+    {
+        return EnergyRental::query()
+            // filled or expired — expiry only means the rental period lapsed,
+            // the cost was still paid and remains billable.
+            ->whereIn('energy_rentals.status', ['filled', 'expired'])
+            ->where('energy_rentals.purposable_type', (new TreasurySweep)->getMorphClass())
+            ->join('treasury_sweeps', 'treasury_sweeps.id', '=', 'energy_rentals.purposable_id')
+            ->where('treasury_sweeps.network', $network)
+            ->where('treasury_sweeps.status', 'confirmed')
+            ->where(function ($query) use ($userId): void {
+                $query->whereExists(function ($sub) use ($userId): void {
+                    $sub->selectRaw('1')
+                        ->from('deposits')
+                        ->whereColumn('deposits.id', 'treasury_sweeps.deposit_id')
+                        ->where('deposits.user_id', $userId);
+                })->orWhereExists(function ($sub) use ($userId): void {
+                    $sub->selectRaw('1')
+                        ->from('deposit_addresses')
+                        ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
+                        ->whereColumn('deposit_addresses.id', 'treasury_sweeps.deposit_address_id')
+                        ->where('customers.user_id', $userId);
+                });
+            });
     }
 
     /**

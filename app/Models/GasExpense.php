@@ -15,6 +15,7 @@ class GasExpense extends Model
 
     protected $fillable = [
         'gas_topup_id',
+        'energy_rental_id',
         'network',
         'tx_hash',
         'amount',
@@ -32,6 +33,11 @@ class GasExpense extends Model
     public function gasTopup(): BelongsTo
     {
         return $this->belongsTo(GasTopup::class);
+    }
+
+    public function energyRental(): BelongsTo
+    {
+        return $this->belongsTo(EnergyRental::class);
     }
 
     public function expensable(): MorphTo

@@ -6,7 +6,9 @@ use App\Models\Balance;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
+use App\Models\EnergyRental;
 use App\Models\GasExpense;
+use App\Models\GasPolicy;
 use App\Models\GasTopup;
 use App\Models\LedgerEntry;
 use App\Models\TreasuryPayout;
@@ -17,6 +19,7 @@ use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
+use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\TreasurySweepService;
 use App\Services\Blockchain\WithdrawalProcessor;
 use Illuminate\Support\Facades\Http;
@@ -32,6 +35,8 @@ class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
     public ?string $topupHash = 'topup-tx-123';
 
     public string $receiptFee = '0.00010000';
+
+    public ?array $tronResource = null;
 
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
@@ -60,11 +65,13 @@ class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
 
     public function getTronResource(int $index): ?array
     {
-        return [
+        return $this->tronResource ?? [
             'energy_limit' => 100000,
             'energy_used' => 0,
             'bandwidth_limit' => 100000,
             'bandwidth_used' => 0,
+            'free_bandwidth_limit' => 600,
+            'free_bandwidth_used' => 0,
         ];
     }
 
@@ -231,6 +238,37 @@ test('consolidation cost is billed to the owner balance when the sweep confirms,
         ->and($withdrawal->amount_sent)->toBe('98.02000000');
 });
 
+test('an expired rental on a confirmed sweep is still billed to the owner', function () {
+    // pollRentals flips filled rentals to expired after expires_at — the cost
+    // was paid either way and must remain billable.
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    [, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '0.00000000');
+    $rental = EnergyRental::create([
+        'network' => 'usdt_trc20',
+        'receiver_address' => 'TDeposit',
+        'receiver_index' => 1,
+        'purpose' => 'sweep',
+        'purposable_type' => $sweep->getMorphClass(),
+        'purposable_id' => $sweep->id,
+        'energy' => 80000,
+        'duration_sec' => 3600,
+        'cost_native' => '4.16000000',
+        'status' => 'expired',
+        'ordered_at' => now()->subHours(2),
+        'filled_at' => now()->subHours(2),
+        'expires_at' => now()->subHour(),
+    ]);
+
+    (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();
+
+    // 4.16 TRX * 0.33 / 1.00 = 1.3728 USDT
+    expect($sweep->refresh()->fee_recovered_at)->not->toBeNull()
+        ->and($rental->refresh()->fee_recovered_at)->not->toBeNull()
+        ->and((string) LedgerEntry::where('user_id', $owner->id)->where('reason', 'consolidation_fee')->value('amount'))
+        ->toBe('-1.37280000');
+});
+
 test('consolidation billing waits when the valuation is missing', function () {
     UsdValuation::updateOrCreate(['network' => 'usdt_trc20'], ['conversion_value' => '1.00']);
     [, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
@@ -362,4 +400,194 @@ test('estimateTransferFee posts destination and source_index', function () {
     Http::assertSent(fn ($request) => ! array_key_exists('destination', $request->data())
         && ! array_key_exists('source_index', $request->data())
         && $request->data()['token_transfer'] === true);
+});
+
+function tronSaveWithdrawalFakes(array $overrides = []): array
+{
+    $map = [
+        'https://api.tronsave.io/v2/user-info' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => '50000000', 'depositAddress' => 'TDep']]),
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 100000]]),
+        'https://api.tronsave.io/v2/buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['orderId' => 'order-123']]),
+        'https://api.tronsave.io/v2/order/*' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'order-123', 'fulfilledPercent' => 100, 'payoutAmount' => 4160000, 'price' => 64, 'delegates' => [['delegator' => 'TDel', 'amount' => 70714, 'txid' => 'abc123']]]]),
+    ];
+
+    return array_merge($map, $overrides);
+}
+
+function rentPolicy(): void
+{
+    GasPolicy::factory()->create([
+        'network' => 'usdt_trc20',
+        'reserve_threshold' => '10.00000000',
+        'energy_mode' => 'rent',
+        'rent_max_price_sun' => 90,
+        'rent_duration_sec' => 3600,
+    ]);
+}
+
+function noEnergy(): array
+{
+    return [
+        'energy_limit' => 0,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 600,
+        'free_bandwidth_used' => 0,
+    ];
+}
+
+test('the withdrawal fee uses the rental price in rent mode', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    rentPolicy();
+    Http::fake(tronSaveWithdrawalFakes());
+    [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $broadcaster->tronResource = [
+        'energy_limit' => 80000,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 600,
+        'free_bandwidth_used' => 0,
+    ];
+
+    $processor->process();
+
+    // 4.16 TRX rental estimate * 1.2 buffer = 4.992 TRX.
+    expect($withdrawal->fresh()->network_fee_native)->toBe('4.99200000')
+        ->and($withdrawal->fresh()->status)->toBe('sent');
+});
+
+test('a waiting rental blocks the withdrawal as energy_rental_pending', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    rentPolicy();
+    Http::fake(tronSaveWithdrawalFakes());
+    [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000', ['mode' => 'approval', 'status' => 'approved']);
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $broadcaster->tronResource = noEnergy();
+
+    $processor->process();
+
+    $withdrawal->refresh();
+    expect($withdrawal->status)->toBe('approved')
+        ->and($withdrawal->last_error)->toBe('energy_rental_pending')
+        ->and($withdrawal->lastErrorLabel())->toBe('Renting network energy…')
+        ->and($withdrawal->tx_hash)->toBeNull();
+
+    $rental = EnergyRental::sole();
+    expect($rental->purpose)->toBe('withdrawal')
+        ->and($rental->purposable_type)->toBe($withdrawal->getMorphClass())
+        ->and($rental->purposable_id)->toBe($withdrawal->id)
+        ->and($rental->status)->toBe('ordered');
+});
+
+test('the withdrawal sends once the order fills', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    rentPolicy();
+    Http::fake(tronSaveWithdrawalFakes());
+    [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000', ['mode' => 'approval', 'status' => 'approved']);
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $broadcaster->tronResource = noEnergy();
+
+    $processor->process();
+    expect($withdrawal->fresh()->tx_hash)->toBeNull();
+
+    // Order fills; the delegation lands on-chain, so the resource shows energy now.
+    (new GasTreasuryService($broadcaster))->pollRentals();
+    expect(EnergyRental::sole()->status)->toBe('filled');
+    $broadcaster->tronResource['energy_limit'] = 80000;
+
+    $processor->process();
+
+    $withdrawal->refresh();
+    expect($withdrawal->status)->toBe('sent')
+        ->and($withdrawal->tx_hash)->toBe('withdrawal-tx-123')
+        ->and($withdrawal->network_fee_native)->toBe('4.99200000');
+});
+
+test('reconciliation charges receipt fee plus rental cost and records the expense once', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    Balance::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => '10.00000000']);
+    $withdrawal->update([
+        'status' => 'sent',
+        'tx_hash' => 'wd-tx-1',
+        'sent_at' => now(),
+        'network_fee' => '2.28000000',
+        'network_fee_native' => '6.24000000', // held: 5.2 TRX estimate * 1.2
+    ]);
+
+    // The filled rental already carries its own expense row (expensable = EnergyRental).
+    $rental = EnergyRental::create([
+        'network' => 'usdt_trc20',
+        'receiver_address' => 'treasury-usdt_trc20',
+        'receiver_index' => 0,
+        'purpose' => 'withdrawal',
+        'purposable_type' => $withdrawal->getMorphClass(),
+        'purposable_id' => $withdrawal->id,
+        'energy' => 70714,
+        'duration_sec' => 3600,
+        'order_id' => 'order-123',
+        'unit_price_sun' => 64,
+        'cost_native' => '4.16000000',
+        'status' => 'filled',
+        'ordered_at' => now()->subHour(),
+        'filled_at' => now()->subMinutes(30),
+        'expires_at' => now()->addMinutes(30),
+    ]);
+    GasExpense::create([
+        'energy_rental_id' => $rental->id,
+        'network' => 'usdt_trc20',
+        'tx_hash' => 'abc123',
+        'amount' => '4.16000000',
+        'expensable_type' => $rental->getMorphClass(),
+        'expensable_id' => $rental->id,
+    ]);
+
+    [$processor, $broadcaster] = feeTestProcessor();
+    $broadcaster->receiptFee = '0.34500000';
+    $processor->reconcile();
+
+    // actual = 0.345 receipt + 4.16 rental = 4.505; held 6.24 -> refund 1.735 TRX = 0.57255 USDT.
+    expect(GasExpense::count())->toBe(2)
+        ->and((string) GasExpense::where('expensable_type', Withdrawal::class)->value('amount'))->toBe('0.34500000')
+        ->and((string) GasExpense::whereNotNull('energy_rental_id')->value('amount'))->toBe('4.16000000')
+        ->and((string) LedgerEntry::where('reason', 'network_fee_adjustment')->value('amount'))->toBe('0.57255000')
+        ->and((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('10.57255000');
+});
+
+test('reconciliation uses the rental cost not the receipt fee', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    $withdrawal->update([
+        'status' => 'sent',
+        'tx_hash' => 'wd-tx-2',
+        'sent_at' => now(),
+        'network_fee' => '1.98000000',
+        'network_fee_native' => '6.00000000',
+    ]);
+    EnergyRental::create([
+        'network' => 'usdt_trc20',
+        'receiver_address' => 'treasury-usdt_trc20',
+        'receiver_index' => 0,
+        'purpose' => 'withdrawal',
+        'purposable_type' => $withdrawal->getMorphClass(),
+        'purposable_id' => $withdrawal->id,
+        'energy' => 70714,
+        'duration_sec' => 3600,
+        'order_id' => 'order-123',
+        'cost_native' => '4.16000000',
+        'status' => 'filled',
+        'filled_at' => now(),
+        'expires_at' => now()->addHour(),
+    ]);
+
+    [$processor, $broadcaster] = feeTestProcessor();
+    $broadcaster->receiptFee = '0.00010000';
+    $processor->reconcile();
+
+    // 4.1601 actual vs 6.0 held -> refund 1.8399 TRX = 0.607167 USDT, not a 5.9999 refund.
+    expect((string) GasExpense::where('expensable_type', Withdrawal::class)->value('amount'))->toBe('0.00010000')
+        ->and((string) LedgerEntry::where('reason', 'network_fee_adjustment')->value('amount'))->toBe('0.60716700');
 });

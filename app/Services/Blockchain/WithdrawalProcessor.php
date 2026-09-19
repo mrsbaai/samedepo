@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Blockchain;
 
 use App\Models\Balance;
+use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\LedgerEntry;
 use App\Models\TreasuryWallet;
@@ -69,6 +70,16 @@ class WithdrawalProcessor
             return;
         }
 
+        $burnFeeNative = $estimatedFeeNative;
+        $rentalFee = $this->gasTreasury->rentalFeeEstimateNative(
+            $withdrawal->network,
+            $this->gasTreasury->estimateNeededEnergy($burnFeeNative),
+        );
+
+        if ($rentalFee !== null) {
+            $estimatedFeeNative = $rentalFee;
+        }
+
         $networkFeeNative = $this->feeConverter->bufferedNativeFee($estimatedFeeNative);
         $totalFee = $this->feeConverter->toNetworkUnits($withdrawal->network, $networkFeeNative);
 
@@ -89,8 +100,8 @@ class WithdrawalProcessor
         ]);
 
         $isToken = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true);
-        if ($isToken && ! $this->gasTreasury->ensureGasForWithdrawal($withdrawal)) {
-            $this->block($withdrawal, 'gas_unavailable');
+        if ($isToken && ! $this->gasTreasury->ensureGasForWithdrawal($withdrawal, $burnFeeNative)) {
+            $this->block($withdrawal, $this->gasTreasury->hasPendingRental($withdrawal) ? 'energy_rental_pending' : 'gas_unavailable');
 
             return;
         }
@@ -175,10 +186,20 @@ class WithdrawalProcessor
             return;
         }
 
-        $this->finalizeReconciliation($withdrawal, (string) $receipt['fee']);
+        $rental = EnergyRental::query()
+            ->where('purposable_type', (new Withdrawal)->getMorphClass())
+            ->where('purposable_id', $withdrawal->id)
+            // filled or expired — the cost was paid either way.
+            ->whereIn('status', ['filled', 'expired'])
+            ->first();
+
+        // Owner's real cost = what the receipt burned (≈ bandwidth, or the full
+        // energy when we fell back to burn) + the rental paid from the float.
+        $actualNative = bcadd((string) $receipt['fee'], $rental?->cost_native !== null ? (string) $rental->cost_native : '0', 8);
+        $this->finalizeReconciliation($withdrawal, $actualNative, (string) $receipt['fee']);
     }
 
-    private function finalizeReconciliation(Withdrawal $withdrawal, string $actualNative): void
+    private function finalizeReconciliation(Withdrawal $withdrawal, string $actualNative, ?string $expenseNative = null): void
     {
         $varianceNative = bcsub($actualNative, (string) $withdrawal->network_fee_native, 8);
         $variance = $this->feeConverter->toNetworkUnits($withdrawal->network, $varianceNative);
@@ -187,7 +208,7 @@ class WithdrawalProcessor
             GasExpense::create([
                 'network' => $withdrawal->network,
                 'tx_hash' => $withdrawal->tx_hash,
-                'amount' => $actualNative,
+                'amount' => $expenseNative ?? $actualNative,
                 'expensable_type' => Withdrawal::class,
                 'expensable_id' => $withdrawal->id,
             ]);

@@ -6,6 +6,7 @@ namespace App\Services\Blockchain;
 
 use App\Models\Balance;
 use App\Models\Deposit;
+use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\GasTopup;
 use App\Models\LedgerEntry;
@@ -172,6 +173,10 @@ class TreasurySweepService
             ->whereNull('gas_topups.fee_recovered_at')
             ->pluck('gas_topups.id');
         GasTopup::query()->whereIn('id', $topupIds)->update(['fee_recovered_at' => $now]);
+        $rentalIds = $this->feeConverter->attributableRentalQuery($userId, $network)
+            ->whereNull('energy_rentals.fee_recovered_at')
+            ->pluck('energy_rentals.id');
+        EnergyRental::query()->whereIn('id', $rentalIds)->update(['fee_recovered_at' => $now]);
     }
 
     private function shouldSweep(object $group, TreasuryWallet $wallet, PlatformSettings $settings, $valuations): bool
@@ -230,6 +235,7 @@ class TreasurySweepService
                 $sweep->network,
                 (int) $address->derivation_index,
                 $address->address,
+                $sweep,
             );
 
             if (! $ready) {

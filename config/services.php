@@ -43,4 +43,9 @@ return [
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],
+
+    'tronsave' => [
+        'base_url' => env('TRONSAVE_BASE_URL', 'https://api.tronsave.io'),
+        'api_key' => env('TRONSAVE_API_KEY'),
+    ],
 ];

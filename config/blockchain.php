@@ -25,6 +25,8 @@ return [
         'max_minutes' => 60,
     ],
 
+    'tron_energy_price_sun' => env('TRON_ENERGY_PRICE_SUN', 100),
+
     'gas_recovery' => [
         'min_native' => [
             'usdt_trc20' => env('GAS_RECOVERY_MIN_NATIVE_TRC20', '5'),

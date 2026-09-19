@@ -15,11 +15,13 @@ use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
+use App\Services\Blockchain\Energy\TronSaveClient;
 use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\TreasuryPayoutService;
 use App\Services\Blockchain\TreasuryProfitCalculator;
 use App\Support\ExplorerUrl;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -188,6 +190,25 @@ class TreasuryOverview extends Component
         return GasExpense::query()->latest()->limit(10)->get();
     }
 
+    #[Computed]
+    public function energyFloat(): ?array
+    {
+        if (($this->policies['usdt_trc20']['energy_mode'] ?? 'burn') !== 'rent') {
+            return null;
+        }
+
+        $info = Cache::remember('tronsave-user-info', 300, fn () => app(TronSaveClient::class)->userInfo());
+
+        if ($info === null) {
+            return null;
+        }
+
+        return [
+            'balance_trx' => bcdiv((string) ($info['balance'] ?? '0'), '1000000', 8),
+            'deposit_address' => $info['depositAddress'] ?? null,
+        ];
+    }
+
     public function networkMeta(string $networkKey): array
     {
         return self::NETWORKS[$networkKey] ?? ['label' => $networkKey, 'symbol' => '', 'native' => '', 'decimals' => 8, 'slug' => $networkKey];
@@ -226,12 +247,23 @@ class TreasuryOverview extends Component
     {
         abort_unless(in_array($network, $this->gasNetworks(), true), 404);
 
-        $data = $this->validate([
+        $rules = [
             "policies.$network.reserve_threshold" => ['required', 'numeric', 'min:0'],
             "policies.$network.top_up_amount" => ['required', 'numeric', 'gt:0'],
             "policies.$network.max_top_up" => ['required', 'numeric', 'gt:0'],
             "policies.$network.alert_cooldown" => ['required', 'integer', 'min:1', 'max:10080'],
-        ])['policies'][$network];
+        ];
+
+        if ($network === 'usdt_trc20') {
+            $rules += [
+                "policies.$network.energy_mode" => ['required', 'string', 'in:burn,rent'],
+                "policies.$network.rent_max_price_sun" => ['required', 'integer', 'min:1'],
+                "policies.$network.rent_duration_sec" => ['required', 'integer', 'min:300'],
+                "policies.$network.rent_float_alert_trx" => ['required', 'numeric', 'min:0'],
+            ];
+        }
+
+        $data = $this->validate($rules)['policies'][$network];
 
         if (bccomp((string) $data['top_up_amount'], (string) $data['max_top_up'], 8) > 0) {
             throw ValidationException::withMessages(["policies.$network.top_up_amount" => 'Top-up amount must not exceed the maximum top-up.']);
@@ -368,6 +400,10 @@ class TreasuryOverview extends Component
             'max_top_up' => (string) $policy->max_top_up,
             'alert_cooldown' => $policy->alert_cooldown,
             'manual_paused' => $policy->manual_paused,
+            'energy_mode' => $policy->energy_mode,
+            'rent_max_price_sun' => $policy->rent_max_price_sun,
+            'rent_duration_sec' => $policy->rent_duration_sec,
+            'rent_float_alert_trx' => (string) $policy->rent_float_alert_trx,
         ];
     }
 

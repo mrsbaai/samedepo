@@ -18,6 +18,7 @@ class Withdrawal extends Model
         'fee_conversion_failed' => 'Waiting for a USD valuation',
         'gas_unavailable' => 'Waiting for treasury gas',
         'insufficient_gas' => 'Waiting for treasury gas',
+        'energy_rental_pending' => 'Renting network energy…',
         'broadcast_failed' => 'Last send attempt failed; retrying',
     ];
 

@@ -23,6 +23,7 @@ class ProcessDeposits extends Command
 
         $scanner->scan();
         $creditor->credit();
+        $gasTreasury->pollRentals();
         $gasTreasury->pollTopups();
         $gasTreasury->recoverStrandedGas();
         $sweeper->sweep();
