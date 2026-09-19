@@ -408,7 +408,7 @@ function tronSaveWithdrawalFakes(array $overrides = []): array
         'https://api.tronsave.io/v2/user-info' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => '50000000', 'depositAddress' => 'TDep']]),
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 100000]]),
         'https://api.tronsave.io/v2/buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['orderId' => 'order-123']]),
-        'https://api.tronsave.io/v2/order/*' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'order-123', 'fulfilledPercent' => 100, 'payoutAmount' => 4160000, 'price' => 64, 'delegates' => [['delegator' => 'TDel', 'amount' => 70714, 'txid' => 'abc123']]]]),
+        'https://api.tronsave.io/v2/order/*' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'order-123', 'fulfilledPercent' => 100, 'payoutAmount' => 4160000, 'price' => 64, 'delegates' => [['delegator' => 'TDel', 'amount' => 77142, 'txid' => 'abc123']]]]),
     ];
 
     return array_merge($map, $overrides);
@@ -526,7 +526,7 @@ test('reconciliation charges receipt fee plus rental cost and records the expens
         'purpose' => 'withdrawal',
         'purposable_type' => $withdrawal->getMorphClass(),
         'purposable_id' => $withdrawal->id,
-        'energy' => 70714,
+        'energy' => 77142,
         'duration_sec' => 3600,
         'order_id' => 'order-123',
         'unit_price_sun' => 64,
@@ -574,7 +574,7 @@ test('reconciliation uses the rental cost not the receipt fee', function () {
         'purpose' => 'withdrawal',
         'purposable_type' => $withdrawal->getMorphClass(),
         'purposable_id' => $withdrawal->id,
-        'energy' => 70714,
+        'energy' => 77142,
         'duration_sec' => 3600,
         'order_id' => 'order-123',
         'cost_native' => '4.16000000',

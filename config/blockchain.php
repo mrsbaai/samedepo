@@ -27,6 +27,11 @@ return [
 
     'tron_energy_price_sun' => env('TRON_ENERGY_PRICE_SUN', 100),
 
+    // fee_limit on TRC20 token sends from the treasury. java-tron caps a tx's
+    // usable energy (including delegated) at fee_limit / energyPrice — this is
+    // a cap, not a cost, so it must cover the burn-equivalent energy.
+    'trc20_fee_limit_trx' => env('TRC20_FEE_LIMIT_TRX', '30'),
+
     'gas_recovery' => [
         'min_native' => [
             'usdt_trc20' => env('GAS_RECOVERY_MIN_NATIVE_TRC20', '5'),

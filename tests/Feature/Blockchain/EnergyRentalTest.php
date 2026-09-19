@@ -108,7 +108,7 @@ function tronSaveFakes(array $overrides = []): array
         'https://api.tronsave.io/v2/user-info' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => '50000000', 'representAddress' => 'TRep', 'depositAddress' => 'TDep']]),
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 100000]]),
         'https://api.tronsave.io/v2/buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['orderId' => 'order-123']]),
-        'https://api.tronsave.io/v2/order/*' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'order-123', 'fulfilledPercent' => 100, 'payoutAmount' => 4160000, 'price' => 64, 'delegates' => [['delegator' => 'TDel', 'amount' => 70714, 'txid' => 'abc123']]]]),
+        'https://api.tronsave.io/v2/order/*' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'order-123', 'fulfilledPercent' => 100, 'payoutAmount' => 4160000, 'price' => 64, 'delegates' => [['delegator' => 'TDel', 'amount' => 77142, 'txid' => 'abc123']]]]),
     ];
 
     return array_merge($map, $overrides);
@@ -176,7 +176,7 @@ test('rent mode orders energy instead of topping up', function () {
         ->and($rental->purpose)->toBe('sweep')
         ->and($rental->purposable_type)->toBe($sweep->getMorphClass())
         ->and($rental->purposable_id)->toBe($sweep->id)
-        ->and($rental->energy)->toBe(70714)
+        ->and($rental->energy)->toBe(77142)
         ->and($rental->expires_at->greaterThan(now()->addMinutes(59)))->toBeTrue()
         ->and($rental->expires_at->lessThan(now()->addMinutes(61)))->toBeTrue();
     expect(GasTopup::count())->toBe(0);
@@ -208,7 +208,7 @@ test('a second tick waits while an order is open', function () {
         'receiver_address' => 'TDeposit3',
         'receiver_index' => 3,
         'purpose' => 'sweep',
-        'energy' => 70714,
+        'energy' => 77142,
         'duration_sec' => 3600,
         'order_id' => 'order-123',
         'status' => 'ordered',
@@ -231,7 +231,7 @@ test('pollRentals fills the order and records the expense', function () {
         'purpose' => 'sweep',
         'purposable_type' => $sweep->getMorphClass(),
         'purposable_id' => $sweep->id,
-        'energy' => 70714,
+        'energy' => 77142,
         'duration_sec' => 3600,
         'order_id' => 'order-123',
         'status' => 'ordered',
@@ -269,7 +269,7 @@ test('an unfilled order fails after ten minutes and the next tick burns', functi
         'purpose' => 'sweep',
         'purposable_type' => $sweep->getMorphClass(),
         'purposable_id' => $sweep->id,
-        'energy' => 70714,
+        'energy' => 77142,
         'duration_sec' => 3600,
         'order_id' => 'order-123',
         'status' => 'ordered',
@@ -431,7 +431,7 @@ test('no trx is sent to the deposit address in rent mode', function () {
         'purpose' => 'sweep',
         'purposable_type' => $sweep->getMorphClass(),
         'purposable_id' => $sweep->id,
-        'energy' => 70714,
+        'energy' => 77142,
         'duration_sec' => 3600,
         'order_id' => 'order-123',
         'status' => 'ordered',

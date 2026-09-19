@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\TreasuryPayout;
 use App\Models\TreasuryWallet;
 use App\Models\User;
 use App\Models\Withdrawal;
@@ -45,7 +46,59 @@ test('broadcast withdrawal sends deducted amount and native fee for tokens', fun
     Http::assertSent(fn ($request) => $request->url() === 'https://signer.test/withdraw'
         && $request['index'] === 0
         && $request['amount'] === '98.02000000'
-        && $request['fee'] === '6.00000000');
+        && $request['fee'] === '30.00000000');
+});
+
+test('trc20 sends floor the fee at the energy fee_limit cap', function () {
+    $withdrawal = remoteWithdrawal('usdt_trc20');
+    $withdrawal->update(['network_fee_native' => '4.99000000']);
+
+    Http::fake([
+        'https://signer.test/withdraw' => Http::response(['data' => ['tx_hash' => 'rented-tx']]),
+    ]);
+
+    $hash = (new RemoteBlockchainBroadcaster('https://signer.test', 'secret'))->broadcastWithdrawal($withdrawal);
+
+    // The rental price must never cap usable energy — fee_limit floors at 30 TRX.
+    expect($hash)->toBe('rented-tx');
+    Http::assertSent(fn ($request) => $request['fee'] === '30.00000000');
+});
+
+test('erc20 withdrawals post their own fee unchanged', function () {
+    $withdrawal = remoteWithdrawal('usdt_erc20');
+
+    Http::fake([
+        'https://signer.test/withdraw' => Http::response(['data' => ['tx_hash' => 'erc20-tx']]),
+    ]);
+
+    (new RemoteBlockchainBroadcaster('https://signer.test', 'secret'))->broadcastWithdrawal($withdrawal);
+
+    Http::assertSent(fn ($request) => $request['fee'] === '6.00000000');
+});
+
+test('trc20 payouts floor the fee at the energy fee_limit cap', function () {
+    TreasuryWallet::firstOrCreate(
+        ['network' => 'usdt_trc20'],
+        ['derivation_index' => 0, 'address' => 'treasury-usdt_trc20', 'available_funds' => '1000.00000000'],
+    );
+    $payout = TreasuryPayout::create([
+        'network' => 'usdt_trc20',
+        'destination_address' => 'TDest',
+        'amount' => '2.00000000',
+        'status' => 'pending',
+        'network_fee' => '4.75000000',
+        'created_by' => User::factory()->create(['role' => 'admin', 'is_admin' => true])->id,
+    ]);
+
+    Http::fake([
+        'https://signer.test/withdraw' => Http::response(['data' => ['tx_hash' => 'payout-tx']]),
+    ]);
+
+    $hash = (new RemoteBlockchainBroadcaster('https://signer.test', 'secret'))->broadcastPayout($payout);
+
+    expect($hash)->toBe('payout-tx');
+    Http::assertSent(fn ($request) => $request['amount'] === '2.00000000'
+        && $request['fee'] === '30.00000000');
 });
 
 test('it preserves structured signer failures', function () {

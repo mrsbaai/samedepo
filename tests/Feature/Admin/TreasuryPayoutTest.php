@@ -339,3 +339,29 @@ test('the payout sends once the rental fills', function () {
         ->and($payout->tx_hash)->toBe('payout-tx-123')
         ->and($broadcaster->broadcastCalls)->toBe(1);
 });
+
+test('poll restores available funds when the payout receipt fails', function () {
+    [$payout, $wallet] = payoutFixture(amount: '10.00000000', available: '100.00000000');
+    $broadcaster = new PayoutBroadcasterFake;
+    $service = new TreasuryPayoutService($broadcaster);
+
+    expect($service->send($payout))->toBeTrue();
+    expect($wallet->refresh()->available_funds)->toBe('90.00000000');
+
+    // The chain rejected the tx — the tokens never left, so the debit comes back.
+    $broadcaster->receiptStatus = 'failed';
+    $service->poll();
+
+    expect($payout->refresh()->status)->toBe('failed')
+        ->and($payout->error_message)->toBe('Receipt failed')
+        ->and($wallet->refresh()->available_funds)->toBe('100.00000000');
+});
+
+test('send clears a stale error message on success', function () {
+    [$payout] = payoutFixture();
+    $payout->update(['error_message' => 'Renting network energy — retry in a minute.']);
+
+    expect((new TreasuryPayoutService(new PayoutBroadcasterFake))->send($payout))->toBeTrue();
+    expect($payout->refresh()->status)->toBe('sent')
+        ->and($payout->error_message)->toBeNull();
+});

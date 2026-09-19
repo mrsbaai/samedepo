@@ -217,7 +217,8 @@ class GasTreasuryService
         $priceSun = (int) config('blockchain.tron_energy_price_sun', 100);
         $feeSun = (int) bcmul($tokenFeeNative, '1000000', 0);
         $energySun = max(0, $feeSun - 345000); // strip the bandwidth part
-        $energy = $priceSun > 0 ? intdiv($energySun * 11 + ($priceSun * 10) - 1, $priceSun * 10) : 0;
+        // 1.2 headroom — the simulation under-measured a live holder payout by ~14%.
+        $energy = $priceSun > 0 ? intdiv($energySun * 12 + ($priceSun * 10) - 1, $priceSun * 10) : 0;
 
         return max(65000, $energy);
     }

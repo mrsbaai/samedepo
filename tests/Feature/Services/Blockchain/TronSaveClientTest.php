@@ -25,14 +25,14 @@ test('estimate posts a MEDIUM energy order and returns data', function () {
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 100000]]),
     ]);
 
-    $estimate = (new TronSaveClient)->estimate('TReceiver', 70714, 3600);
+    $estimate = (new TronSaveClient)->estimate('TReceiver', 77142, 3600);
 
     expect($estimate['unitPrice'])->toBe(64)
         ->and($estimate['estimateTrx'])->toBe(4160000)
         ->and($estimate['availableResource'])->toBe(100000);
 
     Http::assertSent(fn ($request) => $request->data()['resourceType'] === 'ENERGY'
-        && $request->data()['resourceAmount'] === 70714
+        && $request->data()['resourceAmount'] === 77142
         && $request->data()['durationSec'] === 3600
         && $request->data()['unitPrice'] === 'MEDIUM'
         && $request->data()['options']['allowPartialFill'] === false
@@ -44,7 +44,7 @@ test('buy posts options and returns the order id', function () {
         'https://api.tronsave.io/v2/buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['orderId' => 'order-123']]),
     ]);
 
-    $orderId = (new TronSaveClient)->buy('TReceiver', 70714, 3600, 90);
+    $orderId = (new TronSaveClient)->buy('TReceiver', 77142, 3600, 90);
 
     expect($orderId)->toBe('order-123');
 
@@ -57,7 +57,7 @@ test('buy posts options and returns the order id', function () {
 
 test('order returns order details', function () {
     Http::fake([
-        'https://api.tronsave.io/v2/order/*' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'order-123', 'fulfilledPercent' => 100, 'payoutAmount' => 4160000, 'price' => 64, 'delegates' => [['delegator' => 'TDel', 'amount' => 70714, 'txid' => 'abc123']]]]),
+        'https://api.tronsave.io/v2/order/*' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'order-123', 'fulfilledPercent' => 100, 'payoutAmount' => 4160000, 'price' => 64, 'delegates' => [['delegator' => 'TDel', 'amount' => 77142, 'txid' => 'abc123']]]]),
     ]);
 
     $order = (new TronSaveClient)->order('order-123');

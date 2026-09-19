@@ -48,7 +48,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
 
         $isBitcoin = $withdrawal->network === 'bitcoin';
         $amount = (string) $withdrawal->amount_sent;
-        $fee = (string) ($withdrawal->network_fee_native ?? '0.00000000');
+        $fee = $this->sendFeeLimit($withdrawal->network, (string) ($withdrawal->network_fee_native ?? '0.00000000'));
 
         // Bitcoin: BlockCypher subtracts the fee from amount, so we pass the total input value.
         if ($isBitcoin) {
@@ -97,7 +97,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
             'source_index' => $address->derivation_index,
             'destination_index' => $wallet->derivation_index,
             'amount' => (string) $sweep->amount,
-            'fee' => (string) $fee->json('data.fee'),
+            'fee' => $this->sendFeeLimit($sweep->network, (string) $fee->json('data.fee')),
         ]);
 
         if ($response?->successful()) {
@@ -203,7 +203,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
 
         $isBitcoin = $payout->network === 'bitcoin';
         $amount = (string) $payout->amount;
-        $fee = (string) ($payout->network_fee ?? '0.00000000');
+        $fee = $this->sendFeeLimit($payout->network, (string) ($payout->network_fee ?? '0.00000000'));
 
         if ($isBitcoin) {
             $amount = bcadd($amount, $fee, 8);
@@ -239,6 +239,19 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
         }
 
         return null;
+    }
+
+    // TRC20 token sends: fee doubles as fee_limit, which caps usable energy
+    // (delegated energy included). Never let the charged/rental price be the cap.
+    private function sendFeeLimit(string $network, string $fee): string
+    {
+        if ($network !== 'usdt_trc20') {
+            return $fee;
+        }
+
+        $cap = bcadd((string) config('blockchain.trc20_fee_limit_trx'), '0', 8);
+
+        return bccomp($fee, $cap, 8) < 0 ? $cap : $fee;
     }
 
     private function post(string $path, array $payload): ?Response

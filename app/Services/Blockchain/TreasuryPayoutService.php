@@ -192,6 +192,7 @@ class TreasuryPayoutService
                 'status' => 'sent',
                 'tx_hash' => $txHash,
                 'network_fee' => $estimatedFeeNative,
+                'error_message' => null,
                 'sent_at' => now(),
             ]);
         });
@@ -232,10 +233,19 @@ class TreasuryPayoutService
                     }
 
                     if ($receipt['status'] === 'failed') {
-                        $payout->update([
-                            'status' => 'failed',
-                            'error_message' => 'Receipt failed',
-                        ]);
+                        // The tx reverted — the tokens never left the treasury,
+                        // so the debit applied at send time must come back.
+                        DB::transaction(function () use ($payout): void {
+                            $payout->update([
+                                'status' => 'failed',
+                                'error_message' => 'Receipt failed',
+                            ]);
+                            $restore = $payout->network === 'bitcoin'
+                                ? bcadd((string) $payout->amount, (string) $payout->network_fee, 8)
+                                : (string) $payout->amount;
+                            TreasuryWallet::query()->where('network', $payout->network)
+                                ->increment('available_funds', $restore);
+                        });
                     }
                 }
             });
