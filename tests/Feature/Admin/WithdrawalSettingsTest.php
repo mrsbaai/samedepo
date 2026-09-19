@@ -34,18 +34,25 @@ test('an admin can update withdrawal minimums', function () {
 
     Livewire::actingAs($admin)
         ->test(WithdrawalSettings::class)
-        ->set('minBitcoin', '150')
-        ->set('minTrc20', '200')
-        ->set('minErc20', '250')
+        ->set('minimums.bitcoin', '150')
+        ->set('minimums.usdt_trc20', '200')
+        ->set('minimums.usdt_erc20', '250')
         ->call('confirmSave')
         ->call('save')
         ->assertHasNoErrors()
         ->assertSee('Withdrawal minimums updated', false);
 
-    $this->assertDatabaseHas('platform_settings', [
-        'withdrawal_min_usd_bitcoin' => 150,
-        'withdrawal_min_usd_usdt_trc20' => 200,
-        'withdrawal_min_usd_usdt_erc20' => 250,
+    $this->assertDatabaseHas('network_settings', [
+        'network' => 'bitcoin',
+        'withdrawal_min_usd' => 150,
+    ]);
+    $this->assertDatabaseHas('network_settings', [
+        'network' => 'usdt_trc20',
+        'withdrawal_min_usd' => 200,
+    ]);
+    $this->assertDatabaseHas('network_settings', [
+        'network' => 'usdt_erc20',
+        'withdrawal_min_usd' => 250,
     ]);
 });
 
@@ -55,12 +62,12 @@ test('withdrawal minimums must be greater than zero', function () {
 
     Livewire::actingAs($admin)
         ->test(WithdrawalSettings::class)
-        ->set('minBitcoin', '0')
-        ->set('minTrc20', '0')
-        ->set('minErc20', '0')
+        ->set('minimums.bitcoin', '0')
+        ->set('minimums.usdt_trc20', '0')
+        ->set('minimums.usdt_erc20', '0')
         ->call('confirmSave')
         ->call('save')
-        ->assertHasErrors(['minBitcoin', 'minTrc20', 'minErc20'])
+        ->assertHasErrors(['minimums.bitcoin', 'minimums.usdt_trc20', 'minimums.usdt_erc20'])
         ->assertSee('USD withdrawal minimum must be greater than $0.', false);
 });
 

@@ -60,6 +60,7 @@ use App\Models\Faq;
 use App\Models\LegalPage;
 use App\Models\User;
 use App\Notifications\Authentication\SecurityAlertNotification;
+use App\Support\Network;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -160,7 +161,7 @@ Route::middleware(['auth', 'owner'])->group(function (): void {
     Route::get('/withdrawal-settings', WithdrawalSettings::class)->name('withdrawal-settings');
     Route::get('/withdraw/{network}', Withdraw::class)
         ->name('withdraw')
-        ->whereIn('network', ['bitcoin', 'usdt-trc20', 'usdt-erc20']);
+        ->whereIn('network', Network::slugs());
 });
 
 Route::middleware(['auth'])->group(function (): void {
@@ -307,6 +308,7 @@ Route::get('/security/delete/recover', function (Request $request): mixed {
 Route::get('/', function () {
     return view('public.landing', [
         'faqs' => Faq::orderBy('position')->orderBy('id')->get(),
+        'networks' => Network::presentAll(enabledOnly: true),
     ]);
 })->name('public.landing');
 

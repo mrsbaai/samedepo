@@ -10,6 +10,7 @@ use App\Models\Deposit;
 use App\Models\LedgerEntry;
 use App\Models\PlatformSettings;
 use App\Models\User;
+use App\Support\Network;
 use Illuminate\Support\Facades\DB;
 
 class DepositCreditor
@@ -30,7 +31,7 @@ class DepositCreditor
     private function creditDeposit(Deposit $deposit): void
     {
         $settings = PlatformSettings::instance();
-        $requiredConfirmations = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+        $requiredConfirmations = Network::confirmations($deposit->network);
 
         if ($deposit->confirmation_count < $requiredConfirmations) {
             return;
@@ -90,13 +91,7 @@ class DepositCreditor
 
     private function belowMinimum(Deposit $deposit, PlatformSettings $settings): bool
     {
-        $column = match ($deposit->network) {
-            'bitcoin' => 'min_deposit_bitcoin',
-            'usdt_trc20' => 'min_deposit_usdt_trc20',
-            'usdt_erc20' => 'min_deposit_usdt_erc20',
-        };
-
-        $minimum = (string) $settings->{$column};
+        $minimum = (string) PlatformSettings::networkSetting($deposit->network)->min_deposit;
 
         return bccomp((string) $deposit->gross_amount, $minimum, 8) < 0;
     }

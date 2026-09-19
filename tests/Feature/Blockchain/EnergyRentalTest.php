@@ -123,7 +123,7 @@ function rentalFixture(array $options = []): array
         'address' => 'TTreasury',
     ]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'top_up_amount' => '1.00000000',
         'max_top_up' => '20.00000000',

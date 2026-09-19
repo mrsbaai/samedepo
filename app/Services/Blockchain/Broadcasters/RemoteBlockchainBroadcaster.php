@@ -10,6 +10,7 @@ use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\Withdrawal;
+use App\Support\Network;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -33,7 +34,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
     {
         return $this->estimateTransferFee(
             $withdrawal->network,
-            in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true),
+            Network::isToken($withdrawal->network),
             $withdrawal->destination_address,
         );
     }
@@ -46,12 +47,12 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
             return null;
         }
 
-        $isBitcoin = $withdrawal->network === 'bitcoin';
+        $isNative = Network::isNative($withdrawal->network);
         $amount = (string) $withdrawal->amount_sent;
         $fee = $this->sendFeeLimit($withdrawal->network, (string) ($withdrawal->network_fee_native ?? '0.00000000'));
 
-        // Bitcoin: BlockCypher subtracts the fee from amount, so we pass the total input value.
-        if ($isBitcoin) {
+        // Native sends: the chain subtracts the fee from amount, so we pass the total input value.
+        if ($isNative) {
             $amount = bcadd($amount, $fee, 8);
         }
 
@@ -83,14 +84,14 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
 
         $fee = $this->post('/fee', [
             'network' => $sweep->network,
-            'token_transfer' => in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true),
+            'token_transfer' => Network::isToken($sweep->network),
         ]);
 
         if (! $fee?->successful()) {
             return null;
         }
 
-        // Bitcoin: the deposit address holds exactly the swept amount, so the
+        // Native sweeps: the deposit address holds exactly the swept amount, so the
         // miner fee comes out of the amount (the signer sends amount - fee).
         $response = $this->post('/sweep', [
             'network' => $sweep->network,
@@ -201,11 +202,11 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
             return null;
         }
 
-        $isBitcoin = $payout->network === 'bitcoin';
+        $isNative = Network::isNative($payout->network);
         $amount = (string) $payout->amount;
         $fee = $this->sendFeeLimit($payout->network, (string) ($payout->network_fee ?? '0.00000000'));
 
-        if ($isBitcoin) {
+        if ($isNative) {
             $amount = bcadd($amount, $fee, 8);
         }
 
@@ -245,7 +246,7 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
     // (delegated energy included). Never let the charged/rental price be the cap.
     private function sendFeeLimit(string $network, string $fee): string
     {
-        if ($network !== 'usdt_trc20') {
+        if (Network::family($network) !== 'tron') {
             return $fee;
         }
 

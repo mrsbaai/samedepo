@@ -9,6 +9,7 @@ use App\Models\Deposit;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Support\DepositRow;
+use App\Support\Network;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -71,15 +72,10 @@ class CustomerDetail extends Component
         return $this->customerRecord->depositAddresses()
             ->withoutGlobalScope('owner')
             ->get()
-            ->sortBy(fn ($address) => array_search($address->network, array_keys(DepositRow::NETWORKS), true))
+            ->sortBy(fn ($address) => array_search($address->network, Network::keys(), true))
             ->values()
             ->map(function ($address) {
-                $meta = DepositRow::NETWORKS[$address->network] ?? [
-                    'slug' => str_replace('_', '-', $address->network),
-                    'label' => $address->network,
-                    'symbol' => '',
-                    'decimals' => 8,
-                ];
+                $meta = DepositRow::meta($address->network);
 
                 return [
                     'network' => $address->network,
@@ -116,7 +112,7 @@ class CustomerDetail extends Component
             return ['count' => 0, 'usd' => '0.00000000'];
         }
 
-        $rates = UsdValuation::query()->whereIn('network', array_keys(DepositRow::NETWORKS))->pluck('conversion_value', 'network');
+        $rates = UsdValuation::query()->whereIn('network', Network::keys())->pluck('conversion_value', 'network');
 
         $deposits = Deposit::withoutGlobalScope('owner')
             ->where('customer_id', $this->customerRecord->id)

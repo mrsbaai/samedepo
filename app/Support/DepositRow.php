@@ -8,11 +8,42 @@ use App\Models\Deposit;
 
 final class DepositRow
 {
-    public const NETWORKS = [
-        'bitcoin' => ['slug' => 'bitcoin', 'label' => 'Bitcoin', 'symbol' => 'BTC', 'decimals' => 8],
-        'usdt_trc20' => ['slug' => 'usdt-trc20', 'label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'decimals' => 2],
-        'usdt_erc20' => ['slug' => 'usdt-erc20', 'label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'decimals' => 2],
-    ];
+    /**
+     * Registry-driven network metadata keyed by DB network value. Prefer
+     * this over the const so new networks appear without code changes.
+     */
+    public static function networks(): array
+    {
+        $networks = [];
+
+        foreach (Network::all() as $key => $ignored) {
+            $presented = Network::present($key);
+            $networks[$key] = [
+                'slug' => $presented['slug'],
+                'label' => $presented['label'],
+                'symbol' => $presented['symbol'],
+                'decimals' => $presented['decimals'],
+                'icon' => $presented['icon'],
+            ];
+        }
+
+        return $networks;
+    }
+
+    /**
+     * Metadata for one network, tolerating values absent from the registry
+     * (e.g. historical rows for removed networks).
+     */
+    public static function meta(string $network): array
+    {
+        return self::networks()[$network] ?? [
+            'slug' => str_replace('_', '-', $network),
+            'label' => $network,
+            'symbol' => '',
+            'decimals' => 8,
+            'icon' => 'crypto/'.str_replace('_', '-', $network).'.svg',
+        ];
+    }
 
     public const STATUS_COLORS = [
         'detected' => 'zinc',
@@ -27,18 +58,13 @@ final class DepositRow
 
     public static function present(Deposit $deposit): array
     {
-        $meta = self::NETWORKS[$deposit->network] ?? [
-            'slug' => str_replace('_', '-', $deposit->network),
-            'label' => $deposit->network,
-            'symbol' => '',
-            'decimals' => 8,
-        ];
+        $meta = self::meta($deposit->network);
 
         $format = fn (?string $value): ?string => $value === null
             ? null
             : number_format((float) $value, $meta['decimals'], '.', '');
 
-        $confirmationsRequired = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+        $confirmationsRequired = Network::confirmations($deposit->network);
         $statusLabel = $deposit->status === 'pending'
             ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
             : ucfirst($deposit->status);

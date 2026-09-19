@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\LedgerEntry;
 use App\Models\User;
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,7 +20,7 @@ class LedgerEntryFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'network' => fake()->randomElement(['bitcoin', 'usdt_trc20', 'usdt_erc20']),
+            'network' => fake()->randomElement(Network::keys()),
             'amount' => fake()->randomFloat(8, -10, 10),
             'reason' => fake()->randomElement(['deposit_credit', 'fee', 'withdrawal_reserve', 'withdrawal_send', 'withdrawal_return']),
             'deposit_id' => null,

@@ -23,6 +23,7 @@ use App\Services\Blockchain\Providers\EsploraProvider;
 use App\Services\Blockchain\Providers\InfuraProvider;
 use App\Services\Blockchain\Providers\NullBlockchainProvider;
 use App\Services\Blockchain\Providers\TronGridProvider;
+use App\Support\Network;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -32,6 +33,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -55,10 +57,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PriceFeedProvider::class, CoinGeckoProvider::class);
 
         $this->app->singleton(DepositScanner::class, function () {
-            $networks = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
             $providers = [];
 
-            foreach ($networks as $network) {
+            foreach (Network::enabledKeys() as $network) {
                 $providers[] = $this->makeBlockchainProvider($network);
             }
 
@@ -68,25 +69,30 @@ class AppServiceProvider extends ServiceProvider
 
     private function makeBlockchainProvider(string $network): BlockchainProvider
     {
-        $config = config("blockchain.providers.{$network}");
-        $driver = $config['driver'] ?? null;
+        $options = Network::provider($network);
+        $driver = $options['driver'] ?? null;
 
         return match ($driver) {
             'esplora' => new EsploraProvider(
                 network: $network,
-                baseUrl: $config['base_url'] ?? 'https://mempool.space/api',
+                baseUrl: $options['base_url'] ?? 'https://mempool.space/api',
             ),
             'trongrid' => new TronGridProvider(
                 network: $network,
-                usdtContract: $config['usdt_contract'] ?? 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
-                apiKey: $config['api_key'] ?? null,
+                usdtContract: $options['contract'] ?? (string) Network::contract($network),
+                apiKey: $options['api_key'] ?? null,
             ),
-            'infura' => new InfuraProvider(
+            'evm_logs' => new InfuraProvider(
                 network: $network,
-                usdtContract: $config['usdt_contract'] ?? '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-                projectId: $config['project_id'] ?? null,
-                projectSecret: $config['project_secret'] ?? null,
-                infuraNetwork: $config['network'] ?? 'mainnet',
+                usdtContract: (string) Network::contract($network),
+                projectId: $options['project_id'] ?? null,
+                projectSecret: $options['project_secret'] ?? null,
+                infuraNetwork: $options['infura_network'] ?? 'mainnet',
+                rpcUrl: $options['rpc'] ?? null,
+                tokenDecimals: Network::tokenDecimals($network) ?? 6,
+            ),
+            'etherscan_native' => throw new RuntimeException(
+                "Provider driver 'etherscan_native' for enabled network '{$network}' is not implemented yet."
             ),
             default => new NullBlockchainProvider($network),
         };

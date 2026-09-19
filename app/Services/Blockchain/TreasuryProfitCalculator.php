@@ -10,6 +10,7 @@ use App\Models\TreasuryPayout;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
+use App\Support\Network;
 
 final class TreasuryProfitCalculator
 {
@@ -54,7 +55,7 @@ final class TreasuryProfitCalculator
         $totalEquityUsd = '0.00000000';
         $hasDeficit = false;
 
-        foreach (['bitcoin', 'usdt_trc20', 'usdt_erc20'] as $network) {
+        foreach (Network::enabledKeys() as $network) {
             $networks[$network] = $this->forNetwork($network);
             $totalWithdrawableUsd = bcadd($totalWithdrawableUsd, $networks[$network]['withdrawable_usd'], 8);
             $totalEquityUsd = bcadd($totalEquityUsd, $networks[$network]['equity_usd'], 8);

@@ -20,17 +20,15 @@ test('the platform settings row has sensible defaults', function () {
     expect($settings->global_deposit_fee_percent)->toBe('2.00')
         ->and($settings->default_withdrawal_mode)->toBe('approval')
         ->and($settings->api_requests_per_minute)->toBe(60)
-        ->and($settings->sweep_min_usd_bitcoin)->toBe('200.00')
-        ->and($settings->sweep_min_usd_usdt_trc20)->toBe('25.00')
-        ->and($settings->sweep_min_usd_usdt_erc20)->toBe('300.00')
         ->and($settings->sweep_max_age_days)->toBe(30)
         ->and($settings->withdrawal_fee_buffer_percent)->toBe('20.00')
-        ->and($settings->profit_address_bitcoin)->toBeNull()
-        ->and($settings->profit_address_usdt_trc20)->toBeNull()
-        ->and($settings->profit_address_usdt_erc20)->toBeNull()
         ->and($settings->profit_payout_warn_fee_percent)->toBe('1.00')
-        ->and($settings->profit_payout_block_fee_percent)->toBe('5.00')
-        ->and($settings->confirmations_bitcoin)->toBeGreaterThan(0)
-        ->and($settings->confirmations_usdt_trc20)->toBeGreaterThan(0)
-        ->and($settings->confirmations_usdt_erc20)->toBeGreaterThan(0);
+        ->and($settings->profit_payout_block_fee_percent)->toBe('5.00');
+
+    expect(PlatformSettings::networkSetting('bitcoin')->sweep_min_usd)->toBe('200.00')
+        ->and(PlatformSettings::networkSetting('usdt_trc20')->sweep_min_usd)->toBe('25.00')
+        ->and(PlatformSettings::networkSetting('usdt_erc20')->sweep_min_usd)->toBe('300.00')
+        ->and(PlatformSettings::networkSetting('bitcoin')->profit_address)->toBeNull()
+        ->and(PlatformSettings::networkSetting('usdt_trc20')->profit_address)->toBeNull()
+        ->and(PlatformSettings::networkSetting('usdt_erc20')->profit_address)->toBeNull();
 });

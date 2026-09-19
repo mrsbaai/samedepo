@@ -18,6 +18,7 @@ use App\Models\Withdrawal;
 use App\Security\Models\SecurityBlock;
 use App\Security\Models\ThreatEvent;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
+use App\Support\Network;
 use Livewire\Livewire;
 
 function adminDashboardProfitFixture(
@@ -37,14 +38,17 @@ function adminDashboardProfitFixture(
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
 
     $addresses = [
-        'profit_address_bitcoin' => '1BoatSLRHtKNngkdXEeobR76b53LETtpyT',
-        'profit_address_usdt_trc20' => 'T111111111111111111111111111111111',
-        'profit_address_usdt_erc20' => '0x1111111111111111111111111111111111111111',
+        'bitcoin' => '1BoatSLRHtKNngkdXEeobR76b53LETtpyT',
+        'usdt_trc20' => 'T111111111111111111111111111111111',
+        'usdt_erc20' => '0x1111111111111111111111111111111111111111',
     ];
     if ($profitAddress === null) {
-        $addresses['profit_address_usdt_trc20'] = null;
+        $addresses['usdt_trc20'] = null;
     }
-    PlatformSettings::instance()->update($addresses);
+    PlatformSettings::instance();
+    foreach ($addresses as $addressNetwork => $address) {
+        PlatformSettings::networkSetting($addressNetwork)->update(['profit_address' => $address]);
+    }
 
     $wallet = TreasuryWallet::factory()->create([
         'network' => $network,
@@ -56,7 +60,7 @@ function adminDashboardProfitFixture(
     ]);
 
     if ($network !== 'bitcoin') {
-        GasPolicy::factory()->create(['network' => $network, 'reserve_threshold' => $reserveThreshold]);
+        GasPolicy::factory()->create(['network' => Network::nativeKey($network), 'reserve_threshold' => $reserveThreshold]);
     }
 
     if (bccomp($ownerBalance, '0', 8) > 0) {

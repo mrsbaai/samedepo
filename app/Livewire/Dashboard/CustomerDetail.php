@@ -7,6 +7,7 @@ namespace App\Livewire\Dashboard;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Support\DepositRow;
+use App\Support\Network;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Computed;
@@ -22,15 +23,6 @@ class CustomerDetail extends Component
     public string $uiState = 'normal';
 
     public $customer;
-
-    /**
-     * Network metadata keyed by the DB `network` value.
-     */
-    private const NETWORKS = [
-        'bitcoin' => ['slug' => 'bitcoin', 'label' => 'Bitcoin', 'symbol' => 'BTC'],
-        'usdt_trc20' => ['slug' => 'usdt-trc20', 'label' => 'USDT (TRC20)', 'symbol' => 'USDT'],
-        'usdt_erc20' => ['slug' => 'usdt-erc20', 'label' => 'USDT (ERC20)', 'symbol' => 'USDT'],
-    ];
 
     public function mount(string $customer): void
     {
@@ -65,10 +57,10 @@ class CustomerDetail extends Component
     public function addresses(): array
     {
         return $this->customer->depositAddresses
-            ->sortBy(fn ($address) => array_search($address->network, array_keys(self::NETWORKS), true))
+            ->sortBy(fn ($address) => array_search($address->network, Network::keys(), true))
             ->values()
             ->map(function ($address) {
-                $meta = self::NETWORKS[$address->network] ?? ['slug' => str_replace('_', '-', $address->network), 'label' => $address->network, 'symbol' => ''];
+                $meta = Network::exists($address->network) ? Network::present($address->network) : ['slug' => str_replace('_', '-', $address->network), 'label' => $address->network, 'symbol' => ''];
 
                 return [
                     'network' => $address->network,

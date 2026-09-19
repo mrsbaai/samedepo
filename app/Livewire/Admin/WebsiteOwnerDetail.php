@@ -12,6 +12,7 @@ use App\Models\Withdrawal;
 use App\Services\Blockchain\OwnerFinanceCalculator;
 use App\Support\DepositRow;
 use App\Support\ExplorerUrl;
+use App\Support\Network;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
@@ -114,7 +115,7 @@ class WebsiteOwnerDetail extends Component
         }
 
         $rates = UsdValuation::query()
-            ->whereIn('network', array_keys(DepositRow::NETWORKS))
+            ->whereIn('network', Network::keys())
             ->pluck('conversion_value', 'network');
 
         return Customer::withoutGlobalScope('owner')
@@ -165,12 +166,7 @@ class WebsiteOwnerDetail extends Component
             ->through(fn ($withdrawal) => [
                 'id' => $withdrawal->id,
                 'at' => $withdrawal->created_at,
-                'network' => DepositRow::NETWORKS[$withdrawal->network] ?? [
-                    'label' => $withdrawal->network,
-                    'symbol' => '',
-                    'decimals' => 8,
-                    'slug' => str_replace('_', '-', $withdrawal->network),
-                ],
+                'network' => DepositRow::meta($withdrawal->network),
                 'gross' => (string) $withdrawal->gross_amount,
                 'fee' => $withdrawal->network_fee !== null ? (string) $withdrawal->network_fee : null,
                 'sent' => $withdrawal->amount_sent !== null ? (string) $withdrawal->amount_sent : null,
@@ -243,7 +239,7 @@ class WebsiteOwnerDetail extends Component
     public function render(): mixed
     {
         return view('livewire.admin.website-owner-detail', [
-            'networkMeta' => DepositRow::NETWORKS,
+            'networkMeta' => DepositRow::networks(),
             'statusColors' => DepositRow::STATUS_COLORS,
         ]);
     }

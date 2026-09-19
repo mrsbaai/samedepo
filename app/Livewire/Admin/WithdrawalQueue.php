@@ -6,6 +6,7 @@ namespace App\Livewire\Admin;
 
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
+use App\Support\Network;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -17,12 +18,6 @@ class WithdrawalQueue extends Component
     use WithPagination;
 
     public string $uiState = 'normal';
-
-    private const NETWORKS = [
-        'bitcoin' => ['label' => 'Bitcoin', 'symbol' => 'BTC', 'decimals' => 8, 'slug' => 'bitcoin'],
-        'usdt_trc20' => ['label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'decimals' => 2, 'slug' => 'usdt-trc20'],
-        'usdt_erc20' => ['label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'decimals' => 2, 'slug' => 'usdt-erc20'],
-    ];
 
     public function mount(): void
     {
@@ -42,7 +37,7 @@ class WithdrawalQueue extends Component
 
     public function networkMeta(string $networkKey): array
     {
-        return self::NETWORKS[$networkKey] ?? ['label' => $networkKey, 'symbol' => '', 'decimals' => 8, 'slug' => $networkKey];
+        return Network::exists($networkKey) ? Network::present($networkKey) : ['label' => $networkKey, 'symbol' => '', 'decimals' => 8, 'slug' => $networkKey];
     }
 
     public function formattedAmount(float $amount, int $decimals): string

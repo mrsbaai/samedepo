@@ -88,7 +88,7 @@
                                     {{ $dep['networkLabel'] }}
                                 </span>
                             </flux:table.cell>
-                            <flux:table.cell variant="strong" class="font-ledger">{{ $dep['amount'] }} {{ $dep['networkSlug'] === 'bitcoin' ? 'BTC' : 'USDT' }}</flux:table.cell>
+                            <flux:table.cell variant="strong" class="font-ledger">{{ $dep['amount'] }} {{ $dep['symbol'] }}</flux:table.cell>
                             <flux:table.cell class="max-md:hidden py-0">
                                 <flux:badge size="sm" color="{{ $statusColors[$dep['status']] ?? 'zinc' }}">{{ $dep['statusLabel'] }}</flux:badge>
                             </flux:table.cell>

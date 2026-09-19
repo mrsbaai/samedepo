@@ -11,33 +11,31 @@ use App\Models\LedgerEntry;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Builder;
 
 final class OwnerFinanceCalculator
 {
-    private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
-
-    private const NATIVE_KEY = [
-        'bitcoin' => 'bitcoin',
-        'usdt_trc20' => 'native_trx',
-        'usdt_erc20' => 'native_eth',
-    ];
-
     public function __construct(private FeeConverter $feeConverter = new FeeConverter) {}
 
     public function summary(User $owner): array
     {
         $rates = UsdValuation::query()
-            ->whereIn('network', ['bitcoin', 'usdt_trc20', 'usdt_erc20', 'native_trx', 'native_eth'])
+            ->whereIn('network', Network::valuationKeys())
             ->pluck('conversion_value', 'network');
 
-        $ratesAvailable = collect(['bitcoin', 'usdt_trc20', 'usdt_erc20', 'native_trx', 'native_eth'])
+        $requiredKeys = collect(Network::enabledKeys())
+            ->map(fn (string $k) => [$k, Network::nativeKey($k)])
+            ->flatten()
+            ->unique();
+
+        $ratesAvailable = $requiredKeys
             ->every(fn ($k) => isset($rates[$k]) && bccomp((string) $rates[$k], '0', 8) > 0);
 
         $usd = fn (string $amount, string $key): string => bcmul($amount, (string) ($rates[$key] ?? '0'), 8);
 
         $networks = [];
-        foreach (self::NETWORKS as $network) {
+        foreach (Network::enabledKeys() as $network) {
             $depositVolume = $this->sum(
                 Deposit::withoutGlobalScope('owner')
                     ->where('user_id', $owner->id)
@@ -91,9 +89,9 @@ final class OwnerFinanceCalculator
                 'consolidation_fee_revenue' => $consolidationFee,
                 'revenue_usd' => $usd($revenue, $network),
                 'sweep_gas_native' => $sweepGas,
-                'sweep_gas_usd' => $usd($sweepGas, self::NATIVE_KEY[$network]),
+                'sweep_gas_usd' => $usd($sweepGas, Network::nativeKey($network)),
                 'unrecovered_gas_native' => $unrecovered,
-                'unrecovered_gas_usd' => $usd($unrecovered, self::NATIVE_KEY[$network]),
+                'unrecovered_gas_usd' => $usd($unrecovered, Network::nativeKey($network)),
                 'balance' => $balance,
                 'reserved' => $reserved,
                 'owed' => $owed,
@@ -137,7 +135,7 @@ final class OwnerFinanceCalculator
     public function growth(User $owner, int $months = 12): array
     {
         $start = now()->startOfMonth()->subMonths($months - 1);
-        $rates = UsdValuation::query()->whereIn('network', self::NETWORKS)->pluck('conversion_value', 'network');
+        $rates = UsdValuation::query()->whereIn('network', Network::keys())->pluck('conversion_value', 'network');
 
         $buckets = [];
         for ($i = 0; $i < $months; $i++) {

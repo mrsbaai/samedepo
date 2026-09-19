@@ -20,6 +20,7 @@ use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\TreasuryPayoutService;
 use App\Services\Blockchain\TreasuryProfitCalculator;
 use App\Support\ExplorerUrl;
+use App\Support\Network;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
@@ -38,7 +39,7 @@ class TreasuryOverview extends Component
 
     public bool $payoutModal = false;
 
-    public string $payoutNetwork = 'bitcoin';
+    public string $payoutNetwork = '';
 
     public string $payoutDestination = '';
 
@@ -52,21 +53,18 @@ class TreasuryOverview extends Component
 
     public array $payoutPreview = [];
 
-    private const NETWORKS = [
-        'bitcoin' => ['label' => 'Bitcoin', 'symbol' => 'BTC', 'native' => 'BTC', 'decimals' => 8, 'slug' => 'bitcoin'],
-        'usdt_trc20' => ['label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'native' => 'TRX', 'decimals' => 2, 'slug' => 'usdt-trc20'],
-        'usdt_erc20' => ['label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'native' => 'ETH', 'decimals' => 2, 'slug' => 'usdt-erc20'],
-    ];
-
     public function mount(GasTreasuryService $gasTreasury): void
     {
         $this->uiState = request()->query('state', 'normal');
 
-        TreasuryWallet::query()->whereIn('network', $this->gasNetworks())->pluck('network')
-            ->each(fn (string $network) => $this->loadPolicy($gasTreasury->policy($network)));
+        TreasuryWallet::query()->whereIn('network', Network::enabledKeys())->pluck('network')
+            ->map(fn (string $network) => Network::nativeKey($network))
+            ->unique()
+            ->filter(fn (string $nativeKey) => isset(Network::natives()[$nativeKey]))
+            ->each(fn (string $nativeKey) => $this->loadPolicy($gasTreasury->policy($nativeKey)));
 
         $requested = (string) request()->query('payout', '');
-        if (array_key_exists($requested, self::NETWORKS)
+        if (Network::exists($requested)
             && ($this->profitAddresses[$requested] ?? null)
             && bccomp($this->profit['networks'][$requested]['withdrawable'], '0', 8) > 0) {
             $this->openPayout($requested);
@@ -82,13 +80,13 @@ class TreasuryOverview extends Component
     #[Computed]
     public function profitAddresses(): array
     {
-        $settings = PlatformSettings::instance();
+        $addresses = [];
 
-        return [
-            'bitcoin' => $settings->profit_address_bitcoin,
-            'usdt_trc20' => $settings->profit_address_usdt_trc20,
-            'usdt_erc20' => $settings->profit_address_usdt_erc20,
-        ];
+        foreach (Network::enabledKeys() as $key) {
+            $addresses[$key] = PlatformSettings::networkSetting($key)->profit_address;
+        }
+
+        return $addresses;
     }
 
     #[Computed]
@@ -101,12 +99,7 @@ class TreasuryOverview extends Component
     public function networkMetrics(): Collection
     {
         return $this->wallets->mapWithKeys(function (TreasuryWallet $wallet): array {
-            $nativeKey = match ($wallet->network) {
-                'bitcoin' => 'bitcoin',
-                'usdt_trc20' => 'native_trx',
-                'usdt_erc20' => 'native_eth',
-                default => $wallet->network,
-            };
+            $nativeKey = Network::nativeKey($wallet->network);
 
             $unsweptAmount = $this->decimal(Deposit::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)
@@ -193,7 +186,7 @@ class TreasuryOverview extends Component
     #[Computed]
     public function energyFloat(): ?array
     {
-        if (($this->policies['usdt_trc20']['energy_mode'] ?? 'burn') !== 'rent') {
+        if (($this->policies['native_trx']['energy_mode'] ?? 'burn') !== 'rent') {
             return null;
         }
 
@@ -211,7 +204,21 @@ class TreasuryOverview extends Component
 
     public function networkMeta(string $networkKey): array
     {
-        return self::NETWORKS[$networkKey] ?? ['label' => $networkKey, 'symbol' => '', 'native' => '', 'decimals' => 8, 'slug' => $networkKey];
+        if (Network::exists($networkKey)) {
+            return Network::present($networkKey) + ['native' => Network::nativeSymbol($networkKey)];
+        }
+
+        $nativeSymbol = Network::nativeSymbol($networkKey);
+
+        return [
+            'key' => $networkKey,
+            'label' => $nativeSymbol.' gas',
+            'symbol' => $nativeSymbol,
+            'native' => $nativeSymbol,
+            'decimals' => 8,
+            'slug' => $networkKey,
+            'icon' => '',
+        ];
     }
 
     public function formattedAmount(float $amount, int $decimals): string
@@ -238,9 +245,9 @@ class TreasuryOverview extends Component
 
     public function isLow(TreasuryWallet $wallet): bool
     {
-        return isset($this->policies[$wallet->network])
+        return isset($this->policies[Network::nativeKey($wallet->network)])
             && $wallet->native_balance !== null
-            && bccomp((string) $wallet->native_balance, (string) $this->policies[$wallet->network]['reserve_threshold'], 8) < 0;
+            && bccomp((string) $wallet->native_balance, (string) $this->policies[Network::nativeKey($wallet->network)]['reserve_threshold'], 8) < 0;
     }
 
     public function savePolicy(string $network): void
@@ -254,7 +261,7 @@ class TreasuryOverview extends Component
             "policies.$network.alert_cooldown" => ['required', 'integer', 'min:1', 'max:10080'],
         ];
 
-        if ($network === 'usdt_trc20') {
+        if (Network::nativeChain($network) === 'tron') {
             $rules += [
                 "policies.$network.energy_mode" => ['required', 'string', 'in:burn,rent'],
                 "policies.$network.rent_max_price_sun" => ['required', 'integer', 'min:1'],
@@ -305,7 +312,7 @@ class TreasuryOverview extends Component
 
     public function openPayout(string $network): void
     {
-        abort_unless(array_key_exists($network, self::NETWORKS), 404);
+        abort_unless(Network::exists($network), 404);
 
         $this->payoutModal = true;
         $this->payoutNetwork = $network;
@@ -409,7 +416,7 @@ class TreasuryOverview extends Component
 
     private function gasNetworks(): array
     {
-        return ['usdt_erc20', 'usdt_trc20'];
+        return array_keys(Network::natives());
     }
 
     public function explorerUrl(string $type, string $network, ?string $value): ?string

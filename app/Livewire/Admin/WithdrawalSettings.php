@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\Admin;
 
 use App\Models\PlatformSettings;
+use App\Support\Network;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -13,11 +15,10 @@ class WithdrawalSettings extends Component
 {
     public string $uiState = 'normal';
 
-    public string $minBitcoin = '';
-
-    public string $minTrc20 = '';
-
-    public string $minErc20 = '';
+    /**
+     * @var array<string, string> USD withdrawal minimum per network key.
+     */
+    public array $minimums = [];
 
     public bool $showConfirmModal = false;
 
@@ -32,13 +33,19 @@ class WithdrawalSettings extends Component
         }
     }
 
+    #[Computed]
+    public function networks(): array
+    {
+        return Network::presentAll(enabledOnly: true);
+    }
+
     private function loadSettings(): void
     {
-        $settings = PlatformSettings::instance();
+        $this->minimums = [];
 
-        $this->minBitcoin = (string) $settings->withdrawal_min_usd_bitcoin;
-        $this->minTrc20 = (string) $settings->withdrawal_min_usd_usdt_trc20;
-        $this->minErc20 = (string) $settings->withdrawal_min_usd_usdt_erc20;
+        foreach (Network::enabledKeys() as $key) {
+            $this->minimums[$key] = (string) PlatformSettings::networkSetting($key)->withdrawal_min_usd;
+        }
     }
 
     public function confirmSave(): void
@@ -49,20 +56,14 @@ class WithdrawalSettings extends Component
     public function save(): void
     {
         $validated = $this->validate([
-            'minBitcoin' => ['required', 'numeric', 'min:0.01'],
-            'minTrc20' => ['required', 'numeric', 'min:0.01'],
-            'minErc20' => ['required', 'numeric', 'min:0.01'],
+            'minimums.*' => ['required', 'numeric', 'min:0.01'],
         ], [
-            'minBitcoin.min' => 'USD withdrawal minimum must be greater than $0.',
-            'minTrc20.min' => 'USD withdrawal minimum must be greater than $0.',
-            'minErc20.min' => 'USD withdrawal minimum must be greater than $0.',
+            'minimums.*.min' => 'USD withdrawal minimum must be greater than $0.',
         ]);
 
-        PlatformSettings::instance()->update([
-            'withdrawal_min_usd_bitcoin' => $validated['minBitcoin'],
-            'withdrawal_min_usd_usdt_trc20' => $validated['minTrc20'],
-            'withdrawal_min_usd_usdt_erc20' => $validated['minErc20'],
-        ]);
+        foreach ($validated['minimums'] as $key => $minimum) {
+            PlatformSettings::networkSetting($key)->update(['withdrawal_min_usd' => $minimum]);
+        }
 
         $this->showConfirmModal = false;
         $this->successMessage = 'Withdrawal minimums updated.';

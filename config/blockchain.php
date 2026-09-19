@@ -8,17 +8,8 @@ return [
         'api_key' => env('COINGECKO_API_KEY'),
     ],
 
-    'confirmations' => [
-        'bitcoin' => 3,
-        'usdt_trc20' => 20,
-        'usdt_erc20' => 12,
-    ],
-
-    'scan_intervals' => [
-        'bitcoin' => 15,
-        'usdt_trc20' => 5,
-        'usdt_erc20' => 5,
-    ],
+    // Confirmation thresholds and scan intervals live in the network
+    // registry (config/networks.php) — read them via App\Support\Network.
 
     'provider_backoff' => [
         'base_minutes' => 2,
@@ -34,13 +25,17 @@ return [
 
     'gas_recovery' => [
         'min_native' => [
-            'usdt_trc20' => env('GAS_RECOVERY_MIN_NATIVE_TRC20', '5'),
+            'tron' => env('GAS_RECOVERY_MIN_NATIVE_TRC20', '5'),
         ],
     ],
 
     'bitcoin' => [
         'xpub' => env('BLOCKCHAIN_BITCOIN_XPUB'),
         'coin_type' => 0,
+    ],
+    'litecoin' => [
+        'xpub' => env('BLOCKCHAIN_LITECOIN_XPUB'),
+        'coin_type' => 2,
     ],
     'usdt_trc20' => [
         'xpub' => env('BLOCKCHAIN_USDT_TRC20_XPUB'),
@@ -56,22 +51,6 @@ return [
         'api_key' => env('SIGNER_API_KEY'),
     ],
 
-    'providers' => [
-        'bitcoin' => [
-            'driver' => 'esplora',
-            'base_url' => env('MEMPOOL_API_URL', 'https://mempool.space/api'),
-        ],
-        'usdt_trc20' => [
-            'driver' => 'trongrid',
-            'api_key' => env('TRONGRID_API_KEY'),
-            'usdt_contract' => env('TRONGRID_USDT_CONTRACT', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'),
-        ],
-        'usdt_erc20' => [
-            'driver' => 'infura',
-            'project_id' => env('INFURA_PROJECT_ID'),
-            'project_secret' => env('INFURA_PROJECT_SECRET'),
-            'network' => env('INFURA_NETWORK', 'mainnet'),
-            'usdt_contract' => env('INFURA_USDT_CONTRACT', '0xdAC17F958D2ee523a2206206994597C13D831ec7'),
-        ],
-    ],
+    // Provider drivers and credentials live in the network registry
+    // (config/networks.php `provider` entries).
 ];

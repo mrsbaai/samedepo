@@ -68,9 +68,9 @@
 
             <div class="max-lg:hidden flex items-center gap-2">
                 <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === 'all' ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', 'all')">All</flux:badge>
-                <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === 'bitcoin' ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', 'bitcoin')"><span class="flex items-center gap-1"><img src="{{ asset('crypto/bitcoin.svg') }}" alt="" class="size-3.5" /> BTC</span></flux:badge>
-                <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === 'usdt-trc20' ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', 'usdt-trc20')"><span class="flex items-center gap-1"><img src="{{ asset('crypto/usdt-trc20.svg') }}" alt="" class="size-3.5" /> TRC20</span></flux:badge>
-                <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === 'usdt-erc20' ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', 'usdt-erc20')"><span class="flex items-center gap-1"><img src="{{ asset('crypto/usdt-erc20.svg') }}" alt="" class="size-3.5" /> ERC20</span></flux:badge>
+                @foreach ($this->networkOptions as $meta)
+                    <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === $meta['slug'] ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', '{{ $meta['slug'] }}')"><span class="flex items-center gap-1"><img src="{{ asset($meta['icon']) }}" alt="" class="size-3.5" /> {{ $meta['label'] }}</span></flux:badge>
+                @endforeach
             </div>
         </div>
 
@@ -132,7 +132,7 @@
                                     {{ $item['networkLabel'] }}
                                 </span>
                             </flux:table.cell>
-                            <flux:table.cell variant="strong" class="font-ledger">{{ $item['amount'] }} {{ $item['networkSlug'] === 'bitcoin' ? 'BTC' : 'USDT' }}</flux:table.cell>
+                            <flux:table.cell variant="strong" class="font-ledger">{{ $item['amount'] }} {{ $item['symbol'] }}</flux:table.cell>
                             <flux:table.cell class="max-md:hidden py-0">
                                 <flux:badge size="sm" color="{{ $statusColors[$item['status']] ?? 'zinc' }}">{{ $item['statusLabel'] }}</flux:badge>
                             </flux:table.cell>

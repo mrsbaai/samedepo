@@ -9,12 +9,11 @@ use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\DepositAddress;
 use App\Services\Blockchain\AddressGenerator;
+use App\Support\Network;
 use Illuminate\Support\Facades\DB;
 
 class CustomerController
 {
-    private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20'];
-
     /**
      * Return a customer and their permanent deposit addresses, creating them when missing.
      */
@@ -40,6 +39,10 @@ class CustomerController
             });
 
             $statusCode = 201;
+        } else {
+            // Lazily backfill addresses for networks enabled after this
+            // customer was created.
+            DB::transaction(fn () => $this->generateDepositAddresses($customer));
         }
 
         return (new CustomerResource($customer->load('depositAddresses')))
@@ -53,12 +56,41 @@ class CustomerController
         $generator = app(AddressGenerator::class);
         $nextIndex = (DepositAddress::max('derivation_index') ?? 0) + 1;
 
-        foreach (self::NETWORKS as $network) {
+        $existing = $customer->depositAddresses()->get();
+        $existingNetworks = $existing->pluck('network')->all();
+
+        // One derivation per address group: every network in a group shares
+        // the xpub path and therefore the same address/derivation_index.
+        $groupIndexes = [];
+        $groupAddresses = [];
+
+        foreach ($existing as $row) {
+            if (Network::exists($row->network)) {
+                $groupIndexes[Network::addressGroup($row->network)] = $row->derivation_index;
+                $groupAddresses[Network::addressGroup($row->network)] = $row->address;
+            }
+        }
+
+        foreach (Network::enabledKeys() as $network) {
+            if (in_array($network, $existingNetworks, true)) {
+                continue;
+            }
+
+            $group = Network::addressGroup($network);
+
+            if (! array_key_exists($group, $groupIndexes)) {
+                // Reuse the customer's existing derivation index when they
+                // already have rows in another group (one index per customer).
+                $index = $existing->first()?->derivation_index ?? $nextIndex;
+                $groupIndexes[$group] = $index;
+                $groupAddresses[$group] = $generator->generate($network, $index);
+            }
+
             DepositAddress::query()->firstOrCreate(
                 ['customer_id' => $customer->id, 'network' => $network],
                 [
-                    'address' => $generator->generate($network, $nextIndex),
-                    'derivation_index' => $nextIndex,
+                    'address' => $groupAddresses[$group],
+                    'derivation_index' => $groupIndexes[$group],
                 ]
             );
         }

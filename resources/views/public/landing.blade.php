@@ -45,9 +45,9 @@
   <span class="text-zinc-300">"data"</span>: {
     <span class="text-zinc-300">"customer_reference"</span>: "cus_482",
     <span class="text-zinc-300">"addresses"</span>: [
-      { <span class="text-zinc-300">"network"</span>: "bitcoin", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"1A1z...DivfNa"</span> },
-      { <span class="text-zinc-300">"network"</span>: "usdt_trc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"TXn9...v4mQ2"</span> },
-      { <span class="text-zinc-300">"network"</span>: "usdt_erc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"0x4f...B9cE1"</span> }
+      @foreach ($networks as $key => $meta){ <span class="text-zinc-300">"network"</span>: "{{ $key }}", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"{{ \App\Support\Network::exampleAddress($key) }}"</span> }@if (!$loop->last),
+      @endif
+      @endforeach
     ]
   },
   
@@ -61,17 +61,17 @@
     <section class="py-12 sm:py-16">
         <div class="flex flex-col gap-8 border-y border-zinc-800 py-8 lg:flex-row lg:items-center lg:justify-between">
             <div class="max-w-sm">
-                <flux:text size="sm" class="font-medium text-(--color-accent)">Three networks. One integration.</flux:text>
+                <flux:text size="sm" class="font-medium text-(--color-accent)">{{ count($networks) }} networks. One integration.</flux:text>
                 <flux:heading size="lg" level="2" class="mt-2">Give your users permanent deposit addresses.</flux:heading>
             </div>
 
             <div class="flex flex-wrap gap-x-10 gap-y-4">
-                @foreach ([['bitcoin.svg', 'Bitcoin', 'Native SegWit'], ['usdt-trc20.svg', 'USDT', 'TRC20'], ['usdt-erc20.svg', 'USDT', 'ERC20']] as [$icon, $name, $network])
+                @foreach ($networks as $meta)
                     <div class="flex items-center gap-3">
-                        <img src="{{ asset('crypto/'.$icon) }}" alt="" class="size-8 shrink-0 rounded-full" />
+                        <img src="{{ asset($meta['icon']) }}" alt="" class="size-8 shrink-0 rounded-full" />
                         <div class="leading-tight">
-                            <flux:text class="font-medium text-zinc-100">{{ $name }}</flux:text>
-                            <flux:text size="xs" class="font-mono text-zinc-500">{{ $network }}</flux:text>
+                            <flux:text class="font-medium text-zinc-100">{{ $meta['label'] }}</flux:text>
+                            <flux:text size="xs" class="font-mono text-zinc-500">{{ $meta['symbol'] }}</flux:text>
                         </div>
                     </div>
                 @endforeach

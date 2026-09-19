@@ -8,6 +8,7 @@ use App\Jobs\DeliverWebhook;
 use App\Models\Deposit;
 use App\Models\UsdValuation;
 use App\Models\WebhookEndpoint;
+use App\Support\Network;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -72,7 +73,7 @@ class WebhookDispatcher
             'gross_amount_usd' => $this->calculateCreditedUsdValue($deposit->network, (string) $deposit->gross_amount),
             'status' => 'pending',
             'confirmation_count' => $deposit->confirmation_count,
-            'confirmations_required' => (int) config("blockchain.confirmations.{$deposit->network}", 0),
+            'confirmations_required' => Network::exists($deposit->network) ? Network::confirmations($deposit->network) : 0,
             'detected_at' => $deposit->detected_at?->toIso8601String(),
         ]));
     }
@@ -83,7 +84,7 @@ class WebhookDispatcher
             'id' => 0,
             'customer_id' => 0,
             'customer_reference' => 'customer-123',
-            'network' => 'bitcoin',
+            'network' => Network::enabledKeys()[0],
             'tx_hash' => 'test-tx',
             'gross_amount' => '0.10000000',
             'gross_amount_usd' => '3000.00',

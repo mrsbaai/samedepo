@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Blockchain\PriceFeed;
 
+use App\Support\Network;
 use Illuminate\Support\Facades\Http;
 
 class CoinGeckoProvider implements PriceFeedProvider
@@ -17,17 +18,26 @@ class CoinGeckoProvider implements PriceFeedProvider
             $request = $request->withHeader('x-cg-demo-api-key', $apiKey);
         }
 
+        // valuation key → coingecko id, built from the network registry.
+        $idByKey = [];
+        foreach (Network::valuationKeys() as $key) {
+            $id = Network::coingeckoId($key);
+
+            if ($id !== null) {
+                $idByKey[$key] = $id;
+            }
+        }
+
         $prices = $request->get(config('blockchain.price_feed.url'), [
-            'ids' => 'bitcoin,tether,tron,ethereum',
+            'ids' => implode(',', array_unique(array_values($idByKey))),
             'vs_currencies' => 'usd',
         ])->throw()->json();
 
-        return [
-            'bitcoin' => $prices['bitcoin']['usd'] ?? 0,
-            'usdt_trc20' => $prices['tether']['usd'] ?? 0,
-            'usdt_erc20' => $prices['tether']['usd'] ?? 0,
-            'native_trx' => $prices['tron']['usd'] ?? 0,
-            'native_eth' => $prices['ethereum']['usd'] ?? 0,
-        ];
+        $result = [];
+        foreach ($idByKey as $key => $id) {
+            $result[$key] = $prices[$id]['usd'] ?? 0;
+        }
+
+        return $result;
     }
 }

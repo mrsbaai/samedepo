@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\TreasuryWallet;
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +18,7 @@ class TreasuryWalletFactory extends Factory
     public function definition(): array
     {
         return [
-            'network' => fake()->randomElement(['bitcoin', 'usdt_trc20', 'usdt_erc20']),
+            'network' => fake()->randomElement(Network::keys()),
             'derivation_index' => 0,
             'address' => fake()->uuid(),
             'available_funds' => fake()->randomFloat(8, 0, 100),

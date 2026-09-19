@@ -12,6 +12,7 @@ use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
+use App\Support\Network;
 use Illuminate\Support\Facades\DB;
 
 class TreasuryPayoutService
@@ -29,7 +30,7 @@ class TreasuryPayoutService
     public function preview(string $network, string $amount, ?string $destination = null): array
     {
         $settings = PlatformSettings::instance();
-        $savedDestination = $settings->{"profit_address_$network"};
+        $savedDestination = PlatformSettings::networkSetting($network)->profit_address;
         $withdrawable = $this->profit->forNetwork($network)['withdrawable'];
         $result = [
             'fee_native' => null,
@@ -56,8 +57,8 @@ class TreasuryPayoutService
         }
 
         $result['fee_native'] = $this->broadcaster instanceof EstimatesTransferFee
-            ? $this->broadcaster->estimateTransferFee($network, $network !== 'bitcoin', $savedDestination)
-            : $this->broadcaster->estimateFee($network, $network !== 'bitcoin');
+            ? $this->broadcaster->estimateTransferFee($network, Network::isToken($network), $savedDestination)
+            : $this->broadcaster->estimateFee($network, Network::isToken($network));
 
         if ($result['fee_native'] === null) {
             return $this->blocked($result, 'Fee estimate unavailable');
@@ -74,24 +75,20 @@ class TreasuryPayoutService
             $result['fee_native'] = $rentalFee;
         }
 
-        if ($network === 'bitcoin' && bccomp(bcadd($amount, $result['fee_native'], 8), $withdrawable, 8) > 0) {
+        if (Network::isNative($network) && bccomp(bcadd($amount, $result['fee_native'], 8), $withdrawable, 8) > 0) {
             return $this->blocked($result, 'Amount plus network fee exceeds withdrawable profit.');
         }
 
-        if ($network !== 'bitcoin') {
+        if (Network::isToken($network)) {
             $wallet = TreasuryWallet::query()->where('network', $network)->first();
-            $reserve = (string) (GasPolicy::query()->where('network', $network)->value('reserve_threshold') ?? '0');
+            $reserve = (string) (GasPolicy::query()->where('network', Network::nativeKey($network))->value('reserve_threshold') ?? '0');
 
             if ($wallet?->native_balance === null || bccomp(bcsub((string) $wallet->native_balance, $result['fee_native'], 8), $reserve, 8) < 0) {
                 return $this->blocked($result, 'Gas reserve too low for a payout right now.');
             }
         }
 
-        $nativeKey = match ($network) {
-            'usdt_trc20' => 'native_trx',
-            'usdt_erc20' => 'native_eth',
-            default => 'bitcoin',
-        };
+        $nativeKey = Network::nativeKey($network);
         $tokenValue = (string) (UsdValuation::query()->where('network', $network)->value('conversion_value') ?? '0');
         $nativeValue = (string) (UsdValuation::query()->where('network', $nativeKey)->value('conversion_value') ?? '0');
 
@@ -148,7 +145,7 @@ class TreasuryPayoutService
             return false;
         }
 
-        if ($payout->network === 'usdt_trc20' && $this->gasTreasury->policy('usdt_trc20')->energy_mode === 'rent') {
+        if (Network::family($payout->network) === 'tron' && $this->gasTreasury->policy($payout->network)->energy_mode === 'rent') {
             $burnFeeNative = (string) ($preview['burn_fee_native'] ?? $preview['fee_native']);
             $rented = $this->gasTreasury->ensureEnergyViaRental(
                 $payout->network,
@@ -182,7 +179,7 @@ class TreasuryPayoutService
         }
 
         DB::transaction(function () use ($payout, $wallet, $txHash, $estimatedFeeNative): void {
-            $treasurySpend = $payout->network === 'bitcoin'
+            $treasurySpend = Network::isNative($payout->network)
                 ? bcadd((string) $payout->amount, $estimatedFeeNative, 8)
                 : (string) $payout->amount;
             $wallet->available_funds = bcsub((string) $wallet->available_funds, $treasurySpend, 8);
@@ -240,7 +237,7 @@ class TreasuryPayoutService
                                 'status' => 'failed',
                                 'error_message' => 'Receipt failed',
                             ]);
-                            $restore = $payout->network === 'bitcoin'
+                            $restore = Network::isNative($payout->network)
                                 ? bcadd((string) $payout->amount, (string) $payout->network_fee, 8)
                                 : (string) $payout->amount;
                             TreasuryWallet::query()->where('network', $payout->network)

@@ -7,6 +7,7 @@ namespace App\Livewire\Dashboard;
 use App\Models\Deposit;
 use App\Models\LedgerEntry;
 use App\Models\Withdrawal;
+use App\Support\Network;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -17,18 +18,6 @@ use Livewire\WithPagination;
 class TransactionHistory extends Component
 {
     use WithPagination;
-
-    /**
-     * Network metadata keyed by the DB `network` value.
-     *
-     * `slug` uses dashes (matches asset file names and the filter values
-     * used in the input package); the DB column uses underscores.
-     */
-    private const NETWORKS = [
-        'bitcoin' => ['slug' => 'bitcoin', 'label' => 'Bitcoin', 'decimals' => 8],
-        'usdt_trc20' => ['slug' => 'usdt-trc20', 'label' => 'USDT (TRC20)', 'decimals' => 2],
-        'usdt_erc20' => ['slug' => 'usdt-erc20', 'label' => 'USDT (ERC20)', 'decimals' => 2],
-    ];
 
     /**
      * Status filter options surfaced across both deposit and withdrawal
@@ -75,13 +64,21 @@ class TransactionHistory extends Component
     }
 
     /**
-     * Reverse-maps a display network slug (e.g. `usdt-trc20`) back to its
-     * DB column value (e.g. `usdt_trc20`).
+     * Reverse-maps a display network slug (e.g. `litecoin`) back to its
+     * DB column value (e.g. `litecoin`).
      */
+    #[Computed]
+    public function networkOptions(): array
+    {
+        return collect(Network::presentAll(enabledOnly: true))
+            ->mapWithKeys(fn (array $meta): array => [$meta['slug'] => $meta['label']])
+            ->all();
+    }
+
     private function dbNetworkFor(string $slug): ?string
     {
-        foreach (self::NETWORKS as $dbValue => $meta) {
-            if ($meta['slug'] === $slug) {
+        foreach (Network::keys() as $dbValue) {
+            if (Network::present($dbValue)['slug'] === $slug) {
                 return $dbValue;
             }
         }
@@ -91,7 +88,7 @@ class TransactionHistory extends Component
 
     private function networkMeta(string $dbNetwork): array
     {
-        return self::NETWORKS[$dbNetwork] ?? [
+        return Network::exists($dbNetwork) ? Network::present($dbNetwork) : [
             'slug' => str_replace('_', '-', $dbNetwork),
             'label' => $dbNetwork,
             'decimals' => 8,
@@ -118,7 +115,7 @@ class TransactionHistory extends Component
                 ? $this->formatAmount((string) ((float) $deposit->gross_amount - (float) $deposit->fee_amount), $meta['decimals'])
                 : null);
 
-        $confirmationsRequired = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+        $confirmationsRequired = Network::exists($deposit->network) ? Network::confirmations($deposit->network) : 0;
         $statusLabel = $deposit->status === 'pending'
             ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
             : ucfirst($deposit->status);
@@ -129,6 +126,7 @@ class TransactionHistory extends Component
             'timestamp' => ($deposit->detected_at ?? $deposit->created_at)->toIso8601String(),
             'networkSlug' => $meta['slug'],
             'networkLabel' => $meta['label'],
+            'symbol' => $meta['symbol'] ?? '',
             'decimals' => $meta['decimals'],
             'gross' => $this->formatAmount((string) $deposit->gross_amount, $meta['decimals']),
             'fee' => $fee,
@@ -160,6 +158,7 @@ class TransactionHistory extends Component
             'timestamp' => $withdrawal->created_at->toIso8601String(),
             'networkSlug' => $meta['slug'],
             'networkLabel' => $meta['label'],
+            'symbol' => $meta['symbol'] ?? '',
             'decimals' => $meta['decimals'],
             'gross' => $this->formatAmount((string) $withdrawal->gross_amount, $meta['decimals']),
             'fee' => $fee,
@@ -188,6 +187,7 @@ class TransactionHistory extends Component
             'timestamp' => $entry->created_at->toIso8601String(),
             'networkSlug' => $meta['slug'],
             'networkLabel' => $meta['label'],
+            'symbol' => $meta['symbol'] ?? '',
             'decimals' => $meta['decimals'],
             'gross' => $this->formatAmount('0.00000000', $meta['decimals']),
             'fee' => null,

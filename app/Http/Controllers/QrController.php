@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Support\Network;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 use Illuminate\Http\Response;
@@ -18,7 +19,7 @@ class QrController
             return response('Unsupported address type.', 400);
         }
 
-        $logoPath = public_path('crypto/'.str_replace('_', '-', $network).'.svg');
+        $logoPath = public_path(Network::present($network)['icon']);
 
         if (! file_exists($logoPath)) {
             return response('Logo not found.', 500);
@@ -31,16 +32,10 @@ class QrController
 
     private function detectNetwork(string $address): ?string
     {
-        if (preg_match('/^(1|3|bc1[qp])[a-zA-Z0-9]{11,71}$/i', $address)) {
-            return 'bitcoin';
-        }
-
-        if (preg_match('/^T[1-9A-HJ-NP-Za-km-z]{33}$/', $address)) {
-            return 'usdt_trc20';
-        }
-
-        if (preg_match('/^0x[a-fA-F0-9]{40}$/', $address)) {
-            return 'usdt_erc20';
+        foreach (config('networks.address_groups', []) as $group => $meta) {
+            if (preg_match($meta['address_regex'], $address)) {
+                return Network::enabledInGroup($group);
+            }
         }
 
         return null;

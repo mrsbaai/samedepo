@@ -17,20 +17,20 @@ test('the trc20 policy form exposes and validates the rental fields', function (
         ->get(route('admin.treasury'))
         ->assertOk()
         ->assertSee('Energy mode')
-        ->assertSee('policies.usdt_trc20.rent_max_price_sun', false)
-        ->assertDontSee('policies.usdt_erc20.energy_mode', false)
-        ->assertDontSee('policies.usdt_erc20.rent_duration_sec', false);
+        ->assertSee('policies.native_trx.rent_max_price_sun', false)
+        ->assertDontSee('policies.native_eth.energy_mode', false)
+        ->assertDontSee('policies.native_eth.rent_duration_sec', false);
 
     Livewire::actingAs($admin)
         ->test(TreasuryOverview::class)
-        ->set('policies.usdt_trc20.energy_mode', 'rent')
-        ->set('policies.usdt_trc20.rent_max_price_sun', 90)
-        ->set('policies.usdt_trc20.rent_duration_sec', 3600)
-        ->set('policies.usdt_trc20.rent_float_alert_trx', '20')
-        ->call('savePolicy', 'usdt_trc20')
+        ->set('policies.native_trx.energy_mode', 'rent')
+        ->set('policies.native_trx.rent_max_price_sun', 90)
+        ->set('policies.native_trx.rent_duration_sec', 3600)
+        ->set('policies.native_trx.rent_float_alert_trx', '20')
+        ->call('savePolicy', 'native_trx')
         ->assertHasNoErrors();
 
-    expect(GasPolicy::where('network', 'usdt_trc20')->first())
+    expect(GasPolicy::where('network', 'native_trx')->first())
         ->energy_mode->toBe('rent')
         ->rent_max_price_sun->toBe(90)
         ->rent_duration_sec->toBe(3600)
@@ -38,22 +38,22 @@ test('the trc20 policy form exposes and validates the rental fields', function (
 
     Livewire::actingAs($admin)
         ->test(TreasuryOverview::class)
-        ->set('policies.usdt_trc20.rent_duration_sec', 60)
-        ->call('savePolicy', 'usdt_trc20')
-        ->assertHasErrors(['policies.usdt_trc20.rent_duration_sec']);
+        ->set('policies.native_trx.rent_duration_sec', 60)
+        ->call('savePolicy', 'native_trx')
+        ->assertHasErrors(['policies.native_trx.rent_duration_sec']);
 
     Livewire::actingAs($admin)
         ->test(TreasuryOverview::class)
-        ->set('policies.usdt_trc20.energy_mode', 'bogus')
-        ->call('savePolicy', 'usdt_trc20')
-        ->assertHasErrors(['policies.usdt_trc20.energy_mode']);
+        ->set('policies.native_trx.energy_mode', 'bogus')
+        ->call('savePolicy', 'native_trx')
+        ->assertHasErrors(['policies.native_trx.energy_mode']);
 });
 
 test('the treasury page renders the energy float in rent mode and saves back to burn', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0, 'address' => 'TTreasury']);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'energy_mode' => 'rent',
         'rent_max_price_sun' => 90,
         'rent_duration_sec' => 3600,
@@ -77,9 +77,9 @@ test('the treasury page renders the energy float in rent mode and saves back to 
 
     Livewire::actingAs($admin)
         ->test(TreasuryOverview::class)
-        ->set('policies.usdt_trc20.energy_mode', 'burn')
-        ->call('savePolicy', 'usdt_trc20')
+        ->set('policies.native_trx.energy_mode', 'burn')
+        ->call('savePolicy', 'native_trx')
         ->assertHasNoErrors();
 
-    expect(GasPolicy::where('network', 'usdt_trc20')->value('energy_mode'))->toBe('burn');
+    expect(GasPolicy::where('network', 'native_trx')->value('energy_mode'))->toBe('burn');
 });

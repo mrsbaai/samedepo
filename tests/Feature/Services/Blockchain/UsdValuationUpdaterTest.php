@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\UsdValuation;
 use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
 use App\Services\Blockchain\UsdValuationUpdater;
+use App\Support\Network;
 
 function priceFeed(array $prices): PriceFeedProvider
 {
@@ -34,17 +35,14 @@ test('it updates existing valuations without creating duplicates', function () {
     $updater->update();
 
     expect(UsdValuation::query()->where('network', 'bitcoin')->value('conversion_value'))->toBe('65000.250000')
-        ->and(UsdValuation::query()->count())->toBe(5);
+        ->and(UsdValuation::query()->count())->toBe(count(Network::valuationKeys()));
 });
 
 test('it creates all supported valuations and stores zero for missing prices', function () {
     (new UsdValuationUpdater(priceFeed(['bitcoin' => 64000])))->update();
 
-    expect(UsdValuation::query()->pluck('conversion_value', 'network')->all())->toBe([
-        'bitcoin' => '64000.000000',
-        'usdt_trc20' => '0.000000',
-        'usdt_erc20' => '0.000000',
-        'native_trx' => '0.000000',
-        'native_eth' => '0.000000',
-    ]);
+    $expected = array_fill_keys(Network::valuationKeys(), '0.000000');
+    $expected['bitcoin'] = '64000.000000';
+
+    expect(UsdValuation::query()->pluck('conversion_value', 'network')->all())->toBe($expected);
 });

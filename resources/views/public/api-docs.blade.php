@@ -104,18 +104,12 @@
                         <section class="grid gap-4 py-5 md:grid-cols-[12rem_1fr] md:gap-8">
                             <flux:heading level="2">Minimum deposits</flux:heading>
                             <dl class="grid gap-4 md:grid-cols-3">
-                                <div>
-                                    <dt><flux:text size="sm">Bitcoin</flux:text></dt>
-                                    <dd class="mt-1 font-ledger text-sm font-medium tabular-nums text-white">{{ number_format((float) $settings->min_deposit_bitcoin, 8, '.', '') }} BTC</dd>
-                                </div>
-                                <div>
-                                    <dt><flux:text size="sm">USDT (TRC20)</flux:text></dt>
-                                    <dd class="mt-1 font-ledger text-sm font-medium tabular-nums text-white">{{ number_format((float) $settings->min_deposit_usdt_trc20, 2, '.', '') }} USDT</dd>
-                                </div>
-                                <div>
-                                    <dt><flux:text size="sm">USDT (ERC20)</flux:text></dt>
-                                    <dd class="mt-1 font-ledger text-sm font-medium tabular-nums text-white">{{ number_format((float) $settings->min_deposit_usdt_erc20, 2, '.', '') }} USDT</dd>
-                                </div>
+                                @foreach ($networks as $meta)
+                                    <div>
+                                        <dt><flux:text size="sm">{{ $meta['label'] }}</flux:text></dt>
+                                        <dd class="mt-1 font-ledger text-sm font-medium tabular-nums text-white">{{ number_format((float) $meta['min_deposit'], $meta['decimals'], '.', '') }} {{ $meta['symbol'] }}</dd>
+                                    </div>
+                                @endforeach
                             </dl>
                         </section>
 
@@ -157,9 +151,9 @@
   "<span class="text-(--color-accent)">data</span>": {
     "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
     "<span class="text-(--color-accent)">addresses</span>": [
-      { "<span class="text-(--color-accent)">network</span>": "bitcoin", "<span class="text-(--color-accent)">address</span>": "bc1q...", "<span class="text-(--color-accent)">qr</span>": "{{ url('/qr/bc1q...') }}", "<span class="text-(--color-accent)">minimum_deposit</span>": "{{ number_format((float) $settings->min_deposit_bitcoin, 8, '.', '') }}" },
-      { "<span class="text-(--color-accent)">network</span>": "usdt_trc20", "<span class="text-(--color-accent)">address</span>": "T...", "<span class="text-(--color-accent)">qr</span>": "{{ url('/qr/T...') }}", "<span class="text-(--color-accent)">minimum_deposit</span>": "{{ number_format((float) $settings->min_deposit_usdt_trc20, 2, '.', '') }}" },
-      { "<span class="text-(--color-accent)">network</span>": "usdt_erc20", "<span class="text-(--color-accent)">address</span>": "0x...", "<span class="text-(--color-accent)">qr</span>": "{{ url('/qr/0x...') }}", "<span class="text-(--color-accent)">minimum_deposit</span>": "{{ number_format((float) $settings->min_deposit_usdt_erc20, 2, '.', '') }}" }
+      @foreach ($networks as $key => $meta){ "<span class="text-(--color-accent)">network</span>": "{{ $key }}", "<span class="text-(--color-accent)">address</span>": "{{ $meta['example_address'] }}", "<span class="text-(--color-accent)">qr</span>": "{{ url('/qr/'.$meta['example_address']) }}", "<span class="text-(--color-accent)">minimum_deposit</span>": "{{ number_format((float) $meta['min_deposit'], $meta['decimals'], '.', '') }}" }@if (!$loop->last),
+      @endif
+      @endforeach
     ]
   }
 }</code></pre>
@@ -196,7 +190,7 @@
                                     <code>deposit.pending</code> is sent the first time we see an inbound payment, regardless of confirmation count. <code>deposit.credited</code> is sent once the required network confirmations have been reached and the deposit has been credited.
                                 </flux:text>
                                 <flux:text class="mb-3">
-                                    <code>network</code> can be <code>bitcoin</code>, <code>usdt_trc20</code>, or <code>usdt_erc20</code>. Required confirmations are configured per network.
+                                    <code>network</code> is one of the enabled network keys (@foreach (array_keys($networks) as $key)<code>{{ $key }}</code>@if (!$loop->last), @endif@endforeach). Required confirmations are configured per network.
                                 </flux:text>
                             </div>
 

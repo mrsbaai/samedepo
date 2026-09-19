@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\User;
 use App\Models\Withdrawal;
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,7 +20,7 @@ class WithdrawalFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'network' => fake()->randomElement(['bitcoin', 'usdt_trc20', 'usdt_erc20']),
+            'network' => fake()->randomElement(Network::keys()),
             'gross_amount' => fake()->randomFloat(8, 0, 10),
             'network_fee' => null,
             'amount_sent' => null,

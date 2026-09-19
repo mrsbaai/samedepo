@@ -116,7 +116,8 @@ test('it credits an ignored deposit after the platform minimum is lowered and co
         'confirmation_count' => 12,
     ]);
 
-    PlatformSettings::instance()->update(['min_deposit_usdt_erc20' => '18.00000000']);
+    PlatformSettings::instance();
+    PlatformSettings::networkSetting('usdt_erc20')->update(['min_deposit' => '18.00000000']);
 
     app(DepositCreditor::class)->credit();
 
@@ -236,7 +237,8 @@ test('it does not credit an ignored deposit after the minimum is lowered until c
         'confirmation_count' => 11,
     ]);
 
-    PlatformSettings::instance()->update(['min_deposit_usdt_erc20' => '18.00000000']);
+    PlatformSettings::instance();
+    PlatformSettings::networkSetting('usdt_erc20')->update(['min_deposit' => '18.00000000']);
 
     app(DepositCreditor::class)->credit();
 

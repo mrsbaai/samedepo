@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Models\Deposit;
+use App\Support\Network;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -15,18 +16,6 @@ use Livewire\WithPagination;
 class Deposits extends Component
 {
     use WithPagination;
-
-    /**
-     * Network metadata keyed by the DB `network` value.
-     *
-     * `slug` uses dashes (matches asset file names); the DB column uses
-     * underscores.
-     */
-    private const NETWORKS = [
-        'bitcoin' => ['slug' => 'bitcoin', 'label' => 'Bitcoin', 'decimals' => 8],
-        'usdt_trc20' => ['slug' => 'usdt-trc20', 'label' => 'USDT (TRC20)', 'decimals' => 2],
-        'usdt_erc20' => ['slug' => 'usdt-erc20', 'label' => 'USDT (ERC20)', 'decimals' => 2],
-    ];
 
     /**
      * The only statuses ever surfaced in this list. `ignored` deposits are
@@ -73,13 +62,13 @@ class Deposits extends Component
 
     private function present(Deposit $deposit): array
     {
-        $meta = self::NETWORKS[$deposit->network] ?? [
+        $meta = Network::exists($deposit->network) ? Network::present($deposit->network) : [
             'slug' => str_replace('_', '-', $deposit->network),
             'label' => $deposit->network,
             'decimals' => 8,
         ];
 
-        $confirmationsRequired = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+        $confirmationsRequired = Network::exists($deposit->network) ? Network::confirmations($deposit->network) : 0;
         $statusLabel = $deposit->status === 'pending'
             ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
             : ucfirst($deposit->status);
@@ -88,6 +77,7 @@ class Deposits extends Component
             'id' => $deposit->id,
             'networkSlug' => $meta['slug'],
             'networkLabel' => $meta['label'],
+            'symbol' => $meta['symbol'] ?? '',
             'amount' => number_format((float) $deposit->gross_amount, $meta['decimals'], '.', ''),
             'status' => $deposit->status,
             'statusLabel' => $statusLabel,

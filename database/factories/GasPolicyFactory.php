@@ -17,7 +17,7 @@ class GasPolicyFactory extends Factory
     public function definition(): array
     {
         return [
-            'network' => 'usdt_erc20',
+            'network' => 'native_eth',
             'reserve_threshold' => '0.01000000',
             'top_up_amount' => '0.02000000',
             'max_top_up' => '0.10000000',

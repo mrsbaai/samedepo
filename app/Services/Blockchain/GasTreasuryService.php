@@ -18,6 +18,7 @@ use App\Notifications\LowGasAlert;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
 use App\Services\Blockchain\Energy\TronSaveClient;
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -37,9 +38,11 @@ class GasTreasuryService
 
     public function policy(string $network): GasPolicy
     {
+        $nativeKey = Network::nativeKey($network);
+
         return GasPolicy::firstOrCreate(
-            ['network' => $network],
-            $this->defaultPolicy($network),
+            ['network' => $nativeKey],
+            $this->defaultPolicy($nativeKey),
         );
     }
 
@@ -73,7 +76,7 @@ class GasTreasuryService
             return true;
         }
 
-        if ($network === 'usdt_trc20' && $policy->energy_mode === 'rent') {
+        if (Network::family($network) === 'tron' && $policy->energy_mode === 'rent') {
             $rented = $this->ensureEnergyViaRental(
                 $network,
                 $recipientIndex,
@@ -162,7 +165,7 @@ class GasTreasuryService
             'refreshed_at' => now(),
         ]);
 
-        if ($withdrawal->network === 'usdt_trc20' && $policy->energy_mode === 'rent') {
+        if (Network::family($withdrawal->network) === 'tron' && $policy->energy_mode === 'rent') {
             $burnFee = $estimatedFeeNative ?? $this->estimateTransferFee($withdrawal->network, true, $withdrawal->destination_address);
             $rented = $burnFee === null ? null : $this->ensureEnergyViaRental(
                 $withdrawal->network,
@@ -374,7 +377,7 @@ class GasTreasuryService
      */
     public function rentalFeeEstimateNative(string $network, int $neededEnergy): ?string
     {
-        if ($network !== 'usdt_trc20' || $this->policy($network)->energy_mode !== 'rent') {
+        if (Network::family($network) !== 'tron' || $this->policy($network)->energy_mode !== 'rent') {
             return null;
         }
 
@@ -452,7 +455,23 @@ class GasTreasuryService
 
     public function recoverStrandedGas(): void
     {
-        $network = 'usdt_trc20';
+        foreach (Network::enabledKeys() as $network) {
+            if (! Network::isToken($network)) {
+                continue;
+            }
+
+            $minimum = config('blockchain.gas_recovery.min_native.'.Network::chain($network));
+
+            if ($minimum === null) {
+                continue;
+            }
+
+            $this->recoverStrandedGasFor($network, (string) $minimum);
+        }
+    }
+
+    private function recoverStrandedGasFor(string $network, string $minimum): void
+    {
         $wallet = TreasuryWallet::query()->where('network', $network)->first();
 
         if ($wallet === null) {
@@ -469,8 +488,6 @@ class GasTreasuryService
         if ($recoveryInFlight) {
             return;
         }
-
-        $minimum = (string) config('blockchain.gas_recovery.min_native.usdt_trc20', '5');
 
         DepositAddress::query()
             ->where('network', $network)
@@ -560,11 +577,11 @@ class GasTreasuryService
             'refreshed_at' => now(),
         ];
 
-        $policy = in_array($wallet->network, ['usdt_erc20', 'usdt_trc20'], true)
+        $policy = Network::isToken($wallet->network)
             ? $this->policy($wallet->network)
             : null;
 
-        if ($wallet->network === 'usdt_trc20') {
+        if (Network::family($wallet->network) === 'tron') {
             $resource = $this->broadcaster->getTronResource((int) $wallet->derivation_index);
 
             if ($resource !== null) {
@@ -587,7 +604,7 @@ class GasTreasuryService
         if ($policy !== null) {
             $this->alertIfNeeded($policy, $balance);
 
-            if ($wallet->network === 'usdt_trc20' && $policy->energy_mode === 'rent') {
+            if (Network::family($wallet->network) === 'tron' && $policy->energy_mode === 'rent') {
                 $this->alertFloatIfNeeded($policy, $wallet->fresh()->rental_balance);
             }
         }
@@ -656,7 +673,7 @@ class GasTreasuryService
             'refreshed_at' => now(),
         ];
 
-        if ($wallet->network === 'usdt_trc20') {
+        if (Network::family($wallet->network) === 'tron') {
             $resource = $this->broadcaster->getTronResource((int) $wallet->derivation_index);
 
             if ($resource !== null) {
@@ -813,7 +830,7 @@ class GasTreasuryService
             return false;
         }
 
-        $required = (int) config("blockchain.confirmations.{$network}", 0);
+        $required = Network::confirmations($network);
 
         return ($receipt['confirmations'] ?? 0) >= $required;
     }
@@ -914,11 +931,11 @@ class GasTreasuryService
         return true;
     }
 
-    private function defaultPolicy(string $network): array
+    private function defaultPolicy(string $nativeKey): array
     {
-        $amounts = match ($network) {
-            'usdt_erc20' => ['0.00500000', '0.00030000', '0.00100000'],
-            'usdt_trc20' => ['10.00000000', '1.00000000', '20.00000000'],
+        $amounts = match ($nativeKey) {
+            'native_eth' => ['0.00500000', '0.00030000', '0.00100000'],
+            'native_trx' => ['10.00000000', '1.00000000', '20.00000000'],
             default => ['0.01000000', '0.02000000', '0.10000000'],
         };
 

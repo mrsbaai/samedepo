@@ -105,11 +105,10 @@ function createSweeper(?string $hash = 'sweep-tx-123'): TreasurySweepService
 }
 
 beforeEach(function () {
-    PlatformSettings::instance()->update([
-        'sweep_min_usd_bitcoin' => '0.00',
-        'sweep_min_usd_usdt_trc20' => '0.00',
-        'sweep_min_usd_usdt_erc20' => '0.00',
-    ]);
+    PlatformSettings::instance();
+    PlatformSettings::networkSetting('bitcoin')->update(['sweep_min_usd' => '0.00']);
+    PlatformSettings::networkSetting('usdt_trc20')->update(['sweep_min_usd' => '0.00']);
+    PlatformSettings::networkSetting('usdt_erc20')->update(['sweep_min_usd' => '0.00']);
 
     foreach (['bitcoin', 'usdt_trc20', 'usdt_erc20'] as $network) {
         UsdValuation::factory()->create(['network' => $network, 'conversion_value' => '1.000000']);
@@ -276,7 +275,7 @@ test('it leaves a token sweep pending when gas is low and creates one top-up', f
     $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_erc20', 'derivation_index' => 5, 'address' => '0x123']);
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.02000000',
         'top_up_amount' => '0.03000000',
         'max_top_up' => '0.05000000',

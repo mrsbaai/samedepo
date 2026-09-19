@@ -5,6 +5,7 @@ use App\Models\Customer;
 use App\Models\DepositAddress;
 use App\Models\PlatformSettings;
 use App\Models\User;
+use App\Support\Network;
 use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
@@ -94,7 +95,7 @@ test('an owner can retrieve an existing customer by reference', function () {
         ->getJson('/api/v1/customers/CUST-ABC123')
         ->assertOk()
         ->assertJsonPath('data.customer_reference', 'CUST-ABC123')
-        ->assertJsonCount(1, 'data.addresses');
+        ->assertJsonCount(count(Network::enabledKeys()), 'data.addresses');
 
     $response->assertJsonPath('status', 'existing');
 });
@@ -132,12 +133,10 @@ test('the same reference creates a separate customer for another owner', functio
 test('each address includes minimum_deposit in the native currency', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
-    $settings = PlatformSettings::instance();
-    $settings->update([
-        'min_deposit_bitcoin' => 0.00050000,
-        'min_deposit_usdt_trc20' => 25.00000000,
-        'min_deposit_usdt_erc20' => 50.00000000,
-    ]);
+    PlatformSettings::instance();
+    PlatformSettings::networkSetting('bitcoin')->update(['min_deposit' => 0.00050000]);
+    PlatformSettings::networkSetting('usdt_trc20')->update(['min_deposit' => 25.00000000]);
+    PlatformSettings::networkSetting('usdt_erc20')->update(['min_deposit' => 50.00000000]);
 
     $response = $this->withHeaders(apiKeyHeader($owner))
         ->getJson('/api/v1/customers/CUST-MIN')

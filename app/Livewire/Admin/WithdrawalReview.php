@@ -9,6 +9,7 @@ use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\FeeConverter;
+use App\Support\Network;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -28,12 +29,6 @@ class WithdrawalReview extends Component
     public bool $showDenyModal = false;
 
     public ?string $successMessage = null;
-
-    private const NETWORKS = [
-        'bitcoin' => ['label' => 'Bitcoin', 'symbol' => 'BTC', 'decimals' => 8, 'slug' => 'bitcoin'],
-        'usdt_trc20' => ['label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'decimals' => 2, 'slug' => 'usdt-trc20'],
-        'usdt_erc20' => ['label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'decimals' => 2, 'slug' => 'usdt-erc20'],
-    ];
 
     public function mount(int $withdrawal): void
     {
@@ -64,7 +59,7 @@ class WithdrawalReview extends Component
     #[Computed]
     public function networkMeta(): array
     {
-        return self::NETWORKS[$this->withdrawalRecord->network] ?? ['label' => $this->withdrawalRecord->network, 'symbol' => '', 'decimals' => 8, 'slug' => $this->withdrawalRecord->network];
+        return Network::exists($this->withdrawalRecord->network) ? Network::present($this->withdrawalRecord->network) : ['label' => $this->withdrawalRecord->network, 'symbol' => '', 'decimals' => 8, 'slug' => $this->withdrawalRecord->network];
     }
 
     /**
@@ -81,7 +76,7 @@ class WithdrawalReview extends Component
             $estimatedNative = Cache::remember(
                 'withdraw-fee-estimate:'.$network,
                 300,
-                fn (): ?string => app(BlockchainBroadcaster::class)->estimateFee($network, tokenTransfer: $network !== 'bitcoin'),
+                fn (): ?string => app(BlockchainBroadcaster::class)->estimateFee($network, tokenTransfer: Network::isToken($network)),
             );
 
             if ($estimatedNative === null) {

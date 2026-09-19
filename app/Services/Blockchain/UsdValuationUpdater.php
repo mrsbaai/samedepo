@@ -6,18 +6,17 @@ namespace App\Services\Blockchain;
 
 use App\Models\UsdValuation;
 use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
+use App\Support\Network;
 
 class UsdValuationUpdater
 {
-    private const NETWORKS = ['bitcoin', 'usdt_trc20', 'usdt_erc20', 'native_trx', 'native_eth'];
-
     public function __construct(private readonly PriceFeedProvider $provider) {}
 
     public function update(): void
     {
         $prices = $this->provider->prices();
 
-        foreach (self::NETWORKS as $network) {
+        foreach (Network::valuationKeys() as $network) {
             UsdValuation::updateOrCreate(
                 ['network' => $network],
                 ['conversion_value' => $prices[$network] ?? 0],

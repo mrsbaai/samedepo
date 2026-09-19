@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\TreasuryPayoutService;
+use App\Support\Network;
 use Illuminate\Support\Facades\Http;
 
 class PayoutBroadcasterFake implements BlockchainBroadcaster
@@ -100,7 +101,8 @@ function payoutFixture(
     $address = $savedAddress;
     $destination ??= $address ?? 'T222222222222222222222222222222222';
 
-    PlatformSettings::instance()->update(["profit_address_$network" => $address]);
+    PlatformSettings::instance();
+    PlatformSettings::networkSetting($network)->update(['profit_address' => $address]);
     $wallet = TreasuryWallet::factory()->create([
         'network' => $network,
         'derivation_index' => 0,
@@ -113,7 +115,7 @@ function payoutFixture(
         'network' => $network,
         'amount' => $ownerBalance,
     ]);
-    GasPolicy::factory()->create(['network' => $network, 'reserve_threshold' => '1.00000000']);
+    GasPolicy::factory()->create(['network' => Network::nativeKey($network), 'reserve_threshold' => '1.00000000']);
 
     if ($valuations) {
         UsdValuation::create(['network' => $network, 'conversion_value' => '1.000000']);
@@ -268,7 +270,7 @@ test('treasury payout poll marks a failed receipt as failed', function () {
 
 test('a payout waits for an ordered rental', function () {
     [$payout] = payoutFixture(amount: '100.00000000', available: '200.00000000');
-    GasPolicy::where('network', 'usdt_trc20')->update([
+    GasPolicy::where('network', 'native_trx')->update([
         'energy_mode' => 'rent',
         'rent_max_price_sun' => 90,
         'rent_duration_sec' => 3600,
@@ -302,7 +304,7 @@ test('a payout waits for an ordered rental', function () {
 
 test('the payout sends once the rental fills', function () {
     [$payout] = payoutFixture(amount: '100.00000000', available: '200.00000000');
-    GasPolicy::where('network', 'usdt_trc20')->update([
+    GasPolicy::where('network', 'native_trx')->update([
         'energy_mode' => 'rent',
         'rent_max_price_sun' => 90,
         'rent_duration_sec' => 3600,

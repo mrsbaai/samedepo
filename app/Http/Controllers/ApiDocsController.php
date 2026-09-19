@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\PlatformSettings;
+use App\Support\Network;
 use Illuminate\Contracts\View\View;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Collection;
@@ -29,6 +30,14 @@ class ApiDocsController
             'rateLimit' => $settings->api_requests_per_minute,
             'settings' => $settings,
             'depositFee' => $depositFee,
+            'networks' => collect(Network::enabledKeys())
+                ->mapWithKeys(fn (string $key): array => [
+                    $key => Network::present($key) + [
+                        'min_deposit' => PlatformSettings::networkSetting($key)->min_deposit,
+                        'example_address' => Network::exampleAddress($key),
+                    ],
+                ])
+                ->all(),
         ]);
     }
 

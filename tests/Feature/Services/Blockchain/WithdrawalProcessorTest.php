@@ -226,7 +226,7 @@ test('it leaves a token withdrawal pending when treasury gas is low', function (
     $broadcaster->balance = '0.00000100';
 
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
     ]);
 

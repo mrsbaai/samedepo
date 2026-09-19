@@ -17,6 +17,7 @@ use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\ReportsLastError;
+use App\Support\Network;
 use Illuminate\Support\Facades\DB;
 
 class TreasurySweepService
@@ -182,7 +183,7 @@ class TreasurySweepService
     private function shouldSweep(object $group, TreasuryWallet $wallet, PlatformSettings $settings, $valuations): bool
     {
         $price = (string) ($valuations->get($group->network) ?? '0');
-        $threshold = (string) $settings->{'sweep_min_usd_'.$group->network};
+        $threshold = (string) PlatformSettings::networkSetting($group->network)->sweep_min_usd;
         $thresholdTriggered = bccomp(bcmul((string) $group->amount, $price, 8), $threshold, 8) >= 0;
         $ageTriggered = $group->oldest_credited_at !== null
             && $group->oldest_credited_at <= now()->subDays($settings->sweep_max_age_days)->toDateTimeString();
@@ -218,7 +219,7 @@ class TreasurySweepService
             return;
         }
 
-        if (in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true)) {
+        if (Network::isToken($sweep->network)) {
             $held = $this->broadcaster->getTokenBalance($sweep->network, (int) $address->derivation_index);
 
             if ($held === null) {
@@ -296,7 +297,7 @@ class TreasurySweepService
 
         if ($receipt['status'] === 'confirmed') {
             $received = (string) $sweep->amount;
-            if ($sweep->network === 'bitcoin') {
+            if (Network::isNative($sweep->network)) {
                 $received = bcsub($received, (string) ($receipt['fee'] ?? '0'), 8);
                 if (bccomp($received, '0', 8) < 0) {
                     $received = '0.00000000';

@@ -33,30 +33,16 @@
                     </div>
                     <div class="flex-1 max-w-sm space-y-4">
                         <div class="grid grid-cols-3 gap-3">
-                            <flux:field>
-                                <flux:label>Bitcoin</flux:label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500 text-sm">$</span>
-                                    <flux:input type="number" wire:model="minBitcoin" step="0.01" min="0.01" size="sm" class="pl-7" />
-                                </div>
-                                <flux:error name="minBitcoin" />
-                            </flux:field>
-                            <flux:field>
-                                <flux:label>USDT TRC20</flux:label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500 text-sm">$</span>
-                                    <flux:input type="number" wire:model="minTrc20" step="0.01" min="0.01" size="sm" class="pl-7" />
-                                </div>
-                                <flux:error name="minTrc20" />
-                            </flux:field>
-                            <flux:field>
-                                <flux:label>USDT ERC20</flux:label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500 text-sm">$</span>
-                                    <flux:input type="number" wire:model="minErc20" step="0.01" min="0.01" size="sm" class="pl-7" />
-                                </div>
-                                <flux:error name="minErc20" />
-                            </flux:field>
+                            @foreach ($this->networks as $key => $meta)
+                                <flux:field>
+                                    <flux:label>{{ $meta['label'] }}</flux:label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500 text-sm">$</span>
+                                        <flux:input type="number" wire:model="minimums.{{ $key }}" step="0.01" min="0.01" size="sm" class="pl-7" />
+                                    </div>
+                                    <flux:error name="minimums.{{ $key }}" />
+                                </flux:field>
+                            @endforeach
                         </div>
                         <div class="flex justify-end">
                             <flux:button variant="primary" size="sm" wire:click="confirmSave">Save Minimums</flux:button>

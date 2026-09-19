@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Models\WithdrawalAddress;
+use App\Support\Network;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -28,12 +29,6 @@ class WithdrawalSettings extends Component
 
     public ?string $successMessage = null;
 
-    private const NETWORKS = [
-        'bitcoin' => ['slug' => 'bitcoin', 'label' => 'Bitcoin'],
-        'usdt_trc20' => ['slug' => 'usdt-trc20', 'label' => 'USDT (TRC20)'],
-        'usdt_erc20' => ['slug' => 'usdt-erc20', 'label' => 'USDT (ERC20)'],
-    ];
-
     public function mount(): void
     {
         $this->uiState = request()->query('state', 'normal');
@@ -48,12 +43,13 @@ class WithdrawalSettings extends Component
     private function loadAddresses(): void
     {
         $addresses = WithdrawalAddress::query()
-            ->whereIn('network', array_keys(self::NETWORKS))
+            ->whereIn('network', Network::enabledKeys())
             ->pluck('address', 'network')
             ->all();
 
         $this->networks = [];
-        foreach (self::NETWORKS as $key => $meta) {
+        foreach (Network::enabledKeys() as $key) {
+            $meta = Network::present($key);
             $this->networks[$key] = [
                 'network' => $meta['label'],
                 'slug' => $meta['slug'],

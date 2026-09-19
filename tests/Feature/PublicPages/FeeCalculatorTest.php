@@ -10,9 +10,9 @@ use Livewire\Livewire;
 beforeEach(function () {
     Cache::flush();
     PlatformSettings::instance()->update([
-        'withdrawal_min_usd_usdt_trc20' => '100.00',
         'withdrawal_fee_buffer_percent' => '20.00',
     ]);
+    PlatformSettings::networkSetting('usdt_trc20')->update(['withdrawal_min_usd' => '100.00']);
     UsdValuation::factory()->create(['network' => 'usdt_trc20', 'conversion_value' => '1.00']);
     UsdValuation::factory()->create(['network' => 'native_trx', 'conversion_value' => '0.33']);
 

@@ -12,6 +12,7 @@ use App\Models\TreasuryWallet;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\ReportsLastError;
+use App\Support\Network;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawalProcessor
@@ -99,7 +100,7 @@ class WithdrawalProcessor
             'amount_sent' => $amountSent,
         ]);
 
-        $isToken = in_array($withdrawal->network, ['usdt_erc20', 'usdt_trc20'], true);
+        $isToken = Network::isToken($withdrawal->network);
         if ($isToken && ! $this->gasTreasury->ensureGasForWithdrawal($withdrawal, $burnFeeNative)) {
             $this->block($withdrawal, $this->gasTreasury->hasPendingRental($withdrawal) ? 'energy_rental_pending' : 'gas_unavailable');
 
@@ -122,7 +123,7 @@ class WithdrawalProcessor
             'sent_at' => now(),
         ]);
 
-        $treasurySpend = $withdrawal->network === 'bitcoin'
+        $treasurySpend = Network::isNative($withdrawal->network)
             ? bcadd((string) $amountSent, (string) $withdrawal->network_fee_native, 8)
             : $amountSent;
         $wallet->available_funds = bcsub((string) $wallet->available_funds, $treasurySpend, 8);

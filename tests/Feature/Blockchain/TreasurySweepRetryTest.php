@@ -108,7 +108,8 @@ function trc20Group(string $amount = '13.50000000'): DepositAddress
 }
 
 beforeEach(function () {
-    PlatformSettings::instance()->update(['sweep_min_usd_usdt_trc20' => '0.00']);
+    PlatformSettings::instance();
+    PlatformSettings::networkSetting('usdt_trc20')->update(['sweep_min_usd' => '0.00']);
     UsdValuation::factory()->create(['network' => 'usdt_trc20', 'conversion_value' => '1.000000']);
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0, 'available_funds' => '0.00000000']);
 });

@@ -206,7 +206,7 @@ test('it creates or loads a gas policy for a network', function () {
     $policy = $service->policy('usdt_erc20');
 
     expect($policy)->toBeInstanceOf(GasPolicy::class);
-    expect($policy->network)->toBe('usdt_erc20');
+    expect($policy->network)->toBe('native_eth');
     expect(GasPolicy::query()->count())->toBe(1);
 
     expect($service->policy('usdt_erc20')->id)->toBe($policy->id);
@@ -215,7 +215,7 @@ test('it creates or loads a gas policy for a network', function () {
 test('it requests a top-up when gas is below the reserve threshold', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -244,7 +244,7 @@ test('it requests a top-up when gas is below the reserve threshold', function ()
 test('it does not create duplicate pending top-ups for the same address', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -265,7 +265,7 @@ test('it does not create duplicate pending top-ups for the same address', functi
 test('it reports gas ready without broadcasting when the balance is above reserve', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
     ]);
 
@@ -280,7 +280,7 @@ test('it reports gas ready without broadcasting when the balance is above reserv
 test('it does not request a top-up when the network is manually paused', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'manual_paused' => true,
     ]);
@@ -296,7 +296,7 @@ test('it does not request a top-up when the network is manually paused', functio
 test('it polls an unconfirmed top-up to confirmed', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
     ]);
 
@@ -337,7 +337,7 @@ test('it queues low gas email alerts only to active administrators', function ()
     $owner = User::factory()->create(['role' => 'owner', 'is_admin' => false, 'is_active' => true]);
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'last_alert_at' => null,
         'alert_cooldown' => 60,
@@ -366,7 +366,7 @@ test('it sends an alert only after the cooldown expires', function () {
     User::factory()->create(['role' => 'admin', 'is_admin' => true, 'is_active' => true]);
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     $policy = GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'last_alert_at' => now()->subMinutes(30),
         'alert_cooldown' => 60,
@@ -388,7 +388,7 @@ test('it sends an alert only after the cooldown expires', function () {
 test('it polls an existing broadcast top-up to confirmed on a later scheduler run', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -416,7 +416,7 @@ test('it polls an existing broadcast top-up to confirmed on a later scheduler ru
 test('it does not confirm a mined receipt until configured network confirmations are reached', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -447,7 +447,7 @@ test('it does not confirm a mined receipt until configured network confirmations
 test('it creates only one gas expense idempotently when a top-up is retried', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -484,7 +484,7 @@ test('it creates only one gas expense idempotently when a top-up is retried', fu
 test('it prevents concurrent duplicate top-ups for the same address', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -505,7 +505,7 @@ test('it prevents concurrent duplicate top-ups for the same address', function (
 test('it returns ready when recipient balance covers the token sweep fee', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -525,7 +525,7 @@ test('it returns ready when recipient balance covers the token sweep fee', funct
 test('it tops up at least the configured amount even when the token fee is lower', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -552,7 +552,7 @@ test('it refuses to top up and alerts when treasury cannot retain the reserve th
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true, 'is_active' => true]);
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -576,7 +576,7 @@ test('it refuses to top up and alerts when treasury cannot retain the reserve th
 test('it leaves pending without broadcasting when required top-up exceeds max top up', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_erc20',
+        'network' => 'native_eth',
         'reserve_threshold' => '0.01000000',
         'top_up_amount' => '0.02000000',
         'max_top_up' => '0.05000000',
@@ -597,7 +597,7 @@ test('it leaves pending without broadcasting when required top-up exceeds max to
 test('it does not compare recipient TRX balance to the treasury reserve threshold for tron', function () {
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '100.00000000',
         'top_up_amount' => '200.00000000',
         'max_top_up' => '1000.00000000',
@@ -620,7 +620,7 @@ test('it sizes the top-up to the buffered fee minus the recipient balance', func
     PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
     $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'top_up_amount' => '1.00000000',
         'max_top_up' => '20.00000000',
@@ -658,7 +658,7 @@ test('it floors the top-up at the policy minimum', function () {
     PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'top_up_amount' => '1.00000000',
         'max_top_up' => '20.00000000',
@@ -680,7 +680,7 @@ test('it creates no top-up above the policy cap', function () {
     PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'top_up_amount' => '1.00000000',
         'max_top_up' => '20.00000000',
@@ -702,7 +702,7 @@ test('it skips the top-up when the recipient already holds enough', function () 
     PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'top_up_amount' => '1.00000000',
         'max_top_up' => '20.00000000',
@@ -723,7 +723,7 @@ test('the reserve check uses the real native transfer fee', function () {
     PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'top_up_amount' => '1.00000000',
         'max_top_up' => '20.00000000',
@@ -752,7 +752,7 @@ test('it falls back to estimateFee when the broadcaster lacks EstimatesTransferF
     PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20']);
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'top_up_amount' => '1.00000000',
         'max_top_up' => '20.00000000',
@@ -772,7 +772,7 @@ test('it provisions a sweep top-up while a recovery is in flight', function () {
         'address' => 'TTreasury',
     ]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'top_up_amount' => '1.00000000',
         'max_top_up' => '20.00000000',
@@ -805,7 +805,7 @@ test('it provisions a sweep top-up while a recovery is in flight', function () {
 test('refreshTreasuryWallet stores the tronsave float in rent mode', function () {
     $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'energy_mode' => 'rent',
     ]);
@@ -825,7 +825,7 @@ test('a low float sends the energy.float_low alert once per cooldown', function 
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true, 'is_active' => true]);
     $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'energy_mode' => 'rent',
         'rent_float_alert_trx' => '20.00000000',
@@ -841,7 +841,7 @@ test('a low float sends the energy.float_low alert once per cooldown', function 
 
     Notification::assertSentTo($admin, EnergyFloatLow::class);
     Log::shouldHaveReceived('warning')
-        ->with('energy.float_low', Mockery::on(fn ($context) => $context['network'] === 'usdt_trc20'));
+        ->with('energy.float_low', Mockery::on(fn ($context) => $context['network'] === 'native_trx'));
 
     $service->refreshTreasuryWallet($wallet);
 
@@ -853,7 +853,7 @@ test('a bandwidth shortfall on the treasury receiver needs no top-up', function 
     // own balance — the treasury never sends TRX to itself.
     TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'energy_mode' => 'rent',
     ]);
@@ -877,7 +877,7 @@ test('burn mode never calls tronsave', function () {
     Http::fake();
     $wallet = TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'derivation_index' => 0]);
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'energy_mode' => 'burn',
     ]);

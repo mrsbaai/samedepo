@@ -8,6 +8,7 @@ use App\Models\PlatformSettings;
 use App\Models\UsdValuation;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\FeeConverter;
+use App\Support\Network;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -16,33 +17,47 @@ use Livewire\Component;
 #[Layout('components.layouts.public', ['title' => 'Withdrawal Fee Calculator', 'description' => 'Estimate the network fee and amount received for a samedepo withdrawal.'])]
 class FeeCalculator extends Component
 {
-    public string $network = 'usdt_trc20';
+    public string $network = '';
 
     public string $amount = '200';
 
-    private const NETWORKS = [
-        'bitcoin' => ['label' => 'Bitcoin', 'symbol' => 'BTC', 'decimals' => 8],
-        'usdt_trc20' => ['label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'decimals' => 2],
-        'usdt_erc20' => ['label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'decimals' => 2],
-    ];
+    public function mount(): void
+    {
+        if ($this->network === '' || ! Network::exists($this->network)) {
+            $this->network = $this->defaultNetwork();
+        }
+    }
+
+    #[Computed]
+    public function networkOptions(): array
+    {
+        return collect(Network::presentAll(enabledOnly: true))
+            ->mapWithKeys(fn (array $meta): array => [$meta['key'] => $meta['label']])
+            ->all();
+    }
 
     public function updatedNetwork(): void
     {
-        if (! isset(self::NETWORKS[$this->network])) {
-            $this->network = 'usdt_trc20';
+        if (! Network::exists($this->network)) {
+            $this->network = $this->defaultNetwork();
         }
     }
 
     #[Computed]
     public function networkMeta(): array
     {
-        return self::NETWORKS[$this->network];
+        return Network::present($this->network);
     }
 
-    #[Computed]
-    public function settings(): PlatformSettings
+    private function defaultNetwork(): string
     {
-        return PlatformSettings::instance();
+        foreach (Network::enabledKeys() as $key) {
+            if (Network::isToken($key)) {
+                return $key;
+            }
+        }
+
+        return Network::enabledKeys()[0];
     }
 
     #[Computed]
@@ -54,7 +69,7 @@ class FeeCalculator extends Component
     #[Computed]
     public function withdrawalMinimumUsd(): string
     {
-        return (string) $this->settings()->{'withdrawal_min_usd_'.$this->network};
+        return (string) PlatformSettings::networkSetting($this->network)->withdrawal_min_usd;
     }
 
     #[Computed]
@@ -66,7 +81,7 @@ class FeeCalculator extends Component
             return (string) $price;
         }
 
-        return $this->network === 'bitcoin' ? null : '1';
+        return Network::isToken($this->network) ? '1' : null;
     }
 
     #[Computed]
@@ -96,7 +111,7 @@ class FeeCalculator extends Component
             'withdraw-fee-estimate:'.$this->network,
             300,
             fn (): string|false => rescue(
-                fn () => app(BlockchainBroadcaster::class)->estimateFee($this->network, tokenTransfer: $this->network !== 'bitcoin') ?? false,
+                fn () => app(BlockchainBroadcaster::class)->estimateFee($this->network, tokenTransfer: Network::isToken($this->network)) ?? false,
                 false,
                 false,
             ),

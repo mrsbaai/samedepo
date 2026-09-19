@@ -48,9 +48,9 @@
             </flux:select>
             <flux:select size="sm" wire:model.live="networkFilter" class="w-auto">
                 <flux:select.option value="all">All networks</flux:select.option>
-                <flux:select.option value="bitcoin">Bitcoin</flux:select.option>
-                <flux:select.option value="usdt-trc20">USDT (TRC20)</flux:select.option>
-                <flux:select.option value="usdt-erc20">USDT (ERC20)</flux:select.option>
+                @foreach ($this->networkOptions as $slug => $label)
+                    <flux:select.option value="{{ $slug }}">{{ $label }}</flux:select.option>
+                @endforeach
             </flux:select>
             <flux:select size="sm" wire:model.live="statusFilter" class="w-auto">
                 <flux:select.option value="all">All statuses</flux:select.option>
@@ -121,12 +121,12 @@
                                 </span>
                             </flux:table.cell>
                             <flux:table.cell class="font-ledger">
-                                {{ $tx['gross'] }} {{ $tx['networkSlug'] === 'bitcoin' ? 'BTC' : 'USDT' }}
+                                {{ $tx['gross'] }} {{ $tx['symbol'] }}
                             </flux:table.cell>
                             <flux:table.cell class="max-md:hidden font-ledger">
                                 @if ($tx['fee'] !== null)
                                     <flux:tooltip content="{{ $tx['type'] === 'withdrawal' && $tx['status'] !== 'sent' ? 'Estimated network fee' : 'Fee' }}">
-                                        <span>{{ $tx['fee'] }} {{ $tx['networkSlug'] === 'bitcoin' ? 'BTC' : 'USDT' }}</span>
+                                        <span>{{ $tx['fee'] }} {{ $tx['symbol'] }}</span>
                                     </flux:tooltip>
                                 @else
                                     &mdash;
@@ -134,7 +134,7 @@
                             </flux:table.cell>
                             <flux:table.cell variant="strong" class="font-ledger">
                                 @if ($tx['net'] !== null)
-                                    {{ $tx['net'] }} {{ $tx['networkSlug'] === 'bitcoin' ? 'BTC' : 'USDT' }}
+                                    {{ $tx['net'] }} {{ $tx['symbol'] }}
                                 @else
                                     &mdash;
                                 @endif

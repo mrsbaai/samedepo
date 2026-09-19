@@ -417,7 +417,7 @@ function tronSaveWithdrawalFakes(array $overrides = []): array
 function rentPolicy(): void
 {
     GasPolicy::factory()->create([
-        'network' => 'usdt_trc20',
+        'network' => 'native_trx',
         'reserve_threshold' => '10.00000000',
         'energy_mode' => 'rent',
         'rent_max_price_sun' => 90,

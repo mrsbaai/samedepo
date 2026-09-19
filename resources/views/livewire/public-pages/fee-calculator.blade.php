@@ -8,9 +8,9 @@
         <flux:card class="grid gap-6 lg:grid-cols-[16rem_1fr]">
             <div class="space-y-5">
                 <flux:select wire:model.live="network" label="Network">
-                    <flux:select.option value="bitcoin">Bitcoin</flux:select.option>
-                    <flux:select.option value="usdt_trc20">USDT (TRC20)</flux:select.option>
-                    <flux:select.option value="usdt_erc20">USDT (ERC20)</flux:select.option>
+                    @foreach ($this->networkOptions as $key => $label)
+                        <flux:select.option value="{{ $key }}">{{ $label }}</flux:select.option>
+                    @endforeach
                 </flux:select>
                 <flux:input wire:model.live.debounce.500ms="amount" type="number" min="0" step="any" label="Withdrawal amount (in USD)" />
             </div>

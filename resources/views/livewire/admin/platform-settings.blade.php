@@ -56,21 +56,13 @@
                     </div>
                     <div class="flex-1 max-w-sm space-y-3">
                         <div class="grid grid-cols-3 gap-3">
-                            <flux:field>
-                                <flux:label>BTC</flux:label>
-                                <flux:input type="number" wire:model="minDepositBitcoin" step="0.00000001" min="0" size="sm" />
-                                <flux:error name="minDepositBitcoin" />
-                            </flux:field>
-                            <flux:field>
-                                <flux:label>TRC20</flux:label>
-                                <flux:input type="number" wire:model="minDepositTrc20" step="0.01" min="0" size="sm" />
-                                <flux:error name="minDepositTrc20" />
-                            </flux:field>
-                            <flux:field>
-                                <flux:label>ERC20</flux:label>
-                                <flux:input type="number" wire:model="minDepositErc20" step="0.01" min="0" size="sm" />
-                                <flux:error name="minDepositErc20" />
-                            </flux:field>
+                            @foreach ($this->networks as $key => $meta)
+                                <flux:field>
+                                    <flux:label>{{ $meta['symbol'] }}</flux:label>
+                                    <flux:input type="number" wire:model="minDeposits.{{ $key }}" step="0.00000001" min="0" size="sm" />
+                                    <flux:error name="minDeposits.{{ $key }}" />
+                                </flux:field>
+                            @endforeach
                         </div>
                         <div class="flex justify-end">
                             <flux:button variant="primary" size="sm" wire:click="confirmSaveMinDeposit">Save</flux:button>
@@ -132,21 +124,13 @@
                         <flux:subheading class="mt-1">Where samedepo's profit is sent, and when a payout is too expensive to be worth it.</flux:subheading>
                     </div>
                     <div class="flex-1 max-w-sm space-y-3">
-                        <flux:field>
-                            <flux:label>Bitcoin profit address</flux:label>
-                            <flux:input wire:model="profitAddressBitcoin" placeholder="bc1…" class="font-mono" />
-                            <flux:error name="profitAddressBitcoin" />
-                        </flux:field>
-                        <flux:field>
-                            <flux:label>USDT (TRC20) profit address</flux:label>
-                            <flux:input wire:model="profitAddressUsdtTrc20" placeholder="T…" class="font-mono" />
-                            <flux:error name="profitAddressUsdtTrc20" />
-                        </flux:field>
-                        <flux:field>
-                            <flux:label>USDT (ERC20) profit address</flux:label>
-                            <flux:input wire:model="profitAddressUsdtErc20" placeholder="0x…" class="font-mono" />
-                            <flux:error name="profitAddressUsdtErc20" />
-                        </flux:field>
+                        @foreach ($this->networks as $key => $meta)
+                            <flux:field>
+                                <flux:label>{{ $meta['label'] }} profit address</flux:label>
+                                <flux:input wire:model="profitAddresses.{{ $key }}" class="font-mono" />
+                                <flux:error name="profitAddresses.{{ $key }}" />
+                            </flux:field>
+                        @endforeach
                         <div class="grid grid-cols-2 gap-3">
                             <flux:field>
                                 <flux:label>Warn when fee is at least (%)</flux:label>
@@ -236,9 +220,9 @@
                 <flux:heading size="lg">Save profit payout settings?</flux:heading>
                 <flux:text class="mt-2">Future profit payouts will go to the addresses shown. Double-check them — funds sent to a wrong address cannot be recovered.</flux:text>
                 <div class="mt-4 space-y-2 font-mono text-sm">
-                    <div>Bitcoin: {{ $profitAddressBitcoin ?: 'Not set' }}</div>
-                    <div>USDT (TRC20): {{ $profitAddressUsdtTrc20 ?: 'Not set' }}</div>
-                    <div>USDT (ERC20): {{ $profitAddressUsdtErc20 ?: 'Not set' }}</div>
+                    @foreach ($this->networks as $key => $meta)
+                        <div>{{ $meta['label'] }}: {{ $profitAddresses[$key] ?? '' ?: 'Not set' }}</div>
+                    @endforeach
                 </div>
             </div>
             <div class="flex gap-2">

@@ -6,11 +6,11 @@ use App\Models\User;
 test('guests can view the api docs page with instructions', function () {
     PlatformSettings::instance()->update([
         'global_deposit_fee_percent' => 1.25,
-        'min_deposit_bitcoin' => 0.00025000,
-        'min_deposit_usdt_trc20' => 12.50000000,
-        'min_deposit_usdt_erc20' => 15.00000000,
         'api_requests_per_minute' => 60,
     ]);
+    PlatformSettings::networkSetting('bitcoin')->update(['min_deposit' => 0.00025000]);
+    PlatformSettings::networkSetting('usdt_trc20')->update(['min_deposit' => 12.50000000]);
+    PlatformSettings::networkSetting('usdt_erc20')->update(['min_deposit' => 15.00000000]);
 
     $this->get(route('public.api-docs'))
         ->assertOk()

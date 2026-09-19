@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin;
 
 use App\Models\PlatformSettings as PlatformSettingsModel;
+use App\Support\Network;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -17,21 +18,19 @@ class PlatformSettings extends Component
 
     public string $depositFee = '';
 
-    public string $minDepositBitcoin = '';
-
-    public string $minDepositTrc20 = '';
-
-    public string $minDepositErc20 = '';
+    /**
+     * @var array<string, string> Minimum deposit per network key.
+     */
+    public array $minDeposits = [];
 
     public string $defaultWithdrawalMode = 'approval';
 
     public string $apiRequestsPerMinute = '';
 
-    public string $profitAddressBitcoin = '';
-
-    public string $profitAddressUsdtTrc20 = '';
-
-    public string $profitAddressUsdtErc20 = '';
+    /**
+     * @var array<string, string|null> Profit payout address per network key.
+     */
+    public array $profitAddresses = [];
 
     public string $profitWarnFeePercent = '';
 
@@ -58,21 +57,30 @@ class PlatformSettings extends Component
         }
     }
 
+    #[Computed]
+    public function networks(): array
+    {
+        return Network::presentAll(enabledOnly: true);
+    }
+
     private function loadSettings(): void
     {
         $settings = PlatformSettingsModel::instance();
 
         $this->depositFee = (string) $settings->global_deposit_fee_percent;
-        $this->minDepositBitcoin = (string) $settings->min_deposit_bitcoin;
-        $this->minDepositTrc20 = (string) $settings->min_deposit_usdt_trc20;
-        $this->minDepositErc20 = (string) $settings->min_deposit_usdt_erc20;
         $this->defaultWithdrawalMode = $settings->default_withdrawal_mode;
         $this->apiRequestsPerMinute = (string) $settings->api_requests_per_minute;
-        $this->profitAddressBitcoin = (string) ($settings->profit_address_bitcoin ?? '');
-        $this->profitAddressUsdtTrc20 = (string) ($settings->profit_address_usdt_trc20 ?? '');
-        $this->profitAddressUsdtErc20 = (string) ($settings->profit_address_usdt_erc20 ?? '');
         $this->profitWarnFeePercent = (string) $settings->profit_payout_warn_fee_percent;
         $this->profitBlockFeePercent = (string) $settings->profit_payout_block_fee_percent;
+
+        $this->minDeposits = [];
+        $this->profitAddresses = [];
+
+        foreach (Network::enabledKeys() as $key) {
+            $setting = PlatformSettingsModel::networkSetting($key);
+            $this->minDeposits[$key] = (string) $setting->min_deposit;
+            $this->profitAddresses[$key] = (string) ($setting->profit_address ?? '');
+        }
     }
 
     #[Computed]
@@ -112,16 +120,12 @@ class PlatformSettings extends Component
     public function saveMinDeposit(): void
     {
         $validated = $this->validate([
-            'minDepositBitcoin' => ['required', 'numeric', 'min:0'],
-            'minDepositTrc20' => ['required', 'numeric', 'min:0'],
-            'minDepositErc20' => ['required', 'numeric', 'min:0'],
+            'minDeposits.*' => ['required', 'numeric', 'min:0'],
         ]);
 
-        PlatformSettingsModel::instance()->update([
-            'min_deposit_bitcoin' => $validated['minDepositBitcoin'],
-            'min_deposit_usdt_trc20' => $validated['minDepositTrc20'],
-            'min_deposit_usdt_erc20' => $validated['minDepositErc20'],
-        ]);
+        foreach ($validated['minDeposits'] as $key => $minimum) {
+            PlatformSettingsModel::networkSetting($key)->update(['min_deposit' => $minimum]);
+        }
 
         $this->showMinDepositModal = false;
         $this->successMessage = 'Minimum deposit sizes updated.';
@@ -159,7 +163,7 @@ class PlatformSettings extends Component
         ]);
 
         PlatformSettingsModel::instance()->update([
-            'api_requests_per_minute' => $validated['apiRequestsPerMinute'],
+            'api_requests_per_minute' => (int) $validated['apiRequestsPerMinute'],
         ]);
 
         $this->showApiRequestsModal = false;
@@ -173,30 +177,34 @@ class PlatformSettings extends Component
 
     public function saveProfit(): void
     {
-        $this->profitAddressBitcoin = trim($this->profitAddressBitcoin);
-        $this->profitAddressUsdtTrc20 = trim($this->profitAddressUsdtTrc20);
-        $this->profitAddressUsdtErc20 = trim($this->profitAddressUsdtErc20);
+        $rules = [];
+        $messages = [];
 
-        $validated = $this->validate([
-            'profitAddressBitcoin' => ['nullable', 'string', 'max:128', 'regex:/^(bc1[ac-hj-np-z02-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/'],
-            'profitAddressUsdtTrc20' => ['nullable', 'string', 'max:128', 'regex:/^T[1-9A-HJ-NP-Za-km-z]{33}$/'],
-            'profitAddressUsdtErc20' => ['nullable', 'string', 'max:128', 'regex:/^0x[a-fA-F0-9]{40}$/'],
+        foreach (Network::enabledKeys() as $key) {
+            $this->profitAddresses[$key] = trim((string) ($this->profitAddresses[$key] ?? ''));
+            $groupMeta = config('networks.address_groups.'.Network::addressGroup($key), []);
+            $rules["profitAddresses.{$key}"] = ['nullable', 'string', 'max:128', 'regex:'.$groupMeta['address_regex']];
+            $messages["profitAddresses.{$key}.regex"] = "This doesn't look like a valid ".Network::label($key).' address.';
+        }
+
+        $validated = $this->validate($rules + [
             'profitWarnFeePercent' => ['required', 'numeric', 'gt:0', 'lte:100'],
             'profitBlockFeePercent' => ['required', 'numeric', 'gt:0', 'lte:100'],
-        ], [
-            'profitAddressBitcoin.regex' => "This doesn't look like a valid Bitcoin address.",
-            'profitAddressUsdtTrc20.regex' => "This doesn't look like a valid USDT (TRC20) address.",
-            'profitAddressUsdtErc20.regex' => "This doesn't look like a valid USDT (ERC20) address.",
-        ]);
+        ], $messages);
 
         if (bccomp((string) $validated['profitWarnFeePercent'], (string) $validated['profitBlockFeePercent'], 8) >= 0) {
             throw ValidationException::withMessages(['profitWarnFeePercent' => 'Warning threshold must be lower than the block threshold.']);
         }
 
+        foreach (Network::enabledKeys() as $key) {
+            $address = trim((string) ($validated['profitAddresses'][$key] ?? ''));
+
+            PlatformSettingsModel::networkSetting($key)->update([
+                'profit_address' => $address === '' ? null : $address,
+            ]);
+        }
+
         PlatformSettingsModel::instance()->update([
-            'profit_address_bitcoin' => $validated['profitAddressBitcoin'] ?: null,
-            'profit_address_usdt_trc20' => $validated['profitAddressUsdtTrc20'] ?: null,
-            'profit_address_usdt_erc20' => $validated['profitAddressUsdtErc20'] ?: null,
             'profit_payout_warn_fee_percent' => $validated['profitWarnFeePercent'],
             'profit_payout_block_fee_percent' => $validated['profitBlockFeePercent'],
         ]);

@@ -102,10 +102,8 @@ function batchDeposit(User $owner, Customer $customer, DepositAddress $address, 
 }
 
 beforeEach(function () {
-    PlatformSettings::instance()->update([
-        'sweep_min_usd_bitcoin' => '200.00',
-        'sweep_max_age_days' => 30,
-    ]);
+    PlatformSettings::instance()->update(['sweep_max_age_days' => 30]);
+    PlatformSettings::networkSetting('bitcoin')->update(['sweep_min_usd' => '200.00']);
     UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '100.000000']);
     TreasuryWallet::factory()->create(['network' => 'bitcoin', 'available_funds' => '0.00000000']);
 });

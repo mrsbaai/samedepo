@@ -78,7 +78,7 @@
                 <flux:text size="sm" class="mt-3 text-zinc-500">USD rates unavailable — showing zero for conversions.</flux:text>
             @endunless
 
-            @php($nativeSymbol = ['bitcoin' => 'BTC', 'usdt_trc20' => 'TRX', 'usdt_erc20' => 'ETH'])
+            @php($nativeSymbol = collect(array_keys($f['networks']))->mapWithKeys(fn ($key) => [$key => \App\Support\Network::exists($key) ? \App\Support\Network::nativeSymbol($key) : ''])->all())
 
             <flux:table bleed container:class="mt-6">
                 <flux:table.columns>

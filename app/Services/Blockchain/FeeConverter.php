@@ -10,6 +10,7 @@ use App\Models\GasTopup;
 use App\Models\PlatformSettings;
 use App\Models\TreasurySweep;
 use App\Models\UsdValuation;
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Builder;
 
 class FeeConverter
@@ -27,11 +28,11 @@ class FeeConverter
 
     public function toNetworkUnits(string $network, string $nativeAmount): ?string
     {
-        if ($network === 'bitcoin') {
+        if (Network::isNative($network)) {
             return $nativeAmount;
         }
 
-        $nativeKey = $network === 'usdt_trc20' ? 'native_trx' : 'native_eth';
+        $nativeKey = Network::nativeKey($network);
         $nativeUsd = UsdValuation::query()->where('network', $nativeKey)->value('conversion_value');
         $tokenUsd = UsdValuation::query()->where('network', $network)->value('conversion_value');
 
@@ -51,7 +52,7 @@ class FeeConverter
      */
     public function sweepGasNative(int $userId, string $network, bool $unrecoveredOnly = false): string
     {
-        if ($network === 'bitcoin') {
+        if (Network::isNative($network)) {
             $query = $this->attributableSweepGasQuery($userId, $network)
                 ->when($unrecoveredOnly, fn (Builder $query) => $query->whereNull('treasury_sweeps.fee_recovered_at'));
 

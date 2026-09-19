@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\Customer;
 use App\Models\DepositAddress;
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +18,7 @@ class DepositAddressFactory extends Factory
 
     public function definition(): array
     {
-        $network = fake()->randomElement(['bitcoin', 'usdt_trc20', 'usdt_erc20']);
+        $network = fake()->randomElement(Network::keys());
 
         return [
             'customer_id' => Customer::factory(),

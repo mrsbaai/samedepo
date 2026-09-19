@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
+use App\Support\Network;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 
@@ -41,13 +42,9 @@ class FakeBlockchainProvider implements BlockchainProvider
 }
 
 beforeEach(function () {
-    config([
-        'blockchain.scan_intervals' => [
-            'bitcoin' => 0,
-            'usdt_trc20' => 0,
-            'usdt_erc20' => 0,
-        ],
-    ]);
+    foreach (Network::enabledKeys() as $network) {
+        config(["networks.networks.{$network}.scan_interval" => 0]);
+    }
 });
 
 function createScanner(string $network, array $transactions): DepositScanner
@@ -243,7 +240,7 @@ test('it logs a failed network and continues scanning other networks', function 
 });
 
 test('it persistently schedules each network at its configured cadence', function () {
-    config(['blockchain.scan_intervals.bitcoin' => 15]);
+    config(['networks.networks.bitcoin.scan_interval' => 15]);
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     DepositAddress::factory()->create([

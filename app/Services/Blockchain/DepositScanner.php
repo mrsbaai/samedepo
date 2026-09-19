@@ -9,6 +9,7 @@ use App\Models\BlockchainScanState;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
+use App\Support\Network;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -60,7 +61,7 @@ class DepositScanner
             try {
                 $this->processNetwork($network, $provider, $addresses);
                 $state->update([
-                    'next_scan_at' => now()->addMinutes((int) config("blockchain.scan_intervals.{$network}", 5)),
+                    'next_scan_at' => now()->addMinutes(Network::scanInterval($network)),
                     'cooldown_until' => null,
                     'consecutive_failures' => 0,
                 ]);

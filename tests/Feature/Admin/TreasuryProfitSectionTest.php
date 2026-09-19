@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\GasTreasuryService;
+use App\Support\Network;
 
 class ProfitPreviewBroadcaster implements BlockchainBroadcaster
 {
@@ -79,8 +80,9 @@ function profitFixture(string $network = 'usdt_trc20', string $ownerBalance = '9
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
 
-    PlatformSettings::instance()->update([
-        "profit_address_$network" => $network === 'bitcoin' ? '1BoatSLRHtKNngkdXEeobR76b53LETtpyT' : 'T111111111111111111111111111111111',
+    PlatformSettings::instance();
+    PlatformSettings::networkSetting($network)->update([
+        'profit_address' => $network === 'bitcoin' ? '1BoatSLRHtKNngkdXEeobR76b53LETtpyT' : 'T111111111111111111111111111111111',
     ]);
 
     $wallet = TreasuryWallet::factory()->create([
@@ -92,7 +94,7 @@ function profitFixture(string $network = 'usdt_trc20', string $ownerBalance = '9
     ]);
 
     if ($network !== 'bitcoin') {
-        GasPolicy::factory()->create(['network' => $network, 'reserve_threshold' => '1.00000000']);
+        GasPolicy::factory()->create(['network' => Network::nativeKey($network), 'reserve_threshold' => '1.00000000']);
     }
 
     if (bccomp($ownerBalance, '0', 8) > 0) {
@@ -178,7 +180,7 @@ test('missing profit address shows set payout address link and hides withdraw bu
         'network' => 'usdt_trc20',
         'available_funds' => '100.00000000',
     ]);
-    GasPolicy::factory()->create(['network' => 'usdt_trc20', 'reserve_threshold' => '1.00000000']);
+    GasPolicy::factory()->create(['network' => 'native_trx', 'reserve_threshold' => '1.00000000']);
     UsdValuation::create(['network' => 'usdt_trc20', 'conversion_value' => '1.000000']);
 
     $this->actingAs($admin)
@@ -291,8 +293,8 @@ test('polling refresh does not reset payout form or modal state', function () {
     [$admin] = profitFixture();
 
     $service = Mockery::mock(GasTreasuryService::class);
-    $service->shouldReceive('policy')->with('usdt_trc20')->andReturnUsing(
-        fn () => GasPolicy::query()->where('network', 'usdt_trc20')->firstOrFail()
+    $service->shouldReceive('policy')->andReturnUsing(
+        fn (string $nativeKey) => GasPolicy::query()->where('network', $nativeKey)->first() ?? GasPolicy::factory()->create(['network' => $nativeKey])
     );
     $service->shouldReceive('refreshStaleTreasuryWallets')->once();
     app()->instance(GasTreasuryService::class, $service);
@@ -314,7 +316,7 @@ test('stale wallet refresh attempts provider call and preserves last known balan
         'native_balance' => '5.00000000',
         'refreshed_at' => now()->subMinutes(5),
     ]);
-    GasPolicy::factory()->create(['network' => 'usdt_trc20', 'reserve_threshold' => '1.00000000']);
+    GasPolicy::factory()->create(['network' => 'native_trx', 'reserve_threshold' => '1.00000000']);
 
     $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
     $broadcaster->shouldReceive('getNativeBalance')->andReturn(null);

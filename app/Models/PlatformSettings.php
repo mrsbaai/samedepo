@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,25 +16,10 @@ class PlatformSettings extends Model
         'global_deposit_fee_percent',
         'default_withdrawal_mode',
         'api_requests_per_minute',
-        'min_deposit_bitcoin',
-        'min_deposit_usdt_trc20',
-        'min_deposit_usdt_erc20',
-        'withdrawal_min_usd_bitcoin',
-        'withdrawal_min_usd_usdt_trc20',
-        'withdrawal_min_usd_usdt_erc20',
-        'sweep_min_usd_bitcoin',
-        'sweep_min_usd_usdt_trc20',
-        'sweep_min_usd_usdt_erc20',
         'sweep_max_age_days',
         'withdrawal_fee_buffer_percent',
-        'profit_address_bitcoin',
-        'profit_address_usdt_trc20',
-        'profit_address_usdt_erc20',
         'profit_payout_warn_fee_percent',
         'profit_payout_block_fee_percent',
-        'confirmations_bitcoin',
-        'confirmations_usdt_trc20',
-        'confirmations_usdt_erc20',
     ];
 
     protected function casts(): array
@@ -41,15 +27,6 @@ class PlatformSettings extends Model
         return [
             'global_deposit_fee_percent' => 'decimal:2',
             'api_requests_per_minute' => 'integer',
-            'min_deposit_bitcoin' => 'decimal:8',
-            'min_deposit_usdt_trc20' => 'decimal:8',
-            'min_deposit_usdt_erc20' => 'decimal:8',
-            'withdrawal_min_usd_bitcoin' => 'decimal:2',
-            'withdrawal_min_usd_usdt_trc20' => 'decimal:2',
-            'withdrawal_min_usd_usdt_erc20' => 'decimal:2',
-            'sweep_min_usd_bitcoin' => 'decimal:2',
-            'sweep_min_usd_usdt_trc20' => 'decimal:2',
-            'sweep_min_usd_usdt_erc20' => 'decimal:2',
             'sweep_max_age_days' => 'integer',
             'withdrawal_fee_buffer_percent' => 'decimal:2',
             'profit_payout_warn_fee_percent' => 'decimal:2',
@@ -63,22 +40,35 @@ class PlatformSettings extends Model
             'global_deposit_fee_percent' => 2.00,
             'default_withdrawal_mode' => 'approval',
             'api_requests_per_minute' => 60,
-            'min_deposit_bitcoin' => 0.00010000,
-            'min_deposit_usdt_trc20' => 10.00000000,
-            'min_deposit_usdt_erc20' => 10.00000000,
-            'withdrawal_min_usd_bitcoin' => 100.00,
-            'withdrawal_min_usd_usdt_trc20' => 100.00,
-            'withdrawal_min_usd_usdt_erc20' => 100.00,
-            'sweep_min_usd_bitcoin' => 200.00,
-            'sweep_min_usd_usdt_trc20' => 25.00,
-            'sweep_min_usd_usdt_erc20' => 300.00,
             'sweep_max_age_days' => 30,
             'withdrawal_fee_buffer_percent' => 20.00,
             'profit_payout_warn_fee_percent' => 1.00,
             'profit_payout_block_fee_percent' => 5.00,
-            'confirmations_bitcoin' => 3,
-            'confirmations_usdt_trc20' => 12,
-            'confirmations_usdt_erc20' => 12,
         ]);
+    }
+
+    /**
+     * Per-network settings (minimum deposit, withdrawal/sweep minimums,
+     * profit address) live in network_settings. Missing rows are created
+     * from the Feature 023 defaults.
+     */
+    public static function networkSetting(string $network): NetworkSetting
+    {
+        return NetworkSetting::firstOrCreate(
+            ['network' => $network],
+            self::networkSettingDefaults($network),
+        );
+    }
+
+    private static function networkSettingDefaults(string $network): array
+    {
+        $defaults = Network::get($network)['settings'] ?? [];
+
+        return [
+            'min_deposit' => $defaults['min_deposit'] ?? '0.00000000',
+            'withdrawal_min_usd' => $defaults['withdrawal_min_usd'] ?? '0.00',
+            'sweep_min_usd' => $defaults['sweep_min_usd'] ?? '0.00',
+            'profit_address' => null,
+        ];
     }
 }

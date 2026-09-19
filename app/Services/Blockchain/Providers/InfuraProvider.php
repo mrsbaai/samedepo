@@ -7,6 +7,7 @@ namespace App\Services\Blockchain\Providers;
 use App\Models\BlockchainScanState;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
+use App\Support\Network;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 
@@ -24,17 +25,19 @@ class InfuraProvider implements BlockchainProvider
         private readonly ?string $projectId = null,
         private readonly ?string $projectSecret = null,
         private readonly string $infuraNetwork = 'mainnet',
+        private readonly ?string $rpcUrl = null,
+        private readonly int $tokenDecimals = 6,
     ) {}
 
     public function fetchTransactions(array $addresses): array
     {
-        if ($addresses === [] || $this->projectId === null || $this->projectId === '') {
+        if ($addresses === [] || ($this->rpcUrl === null && ($this->projectId === null || $this->projectId === ''))) {
             return [];
         }
 
         $currentBlock = $this->currentBlockNumber();
         $state = BlockchainScanState::query()->where('network', $this->network)->first();
-        $confirmationsRequired = max(0, (int) config("blockchain.confirmations.{$this->network}", 0));
+        $confirmationsRequired = max(0, Network::confirmations($this->network));
         $overlap = max(0, $confirmationsRequired - 1);
         $fromBlock = $state?->last_scanned_block === null
             ? max(0, $currentBlock - self::BLOCK_RANGE + 1)
@@ -79,7 +82,7 @@ class InfuraProvider implements BlockchainProvider
                     network: $this->network,
                     txHash: (string) ($log['transactionHash'] ?? ''),
                     toAddress: $address,
-                    amount: bcdiv($this->hexToDec($log['data'] ?? '0x0'), '1000000', 6),
+                    amount: bcdiv($this->hexToDec($log['data'] ?? '0x0'), bcpow('10', (string) $this->tokenDecimals, 0), $this->tokenDecimals),
                     confirmations: max(0, $currentBlock - $logBlock + 1),
                     tokenContract: $this->usdtContract,
                 );
@@ -118,7 +121,7 @@ class InfuraProvider implements BlockchainProvider
 
     private function rpc(array $payload): array
     {
-        $url = "https://{$this->infuraNetwork}.infura.io/v3/{$this->projectId}";
+        $url = $this->rpcUrl ?? "https://{$this->infuraNetwork}.infura.io/v3/{$this->projectId}";
         $http = Http::timeout(30);
 
         if ($this->projectSecret) {

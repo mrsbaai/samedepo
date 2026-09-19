@@ -20,6 +20,8 @@ use App\Security\Models\SecurityBlock;
 use App\Security\Models\ThreatEvent;
 use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\TreasuryProfitCalculator;
+use App\Support\DepositRow;
+use App\Support\Network;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -30,19 +32,13 @@ use Livewire\Component;
 #[Layout('components.dashboard.layout', ['title' => 'Admin Dashboard'])]
 class AdminDashboard extends Component
 {
-    private const NETWORKS = [
-        'bitcoin' => ['label' => 'Bitcoin', 'symbol' => 'BTC', 'decimals' => 8],
-        'usdt_trc20' => ['label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'decimals' => 2],
-        'usdt_erc20' => ['label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'decimals' => 2],
-    ];
-
     public function render(): mixed
     {
         return view('livewire.dashboard.admin-dashboard', [
             'tickets' => $this->tickets(),
             'platformStatus' => $this->platformStatus(),
             'treasury' => $this->treasury(),
-            'networkMeta' => self::NETWORKS,
+            'networkMeta' => DepositRow::networks(),
             'latestPayments' => Deposit::query()
                 ->withoutGlobalScope('owner')
                 ->with(['user', 'customer' => fn ($query) => $query->withoutGlobalScope('owner')])
@@ -146,17 +142,21 @@ class AdminDashboard extends Component
     private function treasury(): array
     {
         $summary = app(TreasuryProfitCalculator::class)->summary();
-        $settings = PlatformSettings::instance();
-        $addresses = [
-            'bitcoin' => $settings->profit_address_bitcoin,
-            'usdt_trc20' => $settings->profit_address_usdt_trc20,
-            'usdt_erc20' => $settings->profit_address_usdt_erc20,
-        ];
+        $addresses = [];
+        foreach (Network::enabledKeys() as $key) {
+            $addresses[$key] = PlatformSettings::networkSetting($key)->profit_address;
+        }
 
-        $gas = ['bitcoin' => 'not_applicable'];
-        foreach (['usdt_trc20', 'usdt_erc20'] as $network) {
+        $gas = [];
+        foreach (Network::enabledKeys() as $network) {
+            if (! Network::isToken($network)) {
+                $gas[$network] = 'not_applicable';
+
+                continue;
+            }
+
             $wallet = TreasuryWallet::query()->where('network', $network)->first();
-            $policy = GasPolicy::query()->where('network', $network)->first();
+            $policy = GasPolicy::query()->where('network', Network::nativeKey($network))->first();
             $gas[$network] = match (true) {
                 $policy?->manual_paused === true => 'paused',
                 $wallet === null || $wallet->native_balance === null => 'unknown',

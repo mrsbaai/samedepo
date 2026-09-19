@@ -8,6 +8,7 @@ use App\Models\Balance;
 use App\Models\Deposit;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
+use App\Support\Network;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
@@ -19,18 +20,6 @@ use Livewire\WithPagination;
 class UserDashboard extends Component
 {
     use WithPagination;
-
-    /**
-     * Network metadata keyed by the DB `network` value.
-     *
-     * `slug` uses dashes (matches asset file names and filter values);
-     * the DB column uses underscores.
-     */
-    private const NETWORKS = [
-        'bitcoin' => ['slug' => 'bitcoin', 'label' => 'Bitcoin', 'symbol' => 'BTC', 'decimals' => 8],
-        'usdt_trc20' => ['slug' => 'usdt-trc20', 'label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'decimals' => 2],
-        'usdt_erc20' => ['slug' => 'usdt-erc20', 'label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'decimals' => 2],
-    ];
 
     public string $uiState = 'normal';
 
@@ -45,7 +34,13 @@ class UserDashboard extends Component
 
     private static function slugFor(string $dbNetwork): string
     {
-        return self::NETWORKS[$dbNetwork]['slug'] ?? str_replace('_', '-', $dbNetwork);
+        return Network::exists($dbNetwork) ? Network::present($dbNetwork)['slug'] : str_replace('_', '-', $dbNetwork);
+    }
+
+    #[Computed]
+    public function networkOptions(): array
+    {
+        return Network::presentAll(enabledOnly: true);
     }
 
     #[Computed]
@@ -64,7 +59,7 @@ class UserDashboard extends Component
         $valuations = UsdValuation::query()->get()->keyBy('network');
         $balances = Balance::query()->get()->keyBy('network');
 
-        return collect(self::NETWORKS)->map(function (array $meta, string $dbNetwork) use ($valuations, $balances) {
+        return collect(Network::presentAll(enabledOnly: true))->map(function (array $meta, string $dbNetwork) use ($valuations, $balances) {
             $amount = (float) ($balances->get($dbNetwork)?->amount ?? 0);
             $rate = (float) ($valuations->get($dbNetwork)?->conversion_value ?? 0);
             $usdValue = round($amount * $rate, 2);
@@ -110,10 +105,10 @@ class UserDashboard extends Component
             ->limit(20)
             ->get()
             ->map(function (Deposit $deposit) {
-                $meta = self::NETWORKS[$deposit->network] ?? ['slug' => str_replace('_', '-', $deposit->network), 'label' => $deposit->network, 'decimals' => 8];
+                $meta = Network::exists($deposit->network) ? Network::present($deposit->network) : ['slug' => str_replace('_', '-', $deposit->network), 'label' => $deposit->network, 'decimals' => 8];
                 $amount = $deposit->credited_amount ?? $deposit->gross_amount;
                 $timestamp = $deposit->detected_at ?? $deposit->created_at;
-                $confirmationsRequired = (int) config("blockchain.confirmations.{$deposit->network}", 0);
+                $confirmationsRequired = Network::exists($deposit->network) ? Network::confirmations($deposit->network) : 0;
                 $statusLabel = $deposit->status === 'pending'
                     ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
                     : ucfirst($deposit->status);
@@ -122,6 +117,7 @@ class UserDashboard extends Component
                     'type' => 'deposit',
                     'networkSlug' => $meta['slug'],
                     'networkLabel' => $meta['label'],
+                    'symbol' => $meta['symbol'] ?? '',
                     'customerRef' => $deposit->customer?->customer_reference,
                     'txHash' => $deposit->tx_hash,
                     'amount' => number_format((float) $amount, $meta['decimals'], '.', ''),
@@ -138,13 +134,14 @@ class UserDashboard extends Component
             ->limit(20)
             ->get()
             ->map(function (Withdrawal $withdrawal) {
-                $meta = self::NETWORKS[$withdrawal->network] ?? ['slug' => str_replace('_', '-', $withdrawal->network), 'label' => $withdrawal->network, 'decimals' => 8];
+                $meta = Network::exists($withdrawal->network) ? Network::present($withdrawal->network) : ['slug' => str_replace('_', '-', $withdrawal->network), 'label' => $withdrawal->network, 'decimals' => 8];
                 $amount = $withdrawal->amount_sent ?? $withdrawal->gross_amount;
 
                 return [
                     'type' => 'withdrawal',
                     'networkSlug' => $meta['slug'],
                     'networkLabel' => $meta['label'],
+                    'symbol' => $meta['symbol'] ?? '',
                     'customerRef' => null,
                     'txHash' => $withdrawal->tx_hash,
                     'amount' => number_format((float) $amount, $meta['decimals'], '.', ''),

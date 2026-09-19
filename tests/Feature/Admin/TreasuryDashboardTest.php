@@ -102,11 +102,11 @@ test('existing gas policy sections still render and function', function () {
 
     Livewire::actingAs($admin)
         ->test(TreasuryOverview::class)
-        ->set('policies.usdt_erc20.reserve_threshold', '0.03000000')
-        ->set('policies.usdt_erc20.top_up_amount', '0.04000000')
-        ->set('policies.usdt_erc20.max_top_up', '0.20000000')
-        ->set('policies.usdt_erc20.alert_cooldown', 120)
-        ->call('savePolicy', 'usdt_erc20')
+        ->set('policies.native_eth.reserve_threshold', '0.03000000')
+        ->set('policies.native_eth.top_up_amount', '0.04000000')
+        ->set('policies.native_eth.max_top_up', '0.20000000')
+        ->set('policies.native_eth.alert_cooldown', 120)
+        ->call('savePolicy', 'native_eth')
         ->assertHasNoErrors();
 });
 
@@ -126,7 +126,8 @@ test('payout modal rejects an amount larger than available funds', function () {
 test('payout happy path creates and broadcasts a payout', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
     TreasuryWallet::factory()->create(['network' => 'bitcoin', 'derivation_index' => 0, 'address' => 'treasury-btc', 'available_funds' => '5.00000000']);
-    PlatformSettings::instance()->update(['profit_address_bitcoin' => '1BoatSLRHtKNngkdXEeobR76b53LETtpyT']);
+    PlatformSettings::instance();
+    PlatformSettings::networkSetting('bitcoin')->update(['profit_address' => '1BoatSLRHtKNngkdXEeobR76b53LETtpyT']);
     UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '100.000000']);
 
     $broadcaster = Mockery::mock(BlockchainBroadcaster::class);

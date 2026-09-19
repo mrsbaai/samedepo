@@ -11,6 +11,7 @@ use App\Models\Withdrawal;
 use App\Models\WithdrawalAddress;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\FeeConverter;
+use App\Support\Network;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -24,7 +25,7 @@ class Withdraw extends Component
 {
     public string $uiState = 'normal';
 
-    public string $network = 'usdt-trc20';
+    public string $network = '';
 
     public bool $showRequestModal = false;
 
@@ -32,17 +33,13 @@ class Withdraw extends Component
 
     public ?string $successMessage = null;
 
-    private const NETWORKS = [
-        'bitcoin' => ['slug' => 'bitcoin', 'label' => 'Bitcoin', 'symbol' => 'BTC', 'decimals' => 8],
-        'usdt_trc20' => ['slug' => 'usdt-trc20', 'label' => 'USDT (TRC20)', 'symbol' => 'USDT', 'decimals' => 2],
-        'usdt_erc20' => ['slug' => 'usdt-erc20', 'label' => 'USDT (ERC20)', 'symbol' => 'USDT', 'decimals' => 2],
-    ];
-
     public function mount(?string $network = null): void
     {
-        $this->network = $network ?? request()->query('network', 'usdt-trc20');
+        $this->network = $network
+            ?? request()->query('network')
+            ?? Network::present(Network::enabledKeys()[0])['slug'];
 
-        if (! array_key_exists($this->networkKey(), self::NETWORKS)) {
+        if (! Network::exists($this->networkKey()) || ! Network::get($this->networkKey())['enabled']) {
             abort(404);
         }
 
@@ -66,7 +63,7 @@ class Withdraw extends Component
     #[Computed]
     public function networkMeta(): array
     {
-        return self::NETWORKS[$this->networkKey()];
+        return Network::present($this->networkKey());
     }
 
     #[Computed]
@@ -103,10 +100,7 @@ class Withdraw extends Component
     #[Computed]
     public function minimumUsd(): float
     {
-        $settings = PlatformSettings::instance();
-        $column = 'withdrawal_min_usd_'.$this->networkKey();
-
-        return (float) ($settings->{$column} ?? 0);
+        return (float) PlatformSettings::networkSetting($this->networkKey())->withdrawal_min_usd;
     }
 
     #[Computed]
@@ -122,7 +116,7 @@ class Withdraw extends Component
             $estimatedNative = Cache::remember(
                 'withdraw-fee-estimate:'.$this->networkKey(),
                 300,
-                fn (): ?string => app(BlockchainBroadcaster::class)->estimateFee($this->networkKey(), tokenTransfer: $this->networkKey() !== 'bitcoin'),
+                fn (): ?string => app(BlockchainBroadcaster::class)->estimateFee($this->networkKey(), tokenTransfer: Network::isToken($this->networkKey())),
             );
 
             if ($estimatedNative === null) {

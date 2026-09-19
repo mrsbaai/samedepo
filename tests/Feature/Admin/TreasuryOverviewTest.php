@@ -120,8 +120,8 @@ test('an admin can edit gas policy and refresh treasury data', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
     TreasuryWallet::factory()->create(['network' => 'usdt_erc20']);
     $service = Mockery::mock(GasTreasuryService::class);
-    $service->shouldReceive('policy')->with('usdt_erc20')->andReturnUsing(
-        fn () => GasPolicy::firstOrCreate(['network' => 'usdt_erc20'], [
+    $service->shouldReceive('policy')->andReturnUsing(
+        fn (string $nativeKey) => GasPolicy::firstOrCreate(['network' => $nativeKey], [
             'reserve_threshold' => '0.05000000',
             'top_up_amount' => '0.02000000',
             'max_top_up' => '0.10000000',
@@ -133,16 +133,16 @@ test('an admin can edit gas policy and refresh treasury data', function () {
 
     Livewire::actingAs($admin)
         ->test(TreasuryOverview::class)
-        ->set('policies.usdt_erc20.reserve_threshold', '0.03000000')
-        ->set('policies.usdt_erc20.top_up_amount', '0.04000000')
-        ->set('policies.usdt_erc20.max_top_up', '0.20000000')
-        ->set('policies.usdt_erc20.alert_cooldown', 120)
-        ->call('savePolicy', 'usdt_erc20')
-        ->call('togglePause', 'usdt_erc20')
+        ->set('policies.native_eth.reserve_threshold', '0.03000000')
+        ->set('policies.native_eth.top_up_amount', '0.04000000')
+        ->set('policies.native_eth.max_top_up', '0.20000000')
+        ->set('policies.native_eth.alert_cooldown', 120)
+        ->call('savePolicy', 'native_eth')
+        ->call('togglePause', 'native_eth')
         ->call('refreshTreasuryData')
         ->assertHasNoErrors();
 
-    expect(GasPolicy::where('network', 'usdt_erc20')->first())
+    expect(GasPolicy::where('network', 'native_eth')->first())
         ->reserve_threshold->toBe('0.03000000')
         ->manual_paused->toBeTrue()
         ->alert_cooldown->toBe(120);
@@ -154,8 +154,8 @@ test('gas policy rejects invalid limits', function () {
 
     Livewire::actingAs($admin)
         ->test(TreasuryOverview::class)
-        ->set('policies.usdt_trc20.top_up_amount', '200')
-        ->set('policies.usdt_trc20.max_top_up', '100')
-        ->call('savePolicy', 'usdt_trc20')
-        ->assertHasErrors('policies.usdt_trc20.top_up_amount');
+        ->set('policies.native_trx.top_up_amount', '200')
+        ->set('policies.native_trx.max_top_up', '100')
+        ->call('savePolicy', 'native_trx')
+        ->assertHasErrors('policies.native_trx.top_up_amount');
 });

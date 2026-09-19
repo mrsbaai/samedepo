@@ -28,7 +28,7 @@
             @foreach ($this->wallets->filter(fn ($wallet) => $this->isLow($wallet)) as $wallet)
                 @php($meta = $this->networkMeta($wallet->network))
                 <flux:callout variant="warning" icon="exclamation-triangle" heading="Low gas reserve">
-                    <flux:callout.text>{{ $meta['label'] }} has {{ $wallet->native_balance }} {{ $meta['native'] }}, below the {{ $this->policies[$wallet->network]['reserve_threshold'] }} reserve threshold.</flux:callout.text>
+                    <flux:callout.text>{{ $meta['label'] }} has {{ $wallet->native_balance }} {{ $meta['native'] }}, below the {{ $this->policies[\App\Support\Network::nativeKey($wallet->network)]['reserve_threshold'] }} reserve threshold.</flux:callout.text>
                 </flux:callout>
             @endforeach
 
@@ -127,12 +127,12 @@
                                         <div class="text-xs text-zinc-500">${{ $metrics['available_funds_usd'] }} USD</div>
                                     </flux:table.cell>
                                     <flux:table.cell>
-                                        @if ($wallet->network === 'bitcoin')
+                                        @if (!isset($this->policies[\App\Support\Network::nativeKey($wallet->network)]))
                                             <span class="text-sm text-zinc-500">Not applicable</span>
                                         @else
                                             <div class="font-mono tabular-nums">{{ $this->formattedAmount((float) $metrics['native_balance'], 8) }} {{ $meta['native'] }}</div>
                                             <div class="text-xs text-zinc-500">${{ $metrics['native_balance_usd'] }} USD</div>
-                                            @if (isset($this->policies[$wallet->network]) && $this->policies[$wallet->network]['manual_paused'])
+                                            @if ($this->policies[\App\Support\Network::nativeKey($wallet->network)]['manual_paused'])
                                                 <flux:badge size="sm" color="zinc">Paused</flux:badge>
                                             @elseif ($this->isLow($wallet))
                                                 <flux:badge size="sm" color="amber">Low gas</flux:badge>
@@ -141,7 +141,7 @@
                                             @else
                                                 <flux:badge size="sm" color="green">Ready</flux:badge>
                                             @endif
-                                            @if ($wallet->network === 'usdt_trc20')
+                                            @if (\App\Support\Network::nativeChain($wallet->network) === 'tron')
                                                 <div class="text-xs text-zinc-500">Energy {{ number_format($wallet->energy ?? 0) }} · Bandwidth {{ number_format($wallet->bandwidth ?? 0) }}</div>
                                             @endif
                                         @endif
@@ -190,17 +190,17 @@
                                             <flux:input size="sm" type="number" label="Alert cooldown (minutes)" wire:model="policies.{{ $network }}.alert_cooldown" />
                                             <div class="flex items-end"><flux:button class="w-full" size="sm" variant="primary" wire:click="savePolicy('{{ $network }}')">Save policy</flux:button></div>
                                         </div>
-                                        @if ($network === 'usdt_trc20')
+                                        @if (\App\Support\Network::nativeChain($network) === 'tron')
                                             <flux:separator class="my-4" />
                                             <flux:subheading>Energy rental (TronSave)</flux:subheading>
                                             <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                                <flux:select size="sm" label="Energy mode" wire:model="policies.usdt_trc20.energy_mode">
+                                                <flux:select size="sm" label="Energy mode" wire:model="policies.{{ $network }}.energy_mode">
                                                     <flux:select.option value="burn">Burn TRX</flux:select.option>
                                                     <flux:select.option value="rent">Rent energy</flux:select.option>
                                                 </flux:select>
-                                                <flux:input size="sm" type="number" label="Max unit price (sun)" wire:model="policies.usdt_trc20.rent_max_price_sun" />
-                                                <flux:input size="sm" type="number" label="Rent duration (sec)" wire:model="policies.usdt_trc20.rent_duration_sec" />
-                                                <flux:input size="sm" type="number" label="Float alert (TRX)" wire:model="policies.usdt_trc20.rent_float_alert_trx" />
+                                                <flux:input size="sm" type="number" label="Max unit price (sun)" wire:model="policies.{{ $network }}.rent_max_price_sun" />
+                                                <flux:input size="sm" type="number" label="Rent duration (sec)" wire:model="policies.{{ $network }}.rent_duration_sec" />
+                                                <flux:input size="sm" type="number" label="Float alert (TRX)" wire:model="policies.{{ $network }}.rent_float_alert_trx" />
                                             </div>
                                             @if ($this->energyFloat)
                                                 <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -287,7 +287,7 @@
                         <flux:table>
                             <flux:table.columns><flux:table.column>Network</flux:table.column><flux:table.column>Amount</flux:table.column><flux:table.column>Status</flux:table.column><flux:table.column>Detail</flux:table.column></flux:table.columns>
                             <flux:table.rows>
-                                @forelse ($this->topups->where('network', '!=', 'bitcoin') as $topup)
+                                @forelse ($this->topups->filter(fn ($topup) => ! \App\Support\Network::exists($topup->network) || \App\Support\Network::isToken($topup->network)) as $topup)
                                     <flux:table.row :key="$topup->id">
                                         <flux:table.cell>{{ $this->networkMeta($topup->network)['label'] }}</flux:table.cell>
                                         <flux:table.cell class="font-mono tabular-nums">{{ $topup->amount }}</flux:table.cell>
@@ -306,7 +306,7 @@
                         <flux:table>
                             <flux:table.columns><flux:table.column>Network</flux:table.column><flux:table.column>Amount</flux:table.column><flux:table.column>Transaction</flux:table.column><flux:table.column>Recorded</flux:table.column></flux:table.columns>
                             <flux:table.rows>
-                                @forelse ($this->expenses->where('network', '!=', 'bitcoin') as $expense)
+                                @forelse ($this->expenses->filter(fn ($expense) => ! \App\Support\Network::exists($expense->network) || \App\Support\Network::isToken($expense->network)) as $expense)
                                     <flux:table.row :key="$expense->id">
                                         <flux:table.cell>{{ $this->networkMeta($expense->network)['label'] }}</flux:table.cell>
                                         <flux:table.cell class="font-mono tabular-nums">{{ $expense->amount ?? '—' }}</flux:table.cell>
@@ -368,7 +368,7 @@
                     @else
                         <flux:callout variant="danger" icon="x-circle" heading="Blocked" inline><flux:callout.text>{{ $payoutPreview['message'] ?? 'This payout cannot be sent right now.' }}</flux:callout.text></flux:callout>
                     @endif
-                    @if ($payoutNetwork === 'usdt_trc20')
+                    @if (\App\Support\Network::nativeChain($payoutNetwork) === 'tron')
                         <flux:text size="sm" variant="subtle">Tip: sending to an address that already holds USDT uses about half the energy.</flux:text>
                     @endif
                 </div>
