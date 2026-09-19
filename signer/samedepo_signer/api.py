@@ -117,7 +117,16 @@ def fee():
     body = _require_body(["network"])
     token_transfer = body.get("token_transfer", False)
     amount = body.get("amount", "0")
-    estimated = fees.estimate(body["network"], token_transfer=token_transfer)
+    destination = body.get("destination")
+    source_index = body.get("source_index")
+    if source_index is not None:
+        source_index = _validate_index(source_index, "source_index")
+    estimated = fees.estimate(
+        body["network"],
+        token_transfer=token_transfer,
+        destination=destination,
+        source_index=source_index,
+    )
     if estimated is None:
         abort(503, "Fee estimation unavailable")
     return _json_response({"network": body["network"], "fee": estimated, "token_transfer": token_transfer})
