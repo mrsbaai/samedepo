@@ -29,3 +29,27 @@ def test_btc_receipt_unconfirmed_is_pending():
 def test_btc_receipt_server_error_is_none():
     with patch.object(transactions.requests, "get", return_value=_resp(500)):
         assert transactions.get_receipt("bitcoin", "a" * 64) is None
+
+
+def _tron_client(info):
+    client = MagicMock()
+    client.get_transaction_info.return_value = info
+    return client
+
+
+def test_trc20_native_transfer_without_result_is_confirmed():
+    info = {"id": "ab" * 32, "blockNumber": 123, "receipt": {"net_usage": 274}}
+    with patch.object(transactions, "_trx_client", return_value=_tron_client(info)):
+        assert transactions.get_receipt("usdt_trc20", "a" * 64) == {"status": "confirmed", "fee": "0.00000000", "confirmations": 20}
+
+
+def test_trc20_reverted_contract_call_is_failed():
+    info = {"id": "ab" * 32, "blockNumber": 123, "receipt": {"result": "REVERT"}, "fee": 4156000}
+    with patch.object(transactions, "_trx_client", return_value=_tron_client(info)):
+        assert transactions.get_receipt("usdt_trc20", "a" * 64)["status"] == "failed"
+
+
+def test_trc20_successful_contract_call_is_confirmed():
+    info = {"id": "ab" * 32, "blockNumber": 123, "receipt": {"result": "SUCCESS"}, "fee": 4156000}
+    with patch.object(transactions, "_trx_client", return_value=_tron_client(info)):
+        assert transactions.get_receipt("usdt_trc20", "a" * 64) == {"status": "confirmed", "fee": "4.15600000", "confirmations": 20}

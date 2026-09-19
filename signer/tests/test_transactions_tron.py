@@ -29,3 +29,19 @@ def test_active_tron_address_returns_balance():
     with patch.object(transactions, "_trx_client", return_value=_client(return_value={"balance": 138_700_012})), \
          patch.object(transactions.keys, "derive_address", return_value="Tabc"):
         assert transactions.get_native_balance("usdt_trc20", 0) == "138.70001200"
+
+
+def test_trc20_token_balance():
+    client = MagicMock()
+    client.get_contract.return_value.functions.balanceOf.return_value = 13_500_000
+    with patch.object(transactions, "_trx_client", return_value=client), \
+         patch.object(transactions.keys, "derive_address", return_value="Tabc"):
+        assert transactions.get_token_balance("usdt_trc20", 7) == "13.50000000"
+
+
+def test_trc20_token_balance_inactive_address_is_zero():
+    client = MagicMock()
+    client.get_contract.return_value.functions.balanceOf.side_effect = AddressNotFound()
+    with patch.object(transactions, "_trx_client", return_value=client), \
+         patch.object(transactions.keys, "derive_address", return_value="Tabc"):
+        assert transactions.get_token_balance("usdt_trc20", 7) == "0.00000000"

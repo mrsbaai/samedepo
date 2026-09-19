@@ -61,6 +61,11 @@ class GasTreasuryBroadcasterFake implements BlockchainBroadcaster
         return $this->recipientBalance ?? $this->balance;
     }
 
+    public function getTokenBalance(string $network, int $index): ?string
+    {
+        return null;
+    }
+
     public function getTronResource(int $index): ?array
     {
         return [

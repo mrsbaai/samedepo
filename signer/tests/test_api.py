@@ -60,6 +60,16 @@ def test_sweep_success_returns_signed_envelope(client):
     assert "signature" in response.get_json()
 
 
+def test_balance_token_flag_uses_token_balance(client):
+    with patch.object(api_module.transactions, "get_token_balance", return_value="13.50000000") as token_fn, \
+         patch.object(api_module.transactions, "get_native_balance", return_value="1.00000000") as native_fn:
+        response = _signed_post(client, "/balance", {"network": "usdt_trc20", "index": 7, "token": True})
+    assert response.status_code == 200
+    assert response.get_json()["data"]["balance"] == "13.50000000"
+    token_fn.assert_called_once_with("usdt_trc20", 7)
+    native_fn.assert_not_called()
+
+
 def test_withdraw_and_topup_use_same_error_shape(client):
     with patch.object(api_module.transactions, "broadcast_withdrawal", side_effect=InsufficientGas("1", "0")):
         response = _signed_post(client, "/withdraw", {"network": "usdt_erc20", "index": 0, "destination": "0x" + "22" * 20, "amount": "5", "fee": "0.00001"})

@@ -51,6 +51,11 @@ class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
         return $this->nativeBalance;
     }
 
+    public function getTokenBalance(string $network, int $index): ?string
+    {
+        return null;
+    }
+
     public function getTronResource(int $index): ?array
     {
         return [

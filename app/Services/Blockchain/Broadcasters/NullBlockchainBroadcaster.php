@@ -30,6 +30,11 @@ class NullBlockchainBroadcaster implements BlockchainBroadcaster
         return null;
     }
 
+    public function getTokenBalance(string $network, int $index): ?string
+    {
+        return null;
+    }
+
     public function getTronResource(int $index): ?array
     {
         return null;

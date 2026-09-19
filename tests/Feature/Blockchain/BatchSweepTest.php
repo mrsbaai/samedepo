@@ -47,6 +47,11 @@ class BatchSweepBroadcasterFake implements BlockchainBroadcaster
         return '1000.00000000';
     }
 
+    public function getTokenBalance(string $network, int $index): ?string
+    {
+        return null;
+    }
+
     public function getTronResource(int $index): ?array
     {
         return ['energy_limit' => 100000, 'energy_used' => 0, 'bandwidth_limit' => 100000, 'bandwidth_used' => 0];

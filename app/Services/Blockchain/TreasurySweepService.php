@@ -76,15 +76,25 @@ class TreasurySweepService
                     return;
                 }
 
-                $sweep ??= TreasurySweep::query()->firstOrCreate(
-                    ['deposit_address_id' => $group->deposit_address_id, 'status' => 'pending'],
-                    [
-                        'deposit_id' => null,
-                        'deposit_ids' => $depositIds->all(),
-                        'network' => $group->network,
-                        'amount' => (string) $group->amount,
-                    ],
-                );
+                if ($sweep === null) {
+                    $previous = TreasurySweep::query()
+                        ->where('deposit_address_id', $group->deposit_address_id)
+                        ->where('status', 'failed')
+                        ->latest('id')
+                        ->first();
+
+                    $sweep = TreasurySweep::query()->firstOrCreate(
+                        ['deposit_address_id' => $group->deposit_address_id, 'status' => 'pending'],
+                        [
+                            'deposit_id' => null,
+                            'deposit_ids' => $depositIds->all(),
+                            'network' => $group->network,
+                            'amount' => (string) $group->amount,
+                            'attempts' => $previous?->attempts ?? 0,
+                            'last_attempted_at' => $previous?->updated_at,
+                        ],
+                    );
+                }
 
                 $this->processSweep($sweep, $wallet);
             });
@@ -204,6 +214,14 @@ class TreasurySweepService
         }
 
         if (in_array($sweep->network, ['usdt_erc20', 'usdt_trc20'], true)) {
+            $held = $this->broadcaster->getTokenBalance($sweep->network, (int) $address->derivation_index);
+
+            if ($held !== null && bccomp($held, (string) $sweep->amount, 8) < 0) {
+                $this->recordFailure($sweep, "on_chain_balance_short: holds {$held}, sweep needs {$sweep->amount}");
+
+                return;
+            }
+
             $ready = $this->gasTreasury->ensureGasForSweep(
                 $sweep->network,
                 (int) $address->derivation_index,
@@ -307,6 +325,8 @@ class TreasurySweepService
             $sweep->update([
                 'status' => 'failed',
                 'error_message' => 'Receipt failed',
+                'attempts' => $sweep->attempts + 1,
+                'last_attempted_at' => now(),
             ]);
         }
     }

@@ -30,6 +30,8 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
 
     public ?string $treasuryBalance = null;
 
+    public ?string $tokenBalance = null;
+
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
         return $this->hash;
@@ -52,6 +54,11 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
         }
 
         return $this->recipientBalance ?? $this->balance;
+    }
+
+    public function getTokenBalance(string $network, int $index): ?string
+    {
+        return $this->tokenBalance;
     }
 
     public function getTronResource(int $index): ?array

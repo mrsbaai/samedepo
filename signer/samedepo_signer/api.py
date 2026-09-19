@@ -160,7 +160,8 @@ def sweep():
 @app.route("/balance", methods=["POST"])
 def balance():
     body = _require_body(["network", "index"])
-    balance = transactions.get_native_balance(body["network"], int(body["index"]))
+    fn = transactions.get_token_balance if body.get("token") else transactions.get_native_balance
+    balance = fn(body["network"], int(body["index"]))
     if balance is None:
         abort(503, "Balance unavailable")
     return _json_response({"network": body["network"], "index": body["index"], "balance": balance})

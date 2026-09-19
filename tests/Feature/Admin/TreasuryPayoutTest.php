@@ -45,6 +45,11 @@ class PayoutBroadcasterFake implements BlockchainBroadcaster
         return '1000.00000000';
     }
 
+    public function getTokenBalance(string $network, int $index): ?string
+    {
+        return null;
+    }
+
     public function getTronResource(int $index): ?array
     {
         return null;

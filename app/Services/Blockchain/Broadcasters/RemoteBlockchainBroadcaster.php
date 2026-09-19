@@ -128,6 +128,21 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, ReportsLastE
         return null;
     }
 
+    public function getTokenBalance(string $network, int $index): ?string
+    {
+        $response = $this->post('/balance', [
+            'network' => $network,
+            'index' => $index,
+            'token' => true,
+        ]);
+
+        if ($response?->successful()) {
+            return $response->json('data.balance');
+        }
+
+        return null;
+    }
+
     public function getTronResource(int $index): ?array
     {
         $response = $this->post('/tron-resource', [

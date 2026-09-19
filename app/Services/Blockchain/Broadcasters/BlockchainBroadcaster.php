@@ -22,6 +22,8 @@ interface BlockchainBroadcaster extends WithdrawalFeeEstimator
 
     public function getNativeBalance(string $network, int $index): ?string;
 
+    public function getTokenBalance(string $network, int $index): ?string;
+
     public function getTronResource(int $index): ?array;
 
     public function getTransactionReceipt(string $network, string $txHash): ?array;

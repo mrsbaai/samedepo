@@ -297,6 +297,35 @@ def get_native_balance(network: str, index: int) -> Optional[str]:
     return None
 
 
+def get_token_balance(network: str, index: int) -> Optional[str]:
+    if network == "usdt_erc20":
+        w3 = _w3(network)
+        if w3 is None:
+            return None
+        try:
+            contract = w3.eth.contract(address=Web3.to_checksum_address(Config.infura_usdt_contract), abi=ERC20_ABI)
+            address = Web3.to_checksum_address(keys.derive_address(network, index))
+            raw = contract.functions.balanceOf(address).call()
+            decimals = contract.functions.decimals().call()
+            return f"{Decimal(raw) / Decimal(10 ** decimals):.8f}"
+        except Exception:
+            return None
+
+    if network == "usdt_trc20":
+        client = _trx_client()
+        address = keys.derive_address("usdt_trc20", index)
+        try:
+            contract = client.get_contract(Config.trongrid_usdt_contract)
+            raw = contract.functions.balanceOf(address)
+            return f"{Decimal(raw) / Decimal(10 ** 6):.8f}"
+        except AddressNotFound:
+            return "0.00000000"
+        except Exception:
+            return None
+
+    return None
+
+
 def get_tron_resource(index: int) -> Optional[dict]:
     client = _trx_client()
     address = keys.derive_address("usdt_trc20", index)
@@ -351,8 +380,12 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
         fee_sun = info.get("fee", 0)
         fee = f"{Decimal(fee_sun) / Decimal(10 ** 6):.8f}"
         result = info.get("receipt", {}).get("result")
-        status = "confirmed" if result == "SUCCESS" else "failed" if result else "pending"
-        return {"status": status, "fee": fee, "confirmations": 20}
+        if result is None:
+            # native TRX transfers (e.g. gas top-ups) have no contract result field
+            status = "confirmed" if info.get("blockNumber") else "pending"
+        else:
+            status = "confirmed" if result == "SUCCESS" else "failed"
+        return {"status": status, "fee": fee, "confirmations": 20 if status == "confirmed" else 0}
 
     if network == "bitcoin":
         if not Config.blockcypher_token:
@@ -383,6 +416,13 @@ def broadcast_topup(network: str, source_index: int, destination_index: int, amo
 
 
 ERC20_ABI = [
+    {
+        "constant": True,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "type": "function",
+    },
     {
         "constant": True,
         "inputs": [],
