@@ -18,6 +18,7 @@ from web3.exceptions import TransactionNotFound
 
 from samedepo_signer.config import Config
 from samedepo_signer.fees import ERC20_GAS_LIMIT
+from samedepo_signer import fees
 from samedepo_signer import keys
 
 GAS_HEADROOM = Decimal("1.2")
@@ -206,12 +207,29 @@ def _trc20_transfer(source_index: int, destination: str, amount: str, fee_trx: s
         return result.get("txid") or result.get("transaction", {}).get("txID")
 
 
+def _trc20_required_sun(client, source: str, destination: str) -> int:
+    """TRX the source must burn after its own/delegated resources are used."""
+    energy_needed = fees.trc20_energy_estimate(client, source, destination)
+    try:
+        resource = client.get_account_resource(source)
+    except AddressNotFound:
+        resource = {}
+    energy_available = int(resource.get("EnergyLimit", 0)) - int(resource.get("EnergyUsed", 0))
+    bandwidth_available = (int(resource.get("NetLimit", 0)) - int(resource.get("NetUsed", 0))) + (
+        int(resource.get("freeNetLimit", 0)) - int(resource.get("freeNetUsed", 0))
+    )
+    shortfall_energy = max(0, energy_needed - energy_available)
+    required = shortfall_energy * fees._energy_price_sun(client)
+    if bandwidth_available < fees.TRC20_BANDWIDTH_BYTES:
+        required += fees.TRC20_BANDWIDTH_BYTES * fees.TRON_BANDWIDTH_PRICE_SUN
+    return required
+
+
 def _trc20_sweep(source_index: int, destination_index: int, amount: str, fee: str) -> Optional[str]:
-    """Sweep TRC20 USDT. Laravel provisions TRX; this only signs and broadcasts."""
+    """Sweep TRC20 USDT. Laravel provisions TRX or rents energy; this only signs and broadcasts."""
     client = _trx_client()
     source = keys.derive_address("usdt_trc20", source_index)
     dest = keys.derive_address("usdt_trc20", destination_index)
-    fee_sun = _sun(fee)
 
     try:
         account = client.get_account(source)
@@ -219,9 +237,10 @@ def _trc20_sweep(source_index: int, destination_index: int, amount: str, fee: st
     except AddressNotFound:
         balance_sun = 0
 
-    if balance_sun < fee_sun:
+    required_sun = _trc20_required_sun(client, source, dest)
+    if balance_sun < required_sun:
         raise InsufficientGas(
-            f"{Decimal(fee_sun) / Decimal(10 ** 6):.8f}",
+            f"{Decimal(required_sun) / Decimal(10 ** 6):.8f}",
             f"{Decimal(balance_sun) / Decimal(10 ** 6):.8f}",
         )
 
@@ -336,9 +355,12 @@ def get_tron_resource(index: int) -> Optional[dict]:
             "energy_used": resource.get("EnergyUsed", 0),
             "bandwidth_limit": resource.get("NetLimit", 0),
             "bandwidth_used": resource.get("NetUsed", 0),
+            "free_bandwidth_limit": resource.get("freeNetLimit", 0),
+            "free_bandwidth_used": resource.get("freeNetUsed", 0),
         }
     except AddressNotFound:
-        return {"energy_limit": 0, "energy_used": 0, "bandwidth_limit": 0, "bandwidth_used": 0}
+        return {"energy_limit": 0, "energy_used": 0, "bandwidth_limit": 0, "bandwidth_used": 0,
+                "free_bandwidth_limit": 0, "free_bandwidth_used": 0}
     except Exception:
         return None
 

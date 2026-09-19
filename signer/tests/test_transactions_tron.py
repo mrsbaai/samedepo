@@ -45,3 +45,27 @@ def test_trc20_token_balance_inactive_address_is_zero():
     with patch.object(transactions, "_trx_client", return_value=client), \
          patch.object(transactions.keys, "derive_address", return_value="Tabc"):
         assert transactions.get_token_balance("usdt_trc20", 7) == "0.00000000"
+
+
+def test_tron_resource_includes_free_bandwidth():
+    client = MagicMock()
+    client.get_account_resource.return_value = {
+        "EnergyLimit": 0, "EnergyUsed": 0,
+        "NetLimit": 0, "NetUsed": 10,
+        "freeNetLimit": 600, "freeNetUsed": 50,
+    }
+    with patch.object(transactions, "_trx_client", return_value=client), \
+         patch.object(transactions.keys, "derive_address", return_value="Tabc"):
+        resource = transactions.get_tron_resource(7)
+    assert resource["free_bandwidth_limit"] == 600
+    assert resource["free_bandwidth_used"] == 50
+
+
+def test_tron_resource_inactive_address_has_zero_free_bandwidth():
+    client = MagicMock()
+    client.get_account_resource.side_effect = AddressNotFound()
+    with patch.object(transactions, "_trx_client", return_value=client), \
+         patch.object(transactions.keys, "derive_address", return_value="Tabc"):
+        resource = transactions.get_tron_resource(7)
+    assert resource["free_bandwidth_limit"] == 0
+    assert resource["free_bandwidth_used"] == 0
