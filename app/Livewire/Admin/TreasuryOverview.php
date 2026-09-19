@@ -106,11 +106,11 @@ class TreasuryOverview extends Component
                 default => $wallet->network,
             };
 
-            $unsweptAmount = (string) (Deposit::query()->withoutGlobalScope('owner')
+            $unsweptAmount = $this->decimal(Deposit::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)
                 ->where('status', 'credited')
                 ->whereNull('swept_at')
-                ->sum('gross_amount') ?? '0.00000000');
+                ->sum('gross_amount'));
 
             $unsweptAddresses = Deposit::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)
@@ -119,16 +119,16 @@ class TreasuryOverview extends Component
                 ->distinct()
                 ->count('deposit_address_id');
 
-            $feeSum = (string) (LedgerEntry::query()->withoutGlobalScope('owner')
+            $feeSum = $this->decimal(LedgerEntry::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)
                 ->where('reason', 'fee')
-                ->sum('amount') ?? '0.00000000');
+                ->sum('amount'));
             $revenueFee = bccomp($feeSum, '0', 8) < 0 ? bcsub('0', $feeSum, 8) : $feeSum;
 
-            $networkFeeSum = (string) (LedgerEntry::query()->withoutGlobalScope('owner')
+            $networkFeeSum = $this->decimal(LedgerEntry::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)
                 ->whereIn('reason', ['network_fee', 'network_fee_adjustment', 'consolidation_fee'])
-                ->sum('amount') ?? '0.00000000');
+                ->sum('amount'));
             $revenueNetworkFee = bccomp($networkFeeSum, '0', 8) < 0 ? bcsub('0', $networkFeeSum, 8) : '0.00000000';
 
             $pendingWithdrawalsCount = Withdrawal::query()->withoutGlobalScope('owner')
@@ -136,29 +136,29 @@ class TreasuryOverview extends Component
                 ->whereIn('status', ['pending', 'approved'])
                 ->count();
 
-            $pendingWithdrawalsSum = (string) (Withdrawal::query()->withoutGlobalScope('owner')
+            $pendingWithdrawalsSum = $this->decimal(Withdrawal::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)
                 ->whereIn('status', ['pending', 'approved'])
-                ->sum('gross_amount') ?? '0.00000000');
+                ->sum('gross_amount'));
 
             return [
                 $wallet->network => [
                     'address' => $wallet->address,
                     'explorer_url' => $this->explorerUrl('address', $wallet->network, $wallet->address),
                     'available_funds' => (string) $wallet->available_funds,
-                    'available_funds_usd' => $this->usdValue((float) $wallet->available_funds, $wallet->network),
+                    'available_funds_usd' => $this->usdValue($wallet->available_funds, $wallet->network),
                     'native_balance' => (string) ($wallet->native_balance ?? '0.00000000'),
-                    'native_balance_usd' => $this->usdValue((float) ($wallet->native_balance ?? 0), $nativeKey),
+                    'native_balance_usd' => $this->usdValue($wallet->native_balance ?? 0, $nativeKey),
                     'unswept_amount' => $unsweptAmount,
-                    'unswept_usd' => $this->usdValue((float) $unsweptAmount, $wallet->network),
+                    'unswept_usd' => $this->usdValue($unsweptAmount, $wallet->network),
                     'unswept_addresses' => $unsweptAddresses,
                     'revenue_fee' => $revenueFee,
-                    'revenue_fee_usd' => $this->usdValue((float) $revenueFee, $wallet->network),
+                    'revenue_fee_usd' => $this->usdValue($revenueFee, $wallet->network),
                     'revenue_network_fee' => $revenueNetworkFee,
-                    'revenue_network_fee_usd' => $this->usdValue((float) $revenueNetworkFee, $wallet->network),
+                    'revenue_network_fee_usd' => $this->usdValue($revenueNetworkFee, $wallet->network),
                     'pending_withdrawals_count' => $pendingWithdrawalsCount,
                     'pending_withdrawals_sum' => $pendingWithdrawalsSum,
-                    'pending_withdrawals_usd' => $this->usdValue((float) $pendingWithdrawalsSum, $wallet->network),
+                    'pending_withdrawals_usd' => $this->usdValue($pendingWithdrawalsSum, $wallet->network),
                 ],
             ];
         });
@@ -198,9 +198,14 @@ class TreasuryOverview extends Component
         return number_format($amount, $decimals);
     }
 
-    public function usdValue(float $cryptoAmount, string $networkKey): string
+    public function usdValue(float|string $cryptoAmount, string $networkKey): string
     {
-        return number_format((float) $this->usdValueRaw((string) $cryptoAmount, $networkKey), 2);
+        return number_format((float) $this->usdValueRaw($this->decimal($cryptoAmount), $networkKey), 2);
+    }
+
+    private function decimal(mixed $value): string
+    {
+        return number_format((float) ($value ?? 0), 8, '.', '');
     }
 
     private function usdValueRaw(string $cryptoAmount, string $networkKey): string

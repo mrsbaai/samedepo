@@ -1,6 +1,9 @@
 <?php
 
 use App\Livewire\Admin\TreasuryOverview;
+use App\Models\Customer;
+use App\Models\Deposit;
+use App\Models\DepositAddress;
 use App\Models\GasPolicy;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
@@ -25,6 +28,46 @@ test('an admin can view treasury wallet balances', function () {
         ->assertSee('Bitcoin')
         ->assertSee('2.34510000 BTC')
         ->assertSee('$70,353.00');
+});
+
+test('treasury overview renders tiny bitcoin amounts without bcmath errors', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    TreasuryWallet::factory()->create([
+        'network' => 'bitcoin',
+        'available_funds' => '0.00000505',
+        'native_balance' => '0.00024783',
+    ]);
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => 115000]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.treasury'))
+        ->assertOk()
+        ->assertSee('0.00000505 BTC');
+});
+
+test('treasury overview sums tiny unswept deposits without bcmath errors', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    TreasuryWallet::factory()->create(['network' => 'bitcoin', 'available_funds' => 0]);
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '100.000000']);
+
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '0.00000505',
+        'status' => 'credited',
+        'credited_at' => now(),
+        'swept_at' => null,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.treasury'))
+        ->assertOk()
+        ->assertSee('0.00000505');
 });
 
 test('treasury overview shows a card for each provisioned network', function () {
