@@ -1,7 +1,7 @@
 <div class="py-8">
     <div class="mb-6">
         <flux:heading size="xl">Dashboard</flux:heading>
-        <flux:subheading class="mt-2">Overview of your separate balances, estimated USD values, and recent activity.</flux:subheading>
+        <flux:subheading class="mt-2">Your balances, estimated USD values, and income over time.</flux:subheading>
     </div>
 
     @if ($this->uiState === 'error')
@@ -12,141 +12,40 @@
             </x-slot>
         </flux:callout>
     @elseif ($this->uiState === 'loading')
-        <div class="flex items-center gap-3 mb-6">
-            <flux:skeleton class="h-9 w-32" />
-            <flux:separator vertical class="max-lg:hidden my-2" />
-            <flux:skeleton class="h-7 w-20" />
-            <flux:skeleton class="h-7 w-20" />
-            <flux:skeleton class="h-7 w-20" />
-        </div>
-        <div class="grid lg:grid-cols-3 gap-4 mb-6">
+        <div class="flex flex-wrap gap-x-10 gap-y-5">
             @foreach (range(1, 3) as $i)
-                <flux:card variant="soft" class="p-5">
-                    <div class="flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-3">
-                            <flux:skeleton class="size-10 rounded-full" />
-                            <flux:skeleton class="h-4 w-24" />
-                        </div>
-                        <flux:skeleton class="h-8 w-20" />
-                    </div>
-                    <flux:skeleton class="mt-6 h-8 w-32" />
-                    <flux:skeleton class="mt-2 h-4 w-28" />
-                </flux:card>
+                <div class="min-w-36">
+                    <flux:skeleton class="h-5 w-24" />
+                    <flux:skeleton class="mt-2 h-8 w-28" />
+                    <flux:skeleton class="mt-2 h-4 w-24" />
+                </div>
             @endforeach
         </div>
-        <flux:table>
-            <flux:table.columns>
-                <flux:table.column>Time</flux:table.column>
-                <flux:table.column>Customer</flux:table.column>
-                <flux:table.column class="max-md:hidden">Network</flux:table.column>
-                <flux:table.column>Amount</flux:table.column>
-                <flux:table.column class="max-md:hidden">Status</flux:table.column>
-            </flux:table.columns>
-            <flux:table.rows>
-                @foreach (range(1, 5) as $r)
-                    <flux:table.row>
-                        <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
-                        <flux:table.cell><flux:skeleton class="h-4 w-16" /></flux:table.cell>
-                        <flux:table.cell class="max-md:hidden"><flux:skeleton class="h-4 w-24" /></flux:table.cell>
-                        <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
-                        <flux:table.cell class="max-md:hidden"><flux:skeleton class="h-4 w-14" /></flux:table.cell>
-                    </flux:table.row>
-                @endforeach
-            </flux:table.rows>
-        </flux:table>
+        <flux:skeleton class="mt-10 h-72 w-full" />
     @else
-        <div class="flex items-center gap-3 mb-6">
-            <flux:select size="sm" wire:model.live="period" class="w-auto">
-                <flux:select.option value="7">7 days</flux:select.option>
-                <flux:select.option value="14">14 days</flux:select.option>
-                <flux:select.option value="30">30 days</flux:select.option>
-                <flux:select.option value="60">60 days</flux:select.option>
-                <flux:select.option value="90">90 days</flux:select.option>
-            </flux:select>
-
-            <flux:separator vertical class="max-lg:hidden my-2" />
-
-            <div class="max-lg:hidden flex items-center gap-2">
-                <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === 'all' ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', 'all')">All</flux:badge>
-                @foreach ($this->networkOptions as $meta)
-                    <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === $meta['slug'] ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', '{{ $meta['slug'] }}')"><span class="flex items-center gap-1"><x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-3.5" /> {{ $meta['label'] }}</span></flux:badge>
-                @endforeach
-            </div>
-        </div>
-
-        <div class="grid lg:grid-cols-3 gap-4 mb-6">
-            @foreach ($this->stats as $stat)
-                <flux:card variant="soft" class="p-5">
-                    <div class="flex items-center justify-between gap-4">
-                        <div class="flex min-w-0 items-center gap-3">
-                            <x-crypto-icon :icon="$stat['icon']" :badge="$stat['badge']" class="size-10" />
-                            <flux:text class="truncate font-medium">{{ $stat['label'] }}</flux:text>
-                        </div>
-                        <flux:button size="sm" variant="ghost" href="{{ route('withdraw', ['network' => $stat['network']]) }}" wire:navigate>Withdraw</flux:button>
+        <div class="flex flex-wrap items-start gap-x-10 gap-y-5">
+            @foreach (array_filter($this->stats, fn ($stat) => ! $stat['zero']) as $stat)
+                <div class="min-w-36">
+                    <div class="flex min-w-0 items-center gap-2">
+                        <x-crypto-icon :icon="$stat['icon']" :badge="$stat['badge']" class="size-5" />
+                        <flux:text class="truncate font-medium">{{ $stat['label'] }}</flux:text>
                     </div>
-                    <flux:heading size="xl" class="mt-6 font-ledger">{{ $stat['value'] }}</flux:heading>
-                    <flux:text size="sm" class="mt-1 font-ledger">{{ $stat['amount'] }}</flux:text>
-                </flux:card>
+                    <flux:heading size="xl" class="mt-2 font-ledger">{{ $stat['value'] }}</flux:heading>
+                    <flux:text size="sm" variant="subtle" class="mt-0.5 font-ledger">{{ $stat['amount'] }}</flux:text>
+                    <flux:button size="xs" variant="ghost" href="{{ route('withdraw', ['network' => $stat['network']]) }}" wire:navigate class="mt-1 -ms-2">Withdraw</flux:button>
+                </div>
             @endforeach
         </div>
 
-        @if (empty($this->filteredActivity))
-            <div class="py-12 text-center">
-                <flux:icon icon="inbox" variant="outline" class="mx-auto h-8 w-8 text-zinc-400" />
-                <flux:text class="mt-3">Nothing here yet. Once a customer sends Bitcoin, USDT (TRC20), or USDT (ERC20) to one of their deposit addresses, it shows up here the moment we detect it.</flux:text>
+        @php($zeroStats = array_filter($this->stats, fn ($stat) => $stat['zero']))
+        @if ($zeroStats !== [])
+            <div class="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+                @foreach ($zeroStats as $stat)
+                    <flux:text size="sm" variant="subtle">{{ $stat['label'] }} <span class="font-ledger">{{ $stat['value'] }}</span></flux:text>
+                @endforeach
             </div>
-        @else
-            @php
-                $statusColors = [
-                    'detected' => 'zinc', 'pending' => 'amber', 'credited' => 'green',
-                    'approved' => 'green', 'sent' => 'green', 'denied' => 'zinc', 'failed' => 'red',
-                ];
-            @endphp
-            <flux:table :paginate="$this->paginatedActivity" pagination:scroll-to>
-                <flux:table.columns>
-                    <flux:table.column>Time</flux:table.column>
-                    <flux:table.column>Customer</flux:table.column>
-                    <flux:table.column class="max-md:hidden">Network</flux:table.column>
-                    <flux:table.column>Amount</flux:table.column>
-                    <flux:table.column class="max-md:hidden">Status</flux:table.column>
-                    <flux:table.column></flux:table.column>
-                </flux:table.columns>
-                <flux:table.rows>
-                    @foreach($this->paginatedActivity as $item)
-                        <flux:table.row wire:key="activity-{{ $loop->index }}">
-                            <flux:table.cell class="whitespace-nowrap">
-                                <flux:tooltip content="{{ date('M j, Y H:i', strtotime($item['timestamp'])) }} UTC">
-                                    <span>{{ \Carbon\Carbon::parse($item['timestamp'])->diffForHumans() }}</span>
-                                </flux:tooltip>
-                            </flux:table.cell>
-                            <flux:table.cell>
-                                @if ($item['customerRef'])
-                                    <flux:link href="{{ url('/customers/' . $item['customerRef']) }}" wire:navigate>{{ $item['customerRef'] }}</flux:link>
-                                @else
-                                    —
-                                @endif
-                            </flux:table.cell>
-                            <flux:table.cell class="max-md:hidden">
-                                <span class="flex items-center gap-1.5">
-                                    <x-crypto-icon :icon="$item['icon']" :badge="$item['badge']" class="size-4" />
-                                    {{ $item['networkLabel'] }}
-                                </span>
-                            </flux:table.cell>
-                            <flux:table.cell variant="strong" class="font-ledger">{{ $item['amount'] }} {{ $item['symbol'] }}</flux:table.cell>
-                            <flux:table.cell class="max-md:hidden py-0">
-                                <flux:badge size="sm" color="{{ $statusColors[$item['status']] ?? 'zinc' }}">{{ $item['statusLabel'] }}</flux:badge>
-                            </flux:table.cell>
-                            <flux:table.cell class="py-0">
-                                @if ($item['txHash'])
-                                    <flux:tooltip content="Copy tx hash">
-                                        <flux:button variant="ghost" size="sm" icon="clipboard-document" onclick="navigator.clipboard.writeText('{{ $item['txHash'] }}')" />
-                                    </flux:tooltip>
-                                @endif
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforeach
-                </flux:table.rows>
-            </flux:table>
         @endif
+
+        <livewire:dashboard.income-charts :owner-id="auth()->id()" />
     @endif
 </div>

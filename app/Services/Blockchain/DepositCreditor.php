@@ -9,6 +9,7 @@ use App\Models\Balance;
 use App\Models\Deposit;
 use App\Models\LedgerEntry;
 use App\Models\PlatformSettings;
+use App\Models\UsdValuation;
 use App\Models\User;
 use App\Support\Network;
 use Illuminate\Support\Facades\DB;
@@ -63,10 +64,13 @@ class DepositCreditor
         $lockedBalance->amount = bcadd((string) $lockedBalance->amount, $net, 8);
         $lockedBalance->save();
 
+        $usdRate = UsdValuation::query()->where('network', $deposit->network)->value('conversion_value');
+
         $deposit->update([
             'status' => 'credited',
             'fee_amount' => $fee,
             'credited_amount' => $net,
+            'usd_value' => $usdRate === null ? null : bcmul($net, (string) $usdRate, 2),
             'credited_at' => now(),
         ]);
 

@@ -5,42 +5,21 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Models\Balance;
-use App\Models\Deposit;
 use App\Models\UsdValuation;
-use App\Models\Withdrawal;
 use App\Support\Network;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\WithPagination;
 
 #[Layout('components.dashboard.layout', ['title' => 'Dashboard'])]
 class UserDashboard extends Component
 {
-    use WithPagination;
-
     public string $uiState = 'normal';
-
-    public string $networkFilter = 'all';
-
-    public string $period = '30';
 
     public function mount(): void
     {
         $this->uiState = request()->query('state', 'normal');
-    }
-
-    private static function slugFor(string $dbNetwork): string
-    {
-        return Network::exists($dbNetwork) ? Network::present($dbNetwork)['slug'] : str_replace('_', '-', $dbNetwork);
-    }
-
-    #[Computed]
-    public function networkOptions(): array
-    {
-        return Network::presentAll(enabledOnly: true);
     }
 
     #[Computed]
@@ -88,6 +67,7 @@ class UserDashboard extends Component
             'network' => $balance['networkSlug'],
             'icon' => $balance['icon'],
             'badge' => $balance['badge'],
+            'zero' => (float) $balance['amount'] === 0.0,
         ])->all();
     }
 
@@ -97,117 +77,6 @@ class UserDashboard extends Component
         $latest = UsdValuation::query()->max('updated_at');
 
         return $latest ? Carbon::parse($latest)->toIso8601String() : now()->toIso8601String();
-    }
-
-    #[Computed]
-    public function recentActivity(): array
-    {
-        $deposits = Deposit::query()
-            ->with('customer')
-            ->where('status', '!=', 'ignored')
-            ->orderByDesc('detected_at')
-            ->limit(20)
-            ->get()
-            ->map(function (Deposit $deposit) {
-                $meta = Network::exists($deposit->network) ? Network::present($deposit->network) : ['slug' => str_replace('_', '-', $deposit->network), 'label' => $deposit->network, 'decimals' => 8];
-                $amount = $deposit->credited_amount ?? $deposit->gross_amount;
-                $timestamp = $deposit->detected_at ?? $deposit->created_at;
-                $confirmationsRequired = Network::exists($deposit->network) ? Network::confirmations($deposit->network) : 0;
-                $statusLabel = $deposit->status === 'pending'
-                    ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
-                    : ucfirst($deposit->status);
-
-                return [
-                    'type' => 'deposit',
-                    'networkSlug' => $meta['slug'],
-                    'networkLabel' => $meta['label'],
-                    'symbol' => $meta['symbol'] ?? '',
-                    'icon' => $meta['icon'] ?? null,
-                    'badge' => $meta['badge'] ?? null,
-                    'customerRef' => $deposit->customer?->customer_reference,
-                    'txHash' => $deposit->tx_hash,
-                    'amount' => number_format((float) $amount, $meta['decimals'], '.', ''),
-                    'status' => $deposit->status,
-                    'statusLabel' => $statusLabel,
-                    'confirmationCount' => $deposit->confirmation_count,
-                    'confirmationsRequired' => $confirmationsRequired,
-                    'timestamp' => $timestamp->toIso8601String(),
-                ];
-            });
-
-        $withdrawals = Withdrawal::query()
-            ->orderByDesc('created_at')
-            ->limit(20)
-            ->get()
-            ->map(function (Withdrawal $withdrawal) {
-                $meta = Network::exists($withdrawal->network) ? Network::present($withdrawal->network) : ['slug' => str_replace('_', '-', $withdrawal->network), 'label' => $withdrawal->network, 'decimals' => 8];
-                $amount = $withdrawal->amount_sent ?? $withdrawal->gross_amount;
-
-                return [
-                    'type' => 'withdrawal',
-                    'networkSlug' => $meta['slug'],
-                    'networkLabel' => $meta['label'],
-                    'symbol' => $meta['symbol'] ?? '',
-                    'icon' => $meta['icon'] ?? null,
-                    'badge' => $meta['badge'] ?? null,
-                    'customerRef' => null,
-                    'txHash' => $withdrawal->tx_hash,
-                    'amount' => number_format((float) $amount, $meta['decimals'], '.', ''),
-                    'status' => $withdrawal->status,
-                    'statusLabel' => ucfirst($withdrawal->status),
-                    'timestamp' => $withdrawal->created_at->toIso8601String(),
-                ];
-            });
-
-        return $deposits->merge($withdrawals)
-            ->sortByDesc(fn (array $item) => strtotime($item['timestamp']))
-            ->take(20)
-            ->values()
-            ->all();
-    }
-
-    #[Computed]
-    public function filteredActivity(): array
-    {
-        if ($this->uiState === 'error') {
-            return [];
-        }
-
-        $activity = $this->recentActivity;
-        $since = now()->subDays((int) $this->period);
-
-        return array_values(array_filter($activity, function (array $item) use ($since) {
-            $matchesNetwork = $this->networkFilter === 'all' || $item['networkSlug'] === $this->networkFilter;
-            $matchesDate = strtotime($item['timestamp']) >= $since->timestamp;
-
-            return $matchesNetwork && $matchesDate;
-        }));
-    }
-
-    #[Computed]
-    public function paginatedActivity(): LengthAwarePaginator
-    {
-        $activity = $this->filteredActivity;
-        $perPage = 10;
-        $page = $this->getPage();
-
-        return new LengthAwarePaginator(
-            array_slice($activity, ($page - 1) * $perPage, $perPage),
-            count($activity),
-            $perPage,
-            $page,
-            ['path' => request()->url()]
-        );
-    }
-
-    public function updatedNetworkFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedPeriod(): void
-    {
-        $this->resetPage();
     }
 
     public function retry(): void

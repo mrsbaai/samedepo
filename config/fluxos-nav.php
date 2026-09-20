@@ -34,12 +34,6 @@ return [
                 'label' => 'Customers',
             ],
             [
-                'icon' => 'arrow-down-tray',
-                'route' => 'deposits',
-                'path' => '/deposits',
-                'label' => 'Deposits',
-            ],
-            [
                 'icon' => 'clock',
                 'route' => 'transactions',
                 'path' => '/transactions',

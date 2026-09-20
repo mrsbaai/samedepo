@@ -241,3 +241,15 @@ test('it leaves a token withdrawal pending when treasury gas is low', function (
         ->and($withdrawal->fresh()->tx_hash)->toBeNull()
         ->and($broadcaster->withdrawalIds)->toBe([]);
 });
+
+test('it stores the usd value at the live rate when sending', function () {
+    $withdrawal = withdrawal();
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '60000.000000']);
+    [$processor] = withdrawalProcessor();
+
+    $processor->process();
+
+    expect($withdrawal->fresh()->status)->toBe('sent')
+        ->and($withdrawal->fresh()->amount_sent)->toBe('0.95000000')
+        ->and($withdrawal->fresh()->usd_value)->toBe('57000.00');
+});

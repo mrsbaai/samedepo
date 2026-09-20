@@ -24,8 +24,6 @@
         <title>{{ $title }} — samedepo</title>
         <meta name="description" content="{{ $description }}">
 
-        @fluxAppearance
-
         {{-- Fonts --}}
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=geist:400,500,600,700|geist-mono:400,500|space-grotesk:500,600,700" rel="stylesheet" />

@@ -5,7 +5,6 @@ use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsOwner;
 use App\Http\Middleware\GuardAgainstThreats;
 use App\Http\Middleware\IdentifyDevice;
-use App\Http\Middleware\SetUserAppearance;
 use App\Http\Middleware\TrustCloudflare;
 use App\Security\ForbiddenEventRecorder;
 use Illuminate\Foundation\Application;
@@ -28,7 +27,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: GuardAgainstThreats::class);
         $middleware->api(append: GuardAgainstThreats::class);
         $middleware->web(append: IdentifyDevice::class);
-        $middleware->web(append: SetUserAppearance::class);
         $middleware->encryptCookies(except: ['device_fp']);
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,

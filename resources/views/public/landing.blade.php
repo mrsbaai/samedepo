@@ -29,7 +29,7 @@
 
             </div>
 
-            <div class="animate-float overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/40">
+            <div class="overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/40">
                 <div class="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-3">
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>
                     <span class="size-2.5 rounded-full bg-zinc-700"></span>

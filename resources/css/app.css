@@ -7,6 +7,9 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source inline("{text,bg}-{amber-500,slate-400,indigo-400,emerald-500,teal-400,sky-400,yellow-400,blue-400,orange-400}");
+@source inline("{,dark:}data-checked:bg-{amber-500,slate-400,indigo-400,emerald-500,teal-400,sky-400,yellow-400,blue-400,orange-400}!");
+@source inline("data-checked:text-zinc-950! dark:data-checked:text-zinc-950!");
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -153,26 +156,6 @@
 .prose li > p:last-child {
     margin-top: 0;
     margin-bottom: 0;
-}
-
-/* Continuous float for a single hero showpiece element (e.g. the
-   landing page's code snippet). Larger vertical travel and a subtle
-   scale/rotation for a modern feel. Pauses on hover. Respects
-   prefers-reduced-motion. */
-@keyframes float {
-    0%, 100% { transform: translateY(0) scale(1) rotateX(0deg); }
-    50% { transform: translateY(-28px) scale(1.02) rotateX(2deg); }
-}
-@utility animate-float {
-    animation: float 5s ease-in-out infinite;
-
-    &:hover {
-        animation-play-state: paused;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        animation: none;
-    }
 }
 
 

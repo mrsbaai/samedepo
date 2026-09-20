@@ -34,9 +34,13 @@ test('admin dashboard defaults to dark mode', function (): void {
     expect($response->getContent())->toMatch('/<html[^>]*class="dark"[^>]*>/');
 });
 
-test('flux appearance script uses configured default appearance', function (): void {
-    $response = $this->get('/');
+test('the appearance switcher and appearance script are not rendered', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertOk();
-    expect($response->getContent())->toContain("window.Flux.applyAppearance(window.localStorage.getItem('flux.appearance') || 'dark')");
+    expect($response->getContent())
+        ->not->toContain('applyAppearance')
+        ->not->toContain('flux.appearance');
 });

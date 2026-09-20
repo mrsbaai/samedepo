@@ -36,7 +36,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'deposit_fee_override',
         'is_active',
         'is_admin',
-        'appearance',
         'deletion_requested_at',
         'terms_accepted_at',
     ];

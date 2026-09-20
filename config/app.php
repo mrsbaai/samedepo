@@ -10,7 +10,6 @@ return [
     'locale' => 'en',
     'fallback_locale' => 'en',
     'faker_locale' => 'en_US',
-    'appearance' => env('APP_APPEARANCE', 'dark'),
     'cipher' => 'AES-256-CBC',
     'key' => env('APP_KEY'),
     'previous_keys' => [

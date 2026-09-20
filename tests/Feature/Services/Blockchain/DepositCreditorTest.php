@@ -7,6 +7,7 @@ use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Models\LedgerEntry;
 use App\Models\PlatformSettings;
+use App\Models\UsdValuation;
 use App\Models\User;
 use App\Services\Blockchain\DepositCreditor;
 use Illuminate\Support\Facades\Event;
@@ -251,4 +252,44 @@ test('it does not credit an ignored deposit after the minimum is lowered until c
 
     expect($deposit->fresh()->status)->toBe('credited');
     expect($deposit->fresh()->credited_amount)->toBe('19.30600000');
+});
+
+test('it stores the usd value at the live rate when crediting', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '1.00000000',
+        'status' => 'pending',
+        'confirmation_count' => 3,
+    ]);
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '60000.000000']);
+
+    app(DepositCreditor::class)->credit();
+
+    expect($deposit->fresh()->usd_value)->toBe('58800.00');
+});
+
+test('it leaves usd value null when no valuation exists', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '1.00000000',
+        'status' => 'pending',
+        'confirmation_count' => 3,
+    ]);
+
+    app(DepositCreditor::class)->credit();
+
+    expect($deposit->fresh()->status)->toBe('credited')
+        ->and($deposit->fresh()->usd_value)->toBeNull();
 });

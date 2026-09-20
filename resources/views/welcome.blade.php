@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" @class(['dark' => config('app.appearance') === 'dark'])>
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @fluxAppearance
 </head>
 <body class="min-h-screen bg-zinc-50 p-6 text-zinc-800 antialiased dark:bg-zinc-950 dark:text-white">
     <main class="flex min-h-screen items-center justify-center">

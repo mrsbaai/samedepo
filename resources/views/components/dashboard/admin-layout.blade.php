@@ -8,14 +8,13 @@
 @endphp
 
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => config('app.appearance') === 'dark'])>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title }} · {{ config('app.name') }}</title>
     <x-favicon />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @fluxAppearance
     <x-umani-analytics />
 </head>
 <body class="min-h-screen bg-zinc-50 text-zinc-800 antialiased dark:bg-zinc-900 dark:text-white">
@@ -45,8 +44,6 @@
         <flux:sidebar.toggle icon="bars-2" inset="left" class="lg:hidden" aria-label="{{ __('Toggle navigation') }}" />
 
         <flux:spacer />
-
-        <livewire:appearance-switcher />
 
         <flux:dropdown position="bottom" align="end">
             <flux:profile :avatar="$avatarUrl" />

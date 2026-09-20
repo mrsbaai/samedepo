@@ -9,6 +9,7 @@ use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\LedgerEntry;
 use App\Models\TreasuryWallet;
+use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\ReportsLastError;
@@ -120,11 +121,14 @@ class WithdrawalProcessor
             return;
         }
 
+        $usdRate = UsdValuation::query()->where('network', $withdrawal->network)->value('conversion_value');
+
         $withdrawal->update([
             'status' => 'sent',
             'last_error' => null,
             'tx_hash' => $txHash,
             'sent_at' => now(),
+            'usd_value' => $usdRate === null ? null : bcmul($amountSent, (string) $usdRate, 2),
         ]);
 
         $treasurySpend = Network::isNative($withdrawal->network)

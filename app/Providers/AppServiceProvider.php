@@ -31,7 +31,6 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -106,7 +105,6 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
         $this->configureRememberDuration();
         $this->configureAuthenticatedGuestRedirect();
-        $this->configureDefaultAppearance();
     }
 
     private function configureAuthenticatedGuestRedirect(): void
@@ -200,20 +198,6 @@ class AppServiceProvider extends ServiceProvider
                         'Retry-After' => (string) RateLimiter::availableIn($key),
                     ]);
                 });
-        });
-    }
-
-    private function configureDefaultAppearance(): void
-    {
-        Blade::directive('fluxAppearance', function ($expression): string {
-            return "<?php
-                \$default = addslashes(config('app.appearance', 'dark'));
-                echo str_replace(
-                    \"window.Flux.applyAppearance(window.localStorage.getItem('flux.appearance') || 'system')\",
-                    \"window.Flux.applyAppearance(window.localStorage.getItem('flux.appearance') || '\" . \$default . \"')\",
-                    app('flux')->fluxAppearance({$expression})
-                );
-            ?>";
         });
     }
 }
