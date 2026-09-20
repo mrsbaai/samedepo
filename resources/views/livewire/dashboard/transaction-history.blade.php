@@ -125,7 +125,7 @@
                             </flux:table.cell>
                             <flux:table.cell class="max-md:hidden font-ledger">
                                 @if ($tx['fee'] !== null)
-                                    <flux:tooltip content="{{ $tx['type'] === 'withdrawal' && $tx['status'] !== 'sent' ? 'Estimated network fee' : 'Fee' }}">
+                                    <flux:tooltip content="{{ $tx['type'] === 'withdrawal' && $tx['status'] !== 'sent' ? 'Estimated network fee' : (($tx['consolidationFee'] ?? null) !== null ? 'Includes '.$tx['consolidationFee'].' '.$tx['symbol'].' consolidation fee' : 'Fee') }}">
                                         <span>{{ $tx['fee'] }} {{ $tx['symbol'] }}</span>
                                     </flux:tooltip>
                                 @else

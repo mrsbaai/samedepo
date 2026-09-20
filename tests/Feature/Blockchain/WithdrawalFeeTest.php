@@ -209,7 +209,40 @@ test('token withdrawal deducts buffered network fee converted to token units', f
     // amount_sent = 100 - 1.98 = 98.02 USDT
     expect($withdrawal->status)->toBe('sent')
         ->and($withdrawal->network_fee)->toBe('1.98000000')
+        ->and($withdrawal->consolidation_fee)->toBe('0.00000000')
         ->and($withdrawal->amount_sent)->toBe('98.02000000');
+});
+
+test('outstanding consolidation costs are charged inside the withdrawal, not the balance', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    Balance::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => '0.00000000']);
+    // 9.09090910 TRX * 0.33 / 1.00 = 3.00000000 USDT of unrecovered sweep gas.
+    $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '9.09090910');
+    [$processor] = feeTestProcessor(fee: '5.00000000');
+
+    $processor->process();
+
+    $withdrawal->refresh();
+    // amount_sent = 100 - 1.98 network fee - 3.00 consolidation = 95.02; the
+    // owner's balance is untouched so it can never go negative here.
+    expect($withdrawal->status)->toBe('sent')
+        ->and($withdrawal->network_fee)->toBe('1.98000000')
+        ->and($withdrawal->consolidation_fee)->toBe('3.00000000')
+        ->and($withdrawal->amount_sent)->toBe('95.02000000')
+        ->and((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('0.00000000')
+        ->and($sweep->refresh()->fee_recovered_at)->not->toBeNull()
+        ->and(GasTopup::first()->fee_recovered_at)->not->toBeNull();
+
+    $entry = LedgerEntry::query()->where('reason', 'consolidation_fee')->sole();
+    expect((string) $entry->amount)->toBe('-3.00000000')
+        ->and($entry->withdrawal_id)->toBe($withdrawal->id);
+
+    // The settled cost is never billed a second time by the sweep scheduler.
+    (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();
+
+    expect(LedgerEntry::query()->where('reason', 'consolidation_fee')->count())->toBe(1)
+        ->and((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('0.00000000');
 });
 
 test('consolidation cost is billed to the owner balance when the sweep confirms, not at withdrawal', function () {
@@ -322,6 +355,7 @@ test('token withdrawal is not sent when native valuation is missing', function (
     expect($withdrawal->status)->toBe('pending')
         ->and($withdrawal->network_fee)->toBeNull()
         ->and($withdrawal->amount_sent)->toBeNull()
+        ->and($withdrawal->last_error)->toBe('fee_conversion_failed')
         ->and(LedgerEntry::query()->where('withdrawal_id', $withdrawal->id)->count())->toBe(0);
 });
 

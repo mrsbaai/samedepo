@@ -122,7 +122,7 @@ class TreasuryOverview extends Component
 
             $networkFeeSum = $this->decimal(LedgerEntry::query()->withoutGlobalScope('owner')
                 ->where('network', $wallet->network)
-                ->whereIn('reason', ['network_fee', 'network_fee_adjustment', 'consolidation_fee'])
+                ->whereIn('reason', ['network_fee', 'network_fee_adjustment', 'consolidation_fee', 'gas_recovery_credit'])
                 ->sum('amount'));
             $revenueNetworkFee = bccomp($networkFeeSum, '0', 8) < 0 ? bcsub('0', $networkFeeSum, 8) : '0.00000000';
 

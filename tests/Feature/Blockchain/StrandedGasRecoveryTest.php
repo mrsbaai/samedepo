@@ -156,6 +156,8 @@ test('it recovers stranded gas when the address is empty and above the threshold
     $topup = GasTopup::query()->where('kind', 'recovery')->sole();
     expect($topup->kind)->toBe('recovery')
         ->and($topup->recipient_address)->toBe('TTreasury')
+        ->and($topup->source_address)->toBe('TDepositStranded')
+        ->and($topup->source_index)->toBe(3)
         ->and($topup->status)->toBe('confirmed')
         ->and(GasExpense::query()->where('gas_topup_id', $topup->id)->exists())->toBeTrue();
 });
@@ -381,4 +383,92 @@ test('a failed recovery is not a failed operation', function () {
 
     expect(GasTopup::query()->where('status', 'failed')->count())->toBe(1);
     expect(GasTopup::query()->where('status', 'failed')->where('kind', 'topup')->count())->toBe(0);
+});
+
+function seedConfirmedRecovery(TreasuryWallet $wallet, ?string $sourceAddress, ?int $sourceIndex): GasTopup
+{
+    return GasTopup::create([
+        'treasury_wallet_id' => $wallet->id,
+        'network' => 'usdt_trc20',
+        'kind' => 'recovery',
+        'recipient_address' => 'TTreasury',
+        'recipient_index' => 0,
+        'source_address' => $sourceAddress,
+        'source_index' => $sourceIndex,
+        'amount' => '23.07000000',
+        'tx_hash' => 'recovery-'.fake()->uuid(),
+        'status' => 'confirmed',
+        'confirmed_at' => now(),
+        'is_open' => 'done',
+    ]);
+}
+
+function seedRecoveryRates(): void
+{
+    UsdValuation::updateOrCreate(['network' => 'native_trx'], ['conversion_value' => '0.33']);
+    UsdValuation::updateOrCreate(['network' => 'usdt_trc20'], ['conversion_value' => '1.00']);
+}
+
+test('confirmed recovered gas is credited back to the deposit address owner once', function () {
+    seedRecoveryRates();
+    [, , $wallet, $address] = recoveryFixture(['nativeBalance' => '0.00000000']);
+    $ownerId = $address->customer->user_id;
+    Balance::create(['user_id' => $ownerId, 'network' => 'usdt_trc20', 'amount' => '10.00000000']);
+    $recovery = seedConfirmedRecovery($wallet, 'TDepositStranded', 3);
+    $service = new TreasurySweepService(new RecoveryBroadcasterFake);
+
+    $service->creditRecoveredGas();
+
+    // 23.07 TRX * 0.33 / 1.00 = 7.6131 USDT back to the owner.
+    expect((string) Balance::where('user_id', $ownerId)->value('amount'))->toBe('17.61310000');
+    $entry = LedgerEntry::query()->where('reason', 'gas_recovery_credit')->sole();
+    expect((string) $entry->amount)->toBe('7.61310000')
+        ->and($entry->user_id)->toBe($ownerId)
+        ->and($entry->network)->toBe('usdt_trc20')
+        ->and($recovery->refresh()->fee_recovered_at)->not->toBeNull();
+
+    $service->creditRecoveredGas();
+
+    expect(LedgerEntry::query()->where('reason', 'gas_recovery_credit')->count())->toBe(1)
+        ->and((string) Balance::where('user_id', $ownerId)->value('amount'))->toBe('17.61310000');
+});
+
+test('a recovery without a source is left untouched', function () {
+    seedRecoveryRates();
+    [, , $wallet] = recoveryFixture();
+    $recovery = seedConfirmedRecovery($wallet, null, null);
+
+    (new TreasurySweepService(new RecoveryBroadcasterFake))->creditRecoveredGas();
+
+    expect($recovery->refresh()->fee_recovered_at)->toBeNull()
+        ->and(LedgerEntry::count())->toBe(0);
+});
+
+test('an unattributable recovery source is marked recovered with no credit', function () {
+    seedRecoveryRates();
+    [, , $wallet] = recoveryFixture();
+    $recovery = seedConfirmedRecovery($wallet, 'TUnknownAddress', 99);
+
+    (new TreasurySweepService(new RecoveryBroadcasterFake))->creditRecoveredGas();
+
+    expect($recovery->refresh()->fee_recovered_at)->not->toBeNull()
+        ->and(LedgerEntry::count())->toBe(0);
+});
+
+test('a missing valuation defers the credit until rates arrive', function () {
+    [, , $wallet, $address] = recoveryFixture(['nativeBalance' => '0.00000000']);
+    $ownerId = $address->customer->user_id;
+    $recovery = seedConfirmedRecovery($wallet, 'TDepositStranded', 3);
+    $service = new TreasurySweepService(new RecoveryBroadcasterFake);
+
+    $service->creditRecoveredGas();
+
+    expect($recovery->refresh()->fee_recovered_at)->toBeNull()
+        ->and(LedgerEntry::count())->toBe(0);
+
+    seedRecoveryRates();
+    $service->creditRecoveredGas();
+
+    expect($recovery->refresh()->fee_recovered_at)->not->toBeNull()
+        ->and((string) Balance::where('user_id', $ownerId)->value('amount'))->toBe('7.61310000');
 });

@@ -21,9 +21,11 @@ class WithdrawalProcessor
         private readonly BlockchainBroadcaster $broadcaster,
         private ?GasTreasuryService $gasTreasury = null,
         private ?FeeConverter $feeConverter = null,
+        private ?ConsolidationBiller $biller = null,
     ) {
         $this->gasTreasury ??= new GasTreasuryService($this->broadcaster);
         $this->feeConverter ??= new FeeConverter;
+        $this->biller ??= new ConsolidationBiller($this->feeConverter);
     }
 
     public function process(): void
@@ -90,13 +92,26 @@ class WithdrawalProcessor
             return;
         }
 
-        $amountSent = bccomp((string) $withdrawal->gross_amount, $totalFee, 8) >= 0
-            ? bcsub((string) $withdrawal->gross_amount, $totalFee, 8)
-            : '0.00000000';
+        // Outstanding sweep gas is charged inside the withdrawal (deducted from
+        // amount_sent) instead of hitting an owner balance the withdrawal just
+        // zeroed — settle() below marks it recovered after a successful send.
+        $consolidation = $this->biller->outstanding($withdrawal->user_id, $withdrawal->network);
+
+        if ($consolidation === null) {
+            $this->block($withdrawal, 'fee_conversion_failed');
+
+            return;
+        }
+
+        $amountSent = bcsub((string) $withdrawal->gross_amount, bcadd($totalFee, $consolidation, 8), 8);
+        if (bccomp($amountSent, '0', 8) < 0) {
+            $amountSent = '0.00000000';
+        }
 
         $withdrawal->update([
             'network_fee' => $totalFee,
             'network_fee_native' => $networkFeeNative,
+            'consolidation_fee' => $consolidation,
             'amount_sent' => $amountSent,
         ]);
 
@@ -136,6 +151,16 @@ class WithdrawalProcessor
             'reason' => 'network_fee',
             'withdrawal_id' => $withdrawal->id,
         ]);
+
+        if (bccomp($consolidation, '0', 8) > 0) {
+            $this->biller->settle(
+                $withdrawal->user_id,
+                $withdrawal->network,
+                $consolidation,
+                $withdrawal->id,
+                chargeBalance: false,
+            );
+        }
     }
 
     private function block(Withdrawal $withdrawal, string $code): void

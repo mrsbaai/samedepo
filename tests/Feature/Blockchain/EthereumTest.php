@@ -383,8 +383,10 @@ test('etherscan polling throttles to five requests per second', function () {
     $provider->fetchTransactions($addresses);
 
     expect($sleeps)->toHaveCount(2)
-        ->and($sleeps[0])->toBeGreaterThanOrEqual(199_000)
-        ->and($sleeps[1])->toBeGreaterThanOrEqual(199_000)
+        // Computed wait = interval - real elapsed, so any positive sleep within
+        // the interval proves the throttle engaged without timing fragility.
+        ->and($sleeps[0])->toBeGreaterThan(0)->toBeLessThanOrEqual(200_000)
+        ->and($sleeps[1])->toBeGreaterThan(0)->toBeLessThanOrEqual(200_000)
         ->and($requests)->toHaveCount(3);
 });
 

@@ -147,7 +147,16 @@ class TransactionHistory extends Component
     {
         $meta = $this->networkMeta($withdrawal->network);
 
-        $fee = $this->formatAmount($withdrawal->network_fee, $meta['decimals']);
+        $consolidationFee = $withdrawal->consolidation_fee !== null
+            && bccomp((string) $withdrawal->consolidation_fee, '0', 8) > 0
+            ? $this->formatAmount((string) $withdrawal->consolidation_fee, $meta['decimals'])
+            : null;
+        $fee = $this->formatAmount(
+            $withdrawal->network_fee === null
+                ? $withdrawal->consolidation_fee
+                : bcadd((string) $withdrawal->network_fee, (string) ($withdrawal->consolidation_fee ?? '0'), 8),
+            $meta['decimals'],
+        );
         $net = $withdrawal->amount_sent !== null
             ? $this->formatAmount($withdrawal->amount_sent, $meta['decimals'])
             : ($fee !== null
@@ -166,6 +175,7 @@ class TransactionHistory extends Component
             'decimals' => $meta['decimals'],
             'gross' => $this->formatAmount((string) $withdrawal->gross_amount, $meta['decimals']),
             'fee' => $fee,
+            'consolidationFee' => $consolidationFee,
             'net' => $net,
             'status' => $withdrawal->status,
             'statusLabel' => ucfirst($withdrawal->status),
@@ -182,6 +192,7 @@ class TransactionHistory extends Component
         $label = match ($entry->reason) {
             'network_fee_adjustment' => bccomp((string) $entry->amount, '0', 8) < 0 ? 'Gas overage' : 'Gas refund',
             'consolidation_fee' => 'Consolidation fee',
+            'gas_recovery_credit' => 'Gas recovery credit',
             default => 'Adjustment',
         };
 
@@ -247,7 +258,7 @@ class TransactionHistory extends Component
         if ($this->typeFilter === 'all' || $this->typeFilter === 'adjustment') {
             if ($this->statusFilter === 'all' || $this->statusFilter === 'sent') {
                 $ledgerEntries = LedgerEntry::query()
-                    ->whereIn('reason', ['network_fee_adjustment', 'consolidation_fee'])
+                    ->whereIn('reason', ['network_fee_adjustment', 'consolidation_fee', 'gas_recovery_credit'])
                     ->when($dbNetwork !== null, fn ($query) => $query->where('network', $dbNetwork))
                     ->get();
 

@@ -218,6 +218,16 @@ function seedOtherOwner(): User
     return $owner;
 }
 
+test('consolidation fee revenue nets gas recovery credits', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    LedgerEntry::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'reason' => 'consolidation_fee', 'amount' => '-10.00000000']);
+    LedgerEntry::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'reason' => 'gas_recovery_credit', 'amount' => '6.00000000']);
+
+    $summary = app(OwnerFinanceCalculator::class)->summary($owner);
+
+    expect($summary['networks']['usdt_trc20']['consolidation_fee_revenue'])->toBe('4.00000000');
+});
+
 test('summary returns the worked example values', function () {
     $owner = seedOwnerO();
     seedOtherOwner();

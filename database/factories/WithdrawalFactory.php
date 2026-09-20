@@ -23,6 +23,7 @@ class WithdrawalFactory extends Factory
             'network' => fake()->randomElement(Network::keys()),
             'gross_amount' => fake()->randomFloat(8, 0, 10),
             'network_fee' => null,
+            'consolidation_fee' => null,
             'amount_sent' => null,
             'destination_address' => fake()->uuid(),
             'mode' => fake()->randomElement(['instant', 'approval']),

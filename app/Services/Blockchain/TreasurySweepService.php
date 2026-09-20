@@ -7,7 +7,6 @@ namespace App\Services\Blockchain;
 use App\Models\Balance;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
-use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\GasTopup;
 use App\Models\LedgerEntry;
@@ -27,9 +26,11 @@ class TreasurySweepService
         private readonly BlockchainBroadcaster $broadcaster,
         private ?GasTreasuryService $gasTreasury = null,
         private ?FeeConverter $feeConverter = null,
+        private ?ConsolidationBiller $biller = null,
     ) {
         $this->gasTreasury ??= new GasTreasuryService($this->broadcaster);
         $this->feeConverter ??= new FeeConverter;
+        $this->biller ??= new ConsolidationBiller($this->feeConverter);
     }
 
     public function sweep(): void
@@ -111,6 +112,8 @@ class TreasurySweepService
      */
     public function billConsolidationCosts(): void
     {
+        $this->creditRecoveredGas();
+
         $groups = TreasurySweep::query()
             ->where('treasury_sweeps.status', 'confirmed')
             ->whereNull('treasury_sweeps.fee_recovered_at')
@@ -131,54 +134,72 @@ class TreasurySweepService
 
     private function billOwner(int $userId, string $network): void
     {
-        $cost = $this->feeConverter->toNetworkUnits(
-            $network,
-            $this->feeConverter->unrecoveredSweepGasNative($userId, $network),
-        );
+        $cost = $this->biller->outstanding($userId, $network);
 
         if ($cost === null) {
             return;
         }
 
-        if (bccomp($cost, '0', 8) > 0) {
-            // ponytail: balance may go negative if everything is already reserved for a withdrawal; the next deposit nets it out.
-            $balance = Balance::query()->withoutGlobalScope('owner')->lockForUpdate()->firstOrCreate(
-                ['user_id' => $userId, 'network' => $network],
-                ['amount' => 0],
-            );
-            $balance->update(['amount' => bcsub((string) $balance->amount, $cost, 8)]);
+        $this->biller->settle($userId, $network, $cost);
+    }
 
-            LedgerEntry::create([
-                'user_id' => $userId,
-                'network' => $network,
-                'amount' => '-'.$cost,
-                'reason' => 'consolidation_fee',
-            ]);
+    /**
+     * Return stranded gas recovered from a deposit address to the owner whose
+     * customer held that address — the recovered TRX/native is their money
+     * under real-cost pass-through, not treasury revenue.
+     */
+    public function creditRecoveredGas(): void
+    {
+        GasTopup::query()
+            ->where('kind', 'recovery')
+            ->where('status', 'confirmed')
+            ->whereNotNull('source_address')
+            ->whereNull('fee_recovered_at')
+            ->chunkById(100, function ($topups): void {
+                foreach ($topups as $topup) {
+                    $this->creditRecoveredTopup($topup);
+                }
+            });
+    }
+
+    private function creditRecoveredTopup(GasTopup $topup): void
+    {
+        $ownerId = DepositAddress::query()
+            ->withoutGlobalScope('owner')
+            ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
+            ->where('deposit_addresses.address', $topup->source_address)
+            ->where('deposit_addresses.network', $topup->network)
+            ->value('customers.user_id');
+
+        if ($ownerId === null) {
+            // Unattributable recovery — mark it so it is not retried forever.
+            $topup->update(['fee_recovered_at' => now()]);
+
+            return;
         }
 
-        $now = now();
-        TreasurySweep::query()->where('network', $network)->where('status', 'confirmed')->whereNull('fee_recovered_at')
-            ->where(function ($query) use ($userId): void {
-                $query->whereExists(function ($sub) use ($userId): void {
-                    $sub->selectRaw('1')->from('deposits')
-                        ->whereColumn('deposits.id', 'treasury_sweeps.deposit_id')
-                        ->where('deposits.user_id', $userId);
-                })->orWhereExists(function ($sub) use ($userId): void {
-                    $sub->selectRaw('1')->from('deposit_addresses')
-                        ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
-                        ->whereColumn('deposit_addresses.id', 'treasury_sweeps.deposit_address_id')
-                        ->where('customers.user_id', $userId);
-                });
-            })
-            ->update(['fee_recovered_at' => $now]);
-        $topupIds = $this->feeConverter->attributableTopupQuery($userId, $network)
-            ->whereNull('gas_topups.fee_recovered_at')
-            ->pluck('gas_topups.id');
-        GasTopup::query()->whereIn('id', $topupIds)->update(['fee_recovered_at' => $now]);
-        $rentalIds = $this->feeConverter->attributableRentalQuery($userId, $network)
-            ->whereNull('energy_rentals.fee_recovered_at')
-            ->pluck('energy_rentals.id');
-        EnergyRental::query()->whereIn('id', $rentalIds)->update(['fee_recovered_at' => $now]);
+        $credit = $this->feeConverter->toNetworkUnits($topup->network, (string) $topup->amount);
+
+        if ($credit === null) {
+            return; // valuation missing — leave unrecovered so a later run retries
+        }
+
+        DB::transaction(function () use ($topup, $ownerId, $credit): void {
+            $balance = Balance::query()->withoutGlobalScope('owner')->lockForUpdate()->firstOrCreate(
+                ['user_id' => $ownerId, 'network' => $topup->network],
+                ['amount' => 0],
+            );
+            $balance->update(['amount' => bcadd((string) $balance->amount, $credit, 8)]);
+
+            LedgerEntry::create([
+                'user_id' => $ownerId,
+                'network' => $topup->network,
+                'amount' => $credit,
+                'reason' => 'gas_recovery_credit',
+            ]);
+
+            $topup->update(['fee_recovered_at' => now()]);
+        });
     }
 
     private function shouldSweep(object $group, TreasuryWallet $wallet, PlatformSettings $settings, $valuations): bool

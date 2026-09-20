@@ -544,6 +544,8 @@ class GasTreasuryService
                         (int) $wallet->id,
                         $amount,
                         'recovery',
+                        $address->address,
+                        (int) $address->derivation_index,
                     );
 
                     if (! $created) {
@@ -753,7 +755,7 @@ class GasTreasuryService
         return false;
     }
 
-    private function findOrCreateOpenTopup(string $network, string $recipientAddress, int $recipientIndex, int $walletId, string $amount, string $kind = 'topup'): array
+    private function findOrCreateOpenTopup(string $network, string $recipientAddress, int $recipientIndex, int $walletId, string $amount, string $kind = 'topup', ?string $sourceAddress = null, ?int $sourceIndex = null): array
     {
         $now = now();
         $attributes = [
@@ -761,6 +763,8 @@ class GasTreasuryService
             'kind' => $kind,
             'recipient_address' => $recipientAddress,
             'recipient_index' => $recipientIndex,
+            'source_address' => $sourceAddress,
+            'source_index' => $sourceIndex,
             'treasury_wallet_id' => $walletId,
             'amount' => $amount,
             'status' => 'broadcast',

@@ -19,6 +19,8 @@ class GasTopup extends Model
         'kind',
         'recipient_address',
         'recipient_index',
+        'source_address',
+        'source_index',
         'amount',
         'tx_hash',
         'status',
@@ -34,6 +36,7 @@ class GasTopup extends Model
         return [
             'amount' => 'decimal:8',
             'recipient_index' => 'integer',
+            'source_index' => 'integer',
             'broadcasted_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'fee_recovered_at' => 'datetime',

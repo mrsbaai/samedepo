@@ -56,7 +56,7 @@ final class OwnerFinanceCalculator
 
             $wdFee = $this->revenueFromReasons($owner->id, $network, ['network_fee', 'network_fee_adjustment']);
 
-            $consolidationFee = $this->revenueFromReasons($owner->id, $network, ['consolidation_fee']);
+            $consolidationFee = $this->revenueFromReasons($owner->id, $network, ['consolidation_fee', 'gas_recovery_credit']);
 
             $sweepGas = $this->feeConverter->sweepGasNative($owner->id, $network);
             $unrecovered = $this->feeConverter->unrecoveredSweepGasNative($owner->id, $network);
