@@ -68,7 +68,7 @@
             <div class="flex flex-wrap gap-x-10 gap-y-4">
                 @foreach ($networks as $meta)
                     <div class="flex items-center gap-3">
-                        <img src="{{ asset($meta['icon']) }}" alt="" class="size-8 shrink-0 rounded-full" />
+                        <x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-8" />
                         <div class="leading-tight">
                             <flux:text class="font-medium text-zinc-100">{{ $meta['label'] }}</flux:text>
                             <flux:text size="xs" class="font-mono text-zinc-500">{{ $meta['symbol'] }}</flux:text>

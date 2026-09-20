@@ -95,7 +95,7 @@
                         @php($m = $networkMeta[$network])
                         <flux:table.row :key="$network">
                             <flux:table.cell class="flex items-center gap-2">
-                                <img src="{{ asset('crypto/'.$m['slug'].'.svg') }}" alt="" class="size-4" />
+                                <x-crypto-icon :icon="$m['icon']" :badge="$m['badge']" class="size-4" />
                                 {{ $m['label'] }}
                             </flux:table.cell>
                             <flux:table.cell align="end" class="font-ledger tabular-nums">{{ number_format((float) $n['deposit_volume'], $m['decimals']) }} {{ $m['symbol'] }}</flux:table.cell>
@@ -234,7 +234,7 @@
                                 <flux:table.row :key="$w['id']">
                                     <flux:table.cell class="whitespace-nowrap">{{ $w['at']->format('M j, H:i') }}</flux:table.cell>
                                     <flux:table.cell class="flex items-center gap-2">
-                                        <img src="{{ asset('crypto/'.$w['network']['slug'].'.svg') }}" alt="" class="size-4" />
+                                        <x-crypto-icon :icon="$w['network']['icon']" :badge="$w['network']['badge']" class="size-4" />
                                         <span class="max-md:hidden">{{ $w['network']['label'] }}</span>
                                     </flux:table.cell>
                                     <flux:table.cell align="end" variant="strong" class="font-ledger tabular-nums">{{ number_format((float) $w['gross'], $w['network']['decimals']) }} {{ $w['network']['symbol'] }}</flux:table.cell>

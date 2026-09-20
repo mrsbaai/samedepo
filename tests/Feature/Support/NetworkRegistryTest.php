@@ -67,7 +67,8 @@ test('present returns the UI metadata shape', function () {
         'symbol' => 'USDC',
         'decimals' => 2,
         'slug' => 'usdc-erc20',
-        'icon' => 'crypto/usdc.svg',
+        'icon' => 'usdc',
+        'badge' => 'eth',
     ]);
 });
 

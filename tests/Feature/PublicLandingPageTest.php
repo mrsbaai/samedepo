@@ -2,6 +2,7 @@
 
 use App\Models\Faq;
 use App\Models\User;
+use App\Support\CryptoIcon;
 
 test('guests can view the public landing page', function () {
     $this->get('/')
@@ -31,9 +32,10 @@ test('authenticated users see their role dashboard link and avatar menu', functi
 test('the landing page shows supported network icons', function () {
     $this->get('/')
         ->assertOk()
-        ->assertSee('crypto/bitcoin.svg')
-        ->assertSee('crypto/usdt-trc20.svg')
-        ->assertSee('crypto/usdt-erc20.svg');
+        ->assertSee(CryptoIcon::url('btc'), false)
+        ->assertSee(CryptoIcon::url('usdt'), false)
+        ->assertSee(CryptoIcon::url('trx'), false)
+        ->assertSee(CryptoIcon::url('eth'), false);
 });
 
 test('the landing page explains its network cost and signing technology', function () {

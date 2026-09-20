@@ -59,7 +59,7 @@ class WithdrawalReview extends Component
     #[Computed]
     public function networkMeta(): array
     {
-        return Network::exists($this->withdrawalRecord->network) ? Network::present($this->withdrawalRecord->network) : ['label' => $this->withdrawalRecord->network, 'symbol' => '', 'decimals' => 8, 'slug' => $this->withdrawalRecord->network];
+        return Network::exists($this->withdrawalRecord->network) ? Network::present($this->withdrawalRecord->network) : ['label' => $this->withdrawalRecord->network, 'symbol' => '', 'decimals' => 8, 'slug' => $this->withdrawalRecord->network, 'icon' => null, 'badge' => null];
     }
 
     /**

@@ -17,7 +17,7 @@
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
                     @foreach ($rows as $addr)
                         <div class="flex items-center gap-2" wire:key="addr-{{ $addr['networkSlug'] }}">
-                            <img src="{{ asset($addr['icon'] ?: 'crypto/'.$addr['networkSlug'].'.svg') }}" alt="" class="size-4 shrink-0" />
+                            <x-crypto-icon :icon="$addr['icon']" :badge="$addr['badge']" class="size-4" />
                             <flux:text size="sm">{{ $addr['networkLabel'] }}</flux:text>
                             <flux:badge size="sm" color="zinc">{{ $addr['chainLabel'] }}</flux:badge>
                             @if ($explorerUrl = \App\Support\ExplorerUrl::for('address', $addr['network'], $addr['address']))

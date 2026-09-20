@@ -37,7 +37,7 @@ class WithdrawalQueue extends Component
 
     public function networkMeta(string $networkKey): array
     {
-        return Network::exists($networkKey) ? Network::present($networkKey) : ['label' => $networkKey, 'symbol' => '', 'decimals' => 8, 'slug' => $networkKey];
+        return Network::exists($networkKey) ? Network::present($networkKey) : ['label' => $networkKey, 'symbol' => '', 'decimals' => 8, 'slug' => $networkKey, 'icon' => null, 'badge' => null];
     }
 
     public function formattedAmount(float $amount, int $decimals): string

@@ -8,6 +8,7 @@ use App\Models\DepositAddress;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
+use App\Support\CryptoIcon;
 use Livewire\Livewire;
 
 function seedBalances(User $owner): void
@@ -43,9 +44,10 @@ test('balance cards display each network usd value above its crypto amount and l
         ->assertSee('0.50000000 BTC', false)
         ->assertSee('100.00 USDT', false)
         ->assertSee('50.00 USDT', false)
-        ->assertSee('crypto/bitcoin.svg', false)
-        ->assertSee('crypto/usdt-trc20.svg', false)
-        ->assertSee('crypto/usdt-erc20.svg', false)
+        ->assertSee(CryptoIcon::url('btc'), false)
+        ->assertSee(CryptoIcon::url('usdt'), false)
+        ->assertSee(CryptoIcon::url('trx'), false)
+        ->assertSee(CryptoIcon::url('eth'), false)
         ->assertSee(route('withdraw', ['network' => 'bitcoin']), false)
         ->assertSee(route('withdraw', ['network' => 'usdt-trc20']), false)
         ->assertSee(route('withdraw', ['network' => 'usdt-erc20']), false)

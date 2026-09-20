@@ -116,7 +116,7 @@
                             </flux:table.cell>
                             <flux:table.cell class="max-md:hidden">
                                 <span class="flex items-center gap-1.5">
-                                    <img src="{{ asset('crypto/' . $tx['networkSlug'] . '.svg') }}" alt="" class="size-4" />
+                                    <x-crypto-icon :icon="$tx['icon']" :badge="$tx['badge']" class="size-4" />
                                     {{ $tx['networkLabel'] }}
                                 </span>
                             </flux:table.cell>

@@ -47,7 +47,7 @@
                             <flux:table.row :key="$key">
                                 <flux:table.cell>
                                     <div class="flex items-center gap-2 whitespace-nowrap">
-                                        <img src="{{ asset($meta['icon']) }}" alt="" class="size-5 shrink-0" />
+                                        <x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-5" />
                                         <div class="leading-tight">
                                             <div class="font-medium">{{ $meta['label'] }}</div>
                                             <div class="text-xs text-zinc-500">{{ $meta['symbol'] }} · {{ \App\Support\Network::chainLabel($key) }}</div>

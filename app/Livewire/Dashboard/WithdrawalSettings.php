@@ -53,6 +53,8 @@ class WithdrawalSettings extends Component
             $this->networks[$key] = [
                 'network' => $meta['label'],
                 'slug' => $meta['slug'],
+                'icon' => $meta['icon'],
+                'badge' => $meta['badge'],
                 'address' => $addresses[$key] ?? '',
             ];
         }

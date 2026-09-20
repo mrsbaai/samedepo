@@ -217,7 +217,8 @@ class TreasuryOverview extends Component
             'native' => $nativeSymbol,
             'decimals' => 8,
             'slug' => $networkKey,
-            'icon' => '',
+            'icon' => config('networks.chain_icons.'.(Network::nativeChain($networkKey) ?? '')),
+            'badge' => null,
         ];
     }
 

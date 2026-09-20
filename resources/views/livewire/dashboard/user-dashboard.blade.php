@@ -69,7 +69,7 @@
             <div class="max-lg:hidden flex items-center gap-2">
                 <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === 'all' ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', 'all')">All</flux:badge>
                 @foreach ($this->networkOptions as $meta)
-                    <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === $meta['slug'] ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', '{{ $meta['slug'] }}')"><span class="flex items-center gap-1"><img src="{{ asset($meta['icon']) }}" alt="" class="size-3.5" /> {{ $meta['label'] }}</span></flux:badge>
+                    <flux:badge as="button" rounded size="sm" color="{{ $this->networkFilter === $meta['slug'] ? 'amber' : 'zinc' }}" wire:click="$set('networkFilter', '{{ $meta['slug'] }}')"><span class="flex items-center gap-1"><x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-3.5" /> {{ $meta['label'] }}</span></flux:badge>
                 @endforeach
             </div>
         </div>
@@ -79,7 +79,7 @@
                 <flux:card variant="soft" class="p-5">
                     <div class="flex items-center justify-between gap-4">
                         <div class="flex min-w-0 items-center gap-3">
-                            <img src="{{ asset('crypto/' . $stat['network'] . '.svg') }}" alt="" class="size-10 shrink-0" />
+                            <x-crypto-icon :icon="$stat['icon']" :badge="$stat['badge']" class="size-10" />
                             <flux:text class="truncate font-medium">{{ $stat['label'] }}</flux:text>
                         </div>
                         <flux:button size="sm" variant="ghost" href="{{ route('withdraw', ['network' => $stat['network']]) }}" wire:navigate>Withdraw</flux:button>
@@ -128,7 +128,7 @@
                             </flux:table.cell>
                             <flux:table.cell class="max-md:hidden">
                                 <span class="flex items-center gap-1.5">
-                                    <img src="{{ asset('crypto/' . $item['networkSlug'] . '.svg') }}" alt="" class="size-4" />
+                                    <x-crypto-icon :icon="$item['icon']" :badge="$item['badge']" class="size-4" />
                                     {{ $item['networkLabel'] }}
                                 </span>
                             </flux:table.cell>

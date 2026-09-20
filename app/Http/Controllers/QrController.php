@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Support\CryptoIcon;
 use App\Support\Network;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
@@ -19,13 +20,13 @@ class QrController
             return response('Unsupported address type.', 400);
         }
 
-        $logoPath = public_path(Network::present($network)['icon']);
+        $logo = CryptoIcon::svg(Network::present($network)['icon']);
 
-        if (! file_exists($logoPath)) {
+        if ($logo === null) {
             return response('Logo not found.', 500);
         }
 
-        $svg = $this->qrSvg($address, $logoPath);
+        $svg = $this->qrSvg($address, $logo);
 
         return response($svg, 200, ['Content-Type' => 'image/svg+xml']);
     }
@@ -41,7 +42,7 @@ class QrController
         return null;
     }
 
-    private function qrSvg(string $address, string $logoPath): string
+    private function qrSvg(string $address, string $logo): string
     {
         $options = new QROptions([
             'eccLevel' => 'H',
@@ -54,12 +55,6 @@ class QrController
         $qrcode->addByteSegment($address);
 
         $size = $qrcode->getQRMatrix()->getSize();
-
-        $logo = file_get_contents($logoPath);
-
-        if ($logo === false) {
-            $logo = '';
-        }
 
         [$viewBoxWidth, $viewBoxHeight, $cx, $cy] = $this->logoCenter($logo);
 

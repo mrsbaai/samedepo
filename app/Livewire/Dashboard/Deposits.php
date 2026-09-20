@@ -78,6 +78,8 @@ class Deposits extends Component
             'networkSlug' => $meta['slug'],
             'networkLabel' => $meta['label'],
             'symbol' => $meta['symbol'] ?? '',
+            'icon' => $meta['icon'] ?? null,
+            'badge' => $meta['badge'] ?? null,
             'amount' => number_format((float) $deposit->gross_amount, $meta['decimals'], '.', ''),
             'status' => $deposit->status,
             'statusLabel' => $statusLabel,

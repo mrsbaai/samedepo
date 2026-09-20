@@ -68,6 +68,8 @@ class UserDashboard extends Component
                 'networkSlug' => $meta['slug'],
                 'networkLabel' => $meta['label'],
                 'symbol' => $meta['symbol'],
+                'icon' => $meta['icon'],
+                'badge' => $meta['badge'],
                 'amount' => number_format($amount, $meta['decimals'], '.', ''),
                 'usdValue' => number_format($usdValue, 2, '.', ''),
             ];
@@ -84,6 +86,8 @@ class UserDashboard extends Component
             'value' => '$'.$balance['usdValue'],
             'amount' => $balance['amount'].' '.$balance['symbol'],
             'network' => $balance['networkSlug'],
+            'icon' => $balance['icon'],
+            'badge' => $balance['badge'],
         ])->all();
     }
 
@@ -118,6 +122,8 @@ class UserDashboard extends Component
                     'networkSlug' => $meta['slug'],
                     'networkLabel' => $meta['label'],
                     'symbol' => $meta['symbol'] ?? '',
+                    'icon' => $meta['icon'] ?? null,
+                    'badge' => $meta['badge'] ?? null,
                     'customerRef' => $deposit->customer?->customer_reference,
                     'txHash' => $deposit->tx_hash,
                     'amount' => number_format((float) $amount, $meta['decimals'], '.', ''),
@@ -142,6 +148,8 @@ class UserDashboard extends Component
                     'networkSlug' => $meta['slug'],
                     'networkLabel' => $meta['label'],
                     'symbol' => $meta['symbol'] ?? '',
+                    'icon' => $meta['icon'] ?? null,
+                    'badge' => $meta['badge'] ?? null,
                     'customerRef' => null,
                     'txHash' => $withdrawal->tx_hash,
                     'amount' => number_format((float) $amount, $meta['decimals'], '.', ''),

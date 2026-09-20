@@ -82,7 +82,8 @@ class CustomerDetail extends Component
                     'networkSlug' => $meta['slug'],
                     'networkLabel' => $meta['label'],
                     'symbol' => $meta['symbol'],
-                    'icon' => $meta['icon'] ?? '',
+                    'icon' => $meta['icon'] ?? null,
+                    'badge' => $meta['badge'] ?? null,
                     'chainLabel' => Network::exists($address->network) ? Network::chainLabel($address->network) : $address->network,
                     'address' => $address->address,
                 ];

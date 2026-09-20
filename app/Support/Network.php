@@ -232,6 +232,7 @@ final class Network
             'decimals' => (int) $network['decimals'],
             'slug' => $network['slug'],
             'icon' => $network['icon'],
+            'badge' => $network['kind'] === 'token' ? config('networks.chain_icons.'.$network['chain']) : null,
         ];
     }
 

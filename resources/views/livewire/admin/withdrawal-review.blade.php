@@ -45,7 +45,7 @@
                 <div class="flex items-center justify-between text-sm">
                     <flux:text variant="subtle">Network</flux:text>
                     <span class="flex items-center gap-1.5">
-                        <img src="{{ asset('crypto/'.$this->networkMeta['slug'].'.svg') }}" alt="" class="size-4" />
+                        <x-crypto-icon :icon="$this->networkMeta['icon']" :badge="$this->networkMeta['badge']" class="size-4" />
                         {{ $this->networkMeta['label'] }}
                     </span>
                 </div>

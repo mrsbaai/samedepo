@@ -55,7 +55,7 @@
                             <flux:table.cell variant="strong">{{ $withdrawal->user->email }}</flux:table.cell>
                             <flux:table.cell>
                                 <span class="flex items-center gap-1.5">
-                                    <img src="{{ asset('crypto/'.$meta['slug'].'.svg') }}" alt="" class="size-4" />
+                                    <x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-4" />
                                     <span class="max-md:hidden">{{ $meta['label'] }}</span>
                                 </span>
                             </flux:table.cell>

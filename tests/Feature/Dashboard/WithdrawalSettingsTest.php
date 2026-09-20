@@ -3,6 +3,7 @@
 use App\Livewire\Dashboard\WithdrawalSettings;
 use App\Models\User;
 use App\Models\WithdrawalAddress;
+use App\Support\CryptoIcon;
 use Livewire\Livewire;
 
 test('an owner can view the withdrawal settings page', function () {
@@ -12,10 +13,11 @@ test('an owner can view the withdrawal settings page', function () {
         ->get(route('withdrawal-settings'))
         ->assertOk()
         ->assertSee('Withdrawal Settings', false)
-        ->assertSee('crypto/bitcoin.svg', false)
-        ->assertSee('crypto/usdt-trc20.svg', false)
-        ->assertSee('crypto/usdt-erc20.svg', false)
-        ->assertDontSee('img/crypto/', false);
+        ->assertSee(CryptoIcon::url('btc'), false)
+        ->assertSee(CryptoIcon::url('usdt'), false)
+        ->assertSee(CryptoIcon::url('trx'), false)
+        ->assertSee(CryptoIcon::url('eth'), false)
+        ->assertDontSee('crypto/', false);
 });
 
 test('an owner can set a withdrawal address', function () {

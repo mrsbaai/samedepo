@@ -1,6 +1,34 @@
 {
+  "node_modules/cryptocurrency-icons/svg/color/bnb.svg": {
+    "file": "assets/bnb-C7_MdwOn.svg",
+    "src": "node_modules/cryptocurrency-icons/svg/color/bnb.svg"
+  },
+  "node_modules/cryptocurrency-icons/svg/color/btc.svg": {
+    "file": "assets/btc-DIog7A4K.svg",
+    "src": "node_modules/cryptocurrency-icons/svg/color/btc.svg"
+  },
+  "node_modules/cryptocurrency-icons/svg/color/eth.svg": {
+    "file": "assets/eth-BufXdG9K.svg",
+    "src": "node_modules/cryptocurrency-icons/svg/color/eth.svg"
+  },
+  "node_modules/cryptocurrency-icons/svg/color/ltc.svg": {
+    "file": "assets/ltc-DsuV0rQY.svg",
+    "src": "node_modules/cryptocurrency-icons/svg/color/ltc.svg"
+  },
+  "node_modules/cryptocurrency-icons/svg/color/trx.svg": {
+    "file": "assets/trx-B2XxC5RG.svg",
+    "src": "node_modules/cryptocurrency-icons/svg/color/trx.svg"
+  },
+  "node_modules/cryptocurrency-icons/svg/color/usdc.svg": {
+    "file": "assets/usdc-CJ_qyDuP.svg",
+    "src": "node_modules/cryptocurrency-icons/svg/color/usdc.svg"
+  },
+  "node_modules/cryptocurrency-icons/svg/color/usdt.svg": {
+    "file": "assets/usdt-C72ZycfX.svg",
+    "src": "node_modules/cryptocurrency-icons/svg/color/usdt.svg"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-CpRuUKQf.css",
+    "file": "assets/app-aEnlsMjQ.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },

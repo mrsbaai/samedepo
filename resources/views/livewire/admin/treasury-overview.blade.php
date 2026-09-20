@@ -56,7 +56,7 @@
                                 @php($meta = $this->networkMeta($network))
                                 <flux:table.row :key="$network">
                                     <flux:table.cell class="flex items-center gap-2">
-                                        <img src="{{ asset('crypto/'.$meta['slug'].'.svg') }}" alt="" class="size-5" />
+                                        <x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-5" />
                                         <span class="font-medium">{{ $meta['label'] }}</span>
                                     </flux:table.cell>
                                     <flux:table.cell>
@@ -115,7 +115,7 @@
                                 @php($metrics = $this->networkMetrics[$wallet->network])
                                 <flux:table.row :key="$wallet->id">
                                     <flux:table.cell class="flex items-center gap-2">
-                                        <img src="{{ asset('crypto/'.$meta['slug'].'.svg') }}" alt="" class="size-5" />
+                                        <x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-5" />
                                         <span class="font-medium">{{ $meta['label'] }}</span>
                                     </flux:table.cell>
                                     <flux:table.cell>

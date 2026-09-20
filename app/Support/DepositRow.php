@@ -24,6 +24,7 @@ final class DepositRow
                 'symbol' => $presented['symbol'],
                 'decimals' => $presented['decimals'],
                 'icon' => $presented['icon'],
+                'badge' => $presented['badge'],
             ];
         }
 
@@ -41,7 +42,8 @@ final class DepositRow
             'label' => $network,
             'symbol' => '',
             'decimals' => 8,
-            'icon' => 'crypto/'.str_replace('_', '-', $network).'.svg',
+            'icon' => null,
+            'badge' => null,
         ];
     }
 
@@ -72,6 +74,8 @@ final class DepositRow
         return [
             'id' => $deposit->id,
             'networkSlug' => $meta['slug'],
+            'icon' => $meta['icon'],
+            'badge' => $meta['badge'],
             'networkLabel' => $meta['label'],
             'symbol' => $meta['symbol'],
             'gross' => $format($deposit->gross_amount),
