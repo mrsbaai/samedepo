@@ -446,6 +446,9 @@ def get_tron_resource(index: int) -> Optional[dict]:
     client = _trx_client()
     address = keys.derive_address("usdt_trc20", index)
     try:
+        # getaccountresource returns global totals for unknown addresses, so
+        # activation is probed with getaccount — it raises AddressNotFound.
+        activated = bool(client.get_account(address))
         resource = client.get_account_resource(address)
         return {
             "energy_limit": resource.get("EnergyLimit", 0),
@@ -454,10 +457,11 @@ def get_tron_resource(index: int) -> Optional[dict]:
             "bandwidth_used": resource.get("NetUsed", 0),
             "free_bandwidth_limit": resource.get("freeNetLimit", 0),
             "free_bandwidth_used": resource.get("freeNetUsed", 0),
+            "activated": activated,
         }
     except AddressNotFound:
         return {"energy_limit": 0, "energy_used": 0, "bandwidth_limit": 0, "bandwidth_used": 0,
-                "free_bandwidth_limit": 0, "free_bandwidth_used": 0}
+                "free_bandwidth_limit": 0, "free_bandwidth_used": 0, "activated": False}
     except Exception:
         return None
 

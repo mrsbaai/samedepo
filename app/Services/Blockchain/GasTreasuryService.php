@@ -255,6 +255,26 @@ class GasTreasuryService
         $resource = $this->broadcaster->getTronResource($receiverIndex);
 
         if ($resource !== null) {
+            // A fresh deposit address that only ever received USDT does not
+            // exist on-chain — TronSave cannot delegate to it. A 0.1 TRX
+            // top-up activates the account (the ~1 TRX creation fee burns
+            // from the sender and is recorded via the top-up's gas expense);
+            // the next tick sees the account activated and rents normally.
+            if (($resource['activated'] ?? true) === false) {
+                if ($receiverIndex === (int) $wallet->derivation_index) {
+                    return null; // treasury is always activated — defensive
+                }
+
+                $this->sendTopup($network, $wallet, $receiverAddress, $receiverIndex, '0.10000000', '1.10000000');
+                Log::info('energy.activation_topup', [
+                    'network' => $network,
+                    'receiver' => $receiverAddress,
+                    'purpose' => $purpose,
+                ]);
+
+                return false;
+            }
+
             $availableEnergy = (int) ($resource['energy_limit'] ?? 0) - (int) ($resource['energy_used'] ?? 0);
             $availableBandwidth = ((int) ($resource['bandwidth_limit'] ?? 0) - (int) ($resource['bandwidth_used'] ?? 0))
                 + ((int) ($resource['free_bandwidth_limit'] ?? 0) - (int) ($resource['free_bandwidth_used'] ?? 0));

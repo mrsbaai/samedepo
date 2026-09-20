@@ -49,6 +49,7 @@ def test_trc20_token_balance_inactive_address_is_zero():
 
 def test_tron_resource_includes_free_bandwidth():
     client = MagicMock()
+    client.get_account.return_value = {"address": "Tabc", "balance": 0}
     client.get_account_resource.return_value = {
         "EnergyLimit": 0, "EnergyUsed": 0,
         "NetLimit": 0, "NetUsed": 10,
@@ -59,13 +60,19 @@ def test_tron_resource_includes_free_bandwidth():
         resource = transactions.get_tron_resource(7)
     assert resource["free_bandwidth_limit"] == 600
     assert resource["free_bandwidth_used"] == 50
+    assert resource["activated"] is True
 
 
 def test_tron_resource_inactive_address_has_zero_free_bandwidth():
     client = MagicMock()
-    client.get_account_resource.side_effect = AddressNotFound()
+    # TronGrid's getaccountresource answers global totals for unknown
+    # addresses; only getaccount raises for a non-existent account.
+    client.get_account.side_effect = AddressNotFound()
+    client.get_account_resource.return_value = {"freeNetLimit": 600}
     with patch.object(transactions, "_trx_client", return_value=client), \
          patch.object(transactions.keys, "derive_address", return_value="Tabc"):
         resource = transactions.get_tron_resource(7)
+    assert resource["energy_limit"] == 0
     assert resource["free_bandwidth_limit"] == 0
     assert resource["free_bandwidth_used"] == 0
+    assert resource["activated"] is False

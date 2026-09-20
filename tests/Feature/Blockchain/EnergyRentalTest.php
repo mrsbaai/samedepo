@@ -35,6 +35,8 @@ class EnergyRentalBroadcasterFake implements BlockchainBroadcaster, EstimatesTra
 
     public array $topupCalls = [];
 
+    public ?array $receipt = ['status' => 'confirmed', 'fee' => '0.27000000', 'confirmations' => 20];
+
     public ?array $tronResource = [
         'energy_limit' => 0,
         'energy_used' => 0,
@@ -76,7 +78,7 @@ class EnergyRentalBroadcasterFake implements BlockchainBroadcaster, EstimatesTra
 
     public function getTransactionReceipt(string $network, string $txHash): ?array
     {
-        return ['status' => 'confirmed', 'fee' => '0.27000000', 'confirmations' => 20];
+        return $this->receipt;
     }
 
     public function estimateFee(string $network, bool $tokenTransfer = true): ?string
@@ -441,4 +443,76 @@ test('no trx is sent to the deposit address in rent mode', function () {
 
     expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
     expect($broadcaster->topupCalls)->toHaveCount(0);
+});
+
+test('an unactivated receiver gets an activation top-up and no tronsave call', function () {
+    [$service, $broadcaster, $sweep] = rentalFixture(['tronResource' => [
+        'activated' => false,
+        'energy_limit' => 0,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 0,
+        'free_bandwidth_used' => 0,
+    ]]);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
+
+    expect($broadcaster->topupCalls)->toHaveCount(1)
+        ->and($broadcaster->topupCalls[0]['amount'])->toBe('0.10000000')
+        ->and($broadcaster->topupCalls[0]['fee'])->toBe('1.10000000')
+        ->and($broadcaster->topupCalls[0]['destinationIndex'])->toBe(3);
+
+    $topup = GasTopup::sole();
+    expect($topup->kind)->toBe('topup')
+        ->and($topup->recipient_address)->toBe('TDeposit3')
+        ->and($topup->amount)->toBe('0.10000000');
+
+    Http::assertNothingSent();
+});
+
+test('a second tick while the activation top-up is open does not rebroadcast', function () {
+    [$service, $broadcaster, $sweep] = rentalFixture(['tronResource' => [
+        'activated' => false,
+        'energy_limit' => 0,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 0,
+        'free_bandwidth_used' => 0,
+    ]]);
+    $broadcaster->receipt = ['status' => 'pending', 'fee' => null, 'confirmations' => 0];
+
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
+
+    expect($broadcaster->topupCalls)->toHaveCount(1);
+    expect(GasTopup::count())->toBe(1);
+    Http::assertNothingSent();
+});
+
+test('an activated receiver with no energy takes the order path', function () {
+    [$service, $broadcaster, $sweep] = rentalFixture(['tronResource' => [
+        'activated' => true,
+        'energy_limit' => 0,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 600,
+        'free_bandwidth_used' => 0,
+    ]]);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
+    expect($broadcaster->topupCalls)->toHaveCount(0);
+    expect(EnergyRental::sole()->status)->toBe('ordered');
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
+});
+
+test('a legacy resource payload without activated is treated as activated', function () {
+    // Signer versions before the activated flag ship payloads without the key.
+    [$service, , $sweep] = rentalFixture();
+
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
+    expect(GasTopup::count())->toBe(0);
+    expect(EnergyRental::sole()->status)->toBe('ordered');
 });
