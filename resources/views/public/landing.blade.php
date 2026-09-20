@@ -66,12 +66,13 @@
             </div>
 
             <div class="flex flex-wrap gap-x-10 gap-y-4">
-                @foreach ($networks as $meta)
+                @foreach (collect($networks)->groupBy('symbol') as $symbol => $group)
+                    @php($meta = $group->first())
                     <div class="flex items-center gap-3">
-                        <x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-8" />
+                        <x-crypto-icon :icon="$meta['icon']" class="size-8" />
                         <div class="leading-tight">
-                            <flux:text class="font-medium text-zinc-100">{{ $meta['label'] }}</flux:text>
-                            <flux:text size="xs" class="font-mono text-zinc-500">{{ $meta['symbol'] }}</flux:text>
+                            <flux:text class="font-medium text-zinc-100">{{ $symbol }}</flux:text>
+                            <flux:text size="xs" class="font-mono text-zinc-500">{{ $group->map(fn ($m) => \App\Support\Network::chainLabel($m['key']))->join(' · ') }}</flux:text>
                         </div>
                     </div>
                 @endforeach
@@ -91,7 +92,7 @@
             <flux:timeline size="lg" class="[--flux-timeline-item-gap:2rem]">
                 @foreach ([
                     ['Send a customer reference', 'Make one GET request with a reference from your system, like cus_482.'],
-                    ['Get permanent deposit addresses', 'samedepo returns one permanent address for '.collect($networks)->pluck('label')->join(', ', ' and ').'.'],
+                    ['Get permanent deposit addresses', 'samedepo returns one permanent address for '.collect($networks)->pluck('symbol')->unique()->join(', ', ' and ').'.'],
                     ['Receive confirmed deposits', 'We watch for deposits, wait for confirmations, credit your balance, and send your webhook.'],
                 ] as [$heading, $copy])
                     <flux:timeline.item>

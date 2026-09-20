@@ -34,8 +34,8 @@ test('the landing page shows supported network icons', function () {
         ->assertOk()
         ->assertSee(CryptoIcon::url('btc'), false)
         ->assertSee(CryptoIcon::url('usdt'), false)
-        ->assertSee(CryptoIcon::url('trx'), false)
-        ->assertSee(CryptoIcon::url('eth'), false);
+        ->assertSee('TRON · Ethereum', false)
+        ->assertDontSee('USDT (TRC20)', false);
 });
 
 test('the landing page explains its network cost and signing technology', function () {
