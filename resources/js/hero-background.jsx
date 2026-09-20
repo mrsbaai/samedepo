@@ -19,7 +19,7 @@ const base = {
     speed: 0.3,
     spin: 1,
     interaction: 'attract',
-    density: 0.55,
+    density: 0.5,
     shardSize: 1.45,
     stretch: 1,
     turbulence: 1,
