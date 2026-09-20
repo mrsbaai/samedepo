@@ -231,6 +231,33 @@ return [
             'settings' => ['min_deposit' => '10.00000000', 'withdrawal_min_usd' => '100.00', 'sweep_min_usd' => '10.00'],
         ],
 
+        'bnb' => [
+            'label' => 'BNB',
+            'symbol' => 'BNB',
+            'decimals' => 8,
+            'family' => 'evm',
+            'chain' => 'bsc',
+            'kind' => 'native',
+            'native_key' => 'native_bnb',
+            'contract' => null,
+            'token_decimals' => null,
+            'confirmations' => 15,
+            'scan_interval' => 5,
+            'provider' => [
+                'driver' => 'etherscan_native',
+                'api_key' => env('ETHERSCAN_API_KEY'),
+                'chain_id' => 56,
+            ],
+            'coingecko_id' => 'binancecoin',
+            'explorer_tx' => 'https://bscscan.com/tx/{hash}',
+            'address_group' => 'evm',
+            'xpub' => 'blockchain.usdt_erc20.xpub',
+            'slug' => 'bnb',
+            'icon' => 'bnb',
+            'enabled' => env('NETWORK_BNB_ENABLED', false),
+            'settings' => ['min_deposit' => '0.01000000', 'withdrawal_min_usd' => '100.00', 'sweep_min_usd' => '10.00'],
+        ],
+
     ],
 
     /*

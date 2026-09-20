@@ -26,12 +26,13 @@ it('fetches and maps CoinGecko prices', function () {
         'usdc_erc20' => 0,
         'usdt_bep20' => 1.001,
         'usdc_bep20' => 0,
+        'bnb' => 0,
         'native_eth' => 2000,
         'native_trx' => 0.33,
         'native_bnb' => 0,
     ]);
 
-    Http::assertSent(fn ($request) => $request->url() === 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin%2Ctether%2Clitecoin%2Cethereum%2Cusd-coin%2Ctron%2Cbinancecoin&vs_currencies=usd');
+    Http::assertSent(fn ($request) => $request->url() === 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin%2Ctether%2Clitecoin%2Cethereum%2Cusd-coin%2Cbinancecoin%2Ctron&vs_currencies=usd');
 });
 
 it('uses the configured API key when present', function () {

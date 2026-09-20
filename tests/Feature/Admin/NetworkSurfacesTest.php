@@ -84,7 +84,36 @@ test('the settings table lists every registry network including disabled ones', 
         ->assertSee('USDT (TRC20)', false)
         ->assertSee('Litecoin', false)
         ->assertSee('USDC (BEP20)', false)
-        ->assertSee('Ethereum', false);
+        ->assertSee('Ethereum', false)
+        ->assertSee('BNB', false);
+});
+
+test('an enabled bnb shows on landing, api docs and the shared 0x owner card', function () {
+    config()->set('networks.networks.bnb.enabled', true);
+    Network::flush();
+
+    $this->get(route('public.landing'))
+        ->assertOk()
+        ->assertSee('BNB', false);
+
+    $this->get(route('public.api-docs', ['tab' => 'limits']))
+        ->assertOk()
+        ->assertSee('bnb', false);
+
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'cus_bnb']);
+    $shared = '0x'.str_repeat('b', 40);
+    DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_erc20', 'address' => $shared]);
+    DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bnb', 'address' => $shared]);
+
+    Livewire::actingAs($owner)
+        ->test(CustomerDetail::class, ['customer' => 'cus_bnb'])
+        ->assertSee('BNB', false)
+        ->assertSee('BSC', false);
+
+    $component = Livewire::actingAs($owner)->test(CustomerDetail::class, ['customer' => 'cus_bnb']);
+    $groups = collect($component->instance()->addresses)->groupBy('address');
+    expect($groups)->toHaveCount(1)->and($groups[$shared])->toHaveCount(2);
 });
 
 test('saving a network row persists its limits and profit address', function () {
@@ -154,7 +183,7 @@ test('disabled networks are hidden from landing, limits, api docs and owner surf
 
     $this->get(route('public.landing'))
         ->assertOk()
-        ->assertSee('USDC (ERC20)', false)
+        ->assertSee('USDC', false)
         ->assertDontSee('Litecoin', false);
 
     $this->get(route('public.api-docs', ['tab' => 'limits']))

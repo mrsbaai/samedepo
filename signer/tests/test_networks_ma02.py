@@ -13,7 +13,7 @@ TEST_MNEMONIC = (
 
 NETWORK_KEYS = [
     "bitcoin", "litecoin", "ethereum", "usdt_erc20", "usdc_erc20",
-    "usdt_trc20", "usdt_bep20", "usdc_bep20",
+    "usdt_trc20", "usdt_bep20", "usdc_bep20", "bnb",
 ]
 
 
@@ -29,7 +29,7 @@ def test_seed(monkeypatch):
     monkeypatch.setattr(keys, "_seed_for", lambda network: TEST_MNEMONIC)
 
 
-def test_registry_has_all_eight_networks():
+def test_registry_has_all_nine_networks():
     assert sorted(config.NETWORKS.keys()) == sorted(NETWORK_KEYS)
     for key in NETWORK_KEYS:
         entry = config.NETWORKS[key]
@@ -39,7 +39,7 @@ def test_registry_has_all_eight_networks():
 
 def test_evm_networks_share_seed_label():
     labels = {config.NETWORKS[k]["seed_label"] for k in
-              ("ethereum", "usdt_erc20", "usdc_erc20", "usdt_bep20", "usdc_bep20")}
+              ("ethereum", "usdt_erc20", "usdc_erc20", "usdt_bep20", "usdc_bep20", "bnb")}
     assert labels == {"ETHEREUM / USDT ERC20"}
 
 
@@ -70,6 +70,7 @@ def test_eth_and_bsc_derive_same_address(test_seed):
         assert keys.derive_address("usdt_bep20", index) == expected
         assert keys.derive_address("usdc_bep20", index) == expected
         assert keys.derive_address("usdc_erc20", index) == expected
+        assert keys.derive_address("bnb", index) == expected
 
 
 def test_missing_seed_raises_only_on_use():
@@ -158,7 +159,20 @@ def test_native_eth_withdrawal_sends_amount_minus_fee():
         transactions._evm_native_transfer("ethereum", 0, "0x" + "22" * 20, "0.101", "0.001", deduct="fee")
     built = w3.eth.account.sign_transaction.call_args[0][0]
     assert built["value"] == int(Decimal("0.1") * 10 ** 18)
+
+
+def test_native_bnb_withdrawal_builds_chainid_56_deduct_fee():
+    w3, _ = _fake_evm_w3(56)
+    w3.eth.gas_price = 1_000_000_000
+    with patch.object(transactions, "_w3", return_value=w3), \
+         patch.object(transactions.keys, "derive_address", return_value="0x" + "11" * 20), \
+         patch.object(transactions.keys, "derive_private_key", return_value=b"k" * 32), \
+         patch.object(transactions.Web3, "to_checksum_address", side_effect=lambda a: a):
+        transactions._evm_native_transfer("bnb", 0, "0x" + "22" * 20, "0.101", "0.001", deduct="fee")
+    built = w3.eth.account.sign_transaction.call_args[0][0]
+    assert built["chainId"] == 56
     assert built["gas"] == 21000
+    assert built["value"] == int(Decimal("0.1") * 10 ** 18)
 
 
 def test_native_eth_sweep_rejects_when_amount_covers_no_gas():
@@ -193,6 +207,13 @@ def test_fee_usdt_bep20_hits_bsc_rpc():
     with patch("samedepo_signer.fees.requests.post", return_value=_rpc(1_000_000_000)) as post, \
          patch.dict("os.environ", {"BSC_RPC_URL": "https://bsc.example/rpc"}):
         assert fees.estimate("usdt_bep20", token_transfer=True) == f"{Decimal(1_000_000_000) * 65000 / Decimal(10**18):.8f}"
+    assert post.call_args[0][0] == "https://bsc.example/rpc"
+
+
+def test_fee_bnb_uses_21000_gas_on_bsc_rpc():
+    with patch("samedepo_signer.fees.requests.post", return_value=_rpc(1_000_000_000)) as post, \
+         patch.dict("os.environ", {"BSC_RPC_URL": "https://bsc.example/rpc"}):
+        assert fees.estimate("bnb") == f"{Decimal(1_000_000_000) * 21000 / Decimal(10**18):.8f}"
     assert post.call_args[0][0] == "https://bsc.example/rpc"
 
 

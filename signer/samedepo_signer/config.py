@@ -121,6 +121,12 @@ NETWORKS: dict[str, dict] = {
         "decimals": 18,
         "explorer": "https://bscscan.com/tx/{hash}", "native_symbol": "BNB",
     },
+    "bnb": {
+        "family": "evm", "kind": "native", "chain": "bsc", "address_group": "evm",
+        "seed_label": EVM_SEED_LABEL, "coin": ("bip44", "ETHEREUM"),
+        "rpc": lambda: os.environ.get("BSC_RPC_URL", ""), "chain_id": 56,
+        "explorer": "https://bscscan.com/tx/{hash}", "native_symbol": "BNB",
+    },
 }
 
 

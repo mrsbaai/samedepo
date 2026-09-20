@@ -26,10 +26,11 @@ class EtherscanNativeProvider implements BlockchainProvider
 {
     private const END_BLOCK = '99999999';
 
-    // Etherscan free tier allows 5 requests per second.
+    // Etherscan free tier allows 5 requests per second — per API key, so the
+    // throttle is shared across every chain instance using that key.
     private const MIN_REQUEST_INTERVAL_US = 200_000;
 
-    private float $lastRequestAt = 0.0;
+    private static float $lastRequestAt = 0.0;
 
     private readonly Closure $sleeper;
 
@@ -206,8 +207,8 @@ class EtherscanNativeProvider implements BlockchainProvider
 
     private function throttle(): void
     {
-        if ($this->lastRequestAt > 0.0) {
-            $elapsedUs = (int) ((microtime(true) - $this->lastRequestAt) * 1_000_000);
+        if (self::$lastRequestAt > 0.0) {
+            $elapsedUs = (int) ((microtime(true) - self::$lastRequestAt) * 1_000_000);
             $waitUs = self::MIN_REQUEST_INTERVAL_US - $elapsedUs;
 
             if ($waitUs > 0) {
@@ -215,6 +216,6 @@ class EtherscanNativeProvider implements BlockchainProvider
             }
         }
 
-        $this->lastRequestAt = microtime(true);
+        self::$lastRequestAt = microtime(true);
     }
 }

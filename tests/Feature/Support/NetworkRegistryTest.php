@@ -2,8 +2,8 @@
 
 use App\Support\Network;
 
-test('registry defines all eight networks with required fields', function () {
-    $expected = ['bitcoin', 'usdt_trc20', 'usdt_erc20', 'litecoin', 'ethereum', 'usdc_erc20', 'usdt_bep20', 'usdc_bep20'];
+test('registry defines all nine networks with required fields', function () {
+    $expected = ['bitcoin', 'usdt_trc20', 'usdt_erc20', 'litecoin', 'ethereum', 'usdc_erc20', 'usdt_bep20', 'usdc_bep20', 'bnb'];
 
     expect(Network::keys())->toBe($expected);
 
@@ -42,7 +42,13 @@ test('helpers resolve network metadata', function () {
         ->and(Network::explorerTx('litecoin'))->toBe('https://litecoinspace.org/tx/{hash}')
         ->and(Network::addressGroup('usdc_bep20'))->toBe('evm')
         ->and(Network::coingeckoId('usdc_erc20'))->toBe('usd-coin')
-        ->and(Network::coingeckoId('native_bnb'))->toBe('binancecoin');
+        ->and(Network::coingeckoId('native_bnb'))->toBe('binancecoin')
+        ->and(Network::coingeckoId('bnb'))->toBe('binancecoin')
+        ->and(Network::isNative('bnb'))->toBeTrue()
+        ->and(Network::isEvm('bnb'))->toBeTrue()
+        ->and(Network::chain('bnb'))->toBe('bsc')
+        ->and(Network::nativeKey('bnb'))->toBe('native_bnb')
+        ->and(Network::addressGroup('bnb'))->toBe('evm');
 });
 
 test('type predicates', function () {
@@ -75,7 +81,7 @@ test('present returns the UI metadata shape', function () {
 test('valuationKeys returns all network keys plus distinct native keys', function () {
     expect(Network::valuationKeys())->toBe([
         'bitcoin', 'usdt_trc20', 'usdt_erc20', 'litecoin', 'ethereum',
-        'usdc_erc20', 'usdt_bep20', 'usdc_bep20',
+        'usdc_erc20', 'usdt_bep20', 'usdc_bep20', 'bnb',
         'native_eth', 'native_trx', 'native_bnb',
     ]);
 });

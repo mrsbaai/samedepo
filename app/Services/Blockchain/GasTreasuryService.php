@@ -503,7 +503,12 @@ class GasTreasuryService
                 ->where('gas_topups.network', $network)
                 ->where('gas_topups.kind', 'topup')
                 ->where('gas_topups.status', 'confirmed'))
-            ->whereDoesntHave('deposits', fn ($query) => $query
+            // The shared EVM address holds deposits on sibling rows (other
+            // networks), so an address with a credited unswept deposit on ANY
+            // row sharing this address string still holds customer funds.
+            ->whereNotExists(fn ($query) => $query->selectRaw('1')->from('deposits')
+                ->join('deposit_addresses as siblings', 'deposits.deposit_address_id', '=', 'siblings.id')
+                ->whereColumn('siblings.address', 'deposit_addresses.address')
                 ->where('deposits.status', 'credited')
                 ->whereNull('deposits.swept_at'))
             ->chunkById(100, function ($addresses) use ($network, $wallet, $minimum) {
