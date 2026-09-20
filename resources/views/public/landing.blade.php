@@ -65,7 +65,7 @@
                 <flux:heading size="lg" level="2" class="mt-2">Give your users permanent deposit addresses.</flux:heading>
             </div>
 
-            <div class="flex flex-wrap gap-x-10 gap-y-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-10 gap-y-4">
                 @foreach (collect($networks)->groupBy('symbol') as $symbol => $group)
                     @php($meta = $group->first())
                     <div class="flex items-center gap-3">
