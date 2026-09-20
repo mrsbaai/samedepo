@@ -4,7 +4,9 @@ Permanent deposit addresses with automatic crediting. No invoices, no expiring l
 
 ## What Samedepo does
 
-Samedepo replaces invoice-based and expiring-link crypto payment flows with permanent deposit addresses and automatic crediting. A website owner integrates once via the API, and from then on every customer has three reusable addresses (Bitcoin, USDT TRC20, and USDT ERC20) that work forever — deposits are detected, confirmed, fee-deducted, and credited to the website owner's balance automatically.
+Samedepo replaces invoice-based and expiring-link crypto payment flows with permanent deposit addresses and automatic crediting. A website owner integrates once via the API, and from then on every customer has reusable addresses that work forever — deposits are detected, confirmed, fee-deducted, and credited to the website owner's balance automatically.
+
+Supported assets today: **BTC, USDT TRC-20, and USDT ERC-20**. The platform also ships LTC, ETH, USDC (ERC-20 + BEP-20), and USDT BEP-20 behind per-network enable switches in admin Platform Settings — each goes live only after a real-money verification round. Every customer gets one shared `0x` EVM address for all Ethereum- and BSC-chain assets, plus one address per UTXO/TRON family.
 
 ## Who it's for
 
@@ -13,7 +15,7 @@ Website owners who want customers to repeatedly top up a crypto balance.
 ## Features
 
 - **Owner dashboard** — real-time balances, recent activity, deposits, transaction history, and customer management.
-- **Customer deposit addresses** — permanent Bitcoin, USDT TRC20, and USDT ERC20 addresses per customer with copy-to-clipboard.
+- **Customer deposit addresses** — permanent addresses per customer with copy-to-clipboard; all EVM assets (ETH/USDC/USDT on Ethereum and BSC) share one `0x` address, and each UTXO/TRON network gets its own.
 - **API keys** — generate, name, revoke, and replace owner-scoped API keys; only the hash is stored.
 - **Signed webhooks** — configure an HTTPS endpoint and receive queued, HMAC-signed `deposit.pending` (first detection) and `deposit.credited` (after required confirmations) events, plus withdrawal-status events, with automatic retries.
 - **Withdrawals** — set per-network withdrawal addresses, request instant or approval-mode full-balance withdrawals, estimate network fees, track blocked reasons, and follow reliable on-chain sends with automatic treasury recovery.
