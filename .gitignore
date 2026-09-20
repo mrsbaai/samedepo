@@ -54,3 +54,4 @@ debug_env_editor.html
 /README-FORGEOS.md
 /forge-os*
 
+/bootstrap/cache/*
