@@ -20,6 +20,7 @@ use App\Services\Blockchain\PriceFeed\CoinGeckoProvider;
 use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\Providers\EsploraProvider;
+use App\Services\Blockchain\Providers\EtherscanNativeProvider;
 use App\Services\Blockchain\Providers\EvmLogsProvider;
 use App\Services\Blockchain\Providers\NullBlockchainProvider;
 use App\Services\Blockchain\Providers\TronGridProvider;
@@ -33,7 +34,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -91,8 +91,10 @@ class AppServiceProvider extends ServiceProvider
                 infuraNetwork: $options['infura_network'] ?? 'mainnet',
                 tokenDecimals: Network::tokenDecimals($network) ?? 6,
             ),
-            'etherscan_native' => throw new RuntimeException(
-                "Provider driver 'etherscan_native' for enabled network '{$network}' is not implemented yet."
+            'etherscan_native' => new EtherscanNativeProvider(
+                network: $network,
+                apiKey: (string) ($options['api_key'] ?? ''),
+                chainId: (int) ($options['chain_id'] ?? 1),
             ),
             default => new NullBlockchainProvider($network),
         };
