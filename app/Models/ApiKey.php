@@ -18,6 +18,7 @@ class ApiKey extends Model
         'user_id',
         'name',
         'key_hash',
+        'key_prefix',
         'status',
         'last_used_at',
         'revoked_at',

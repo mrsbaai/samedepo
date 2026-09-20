@@ -40,11 +40,12 @@
         </flux:table>
     @else
         <div class="flex flex-wrap items-center gap-3 mb-6">
+            <flux:input icon="magnifying-glass" wire:model.live.debounce.300ms="search" placeholder="Search reference or tx hash..." size="sm" class="w-full sm:max-w-xs" clearable />
             <flux:select size="sm" wire:model.live="typeFilter" class="w-auto">
                 <flux:select.option value="all">All types</flux:select.option>
                 <flux:select.option value="deposit">Deposits</flux:select.option>
                 <flux:select.option value="withdrawal">Withdrawals</flux:select.option>
-                <flux:select.option value="adjustment">Adjustments</flux:select.option>
+                <flux:select.option value="adjustment">Fees</flux:select.option>
             </flux:select>
             <flux:select size="sm" wire:model.live="networkFilter" class="w-auto">
                 <flux:select.option value="all">All networks</flux:select.option>
@@ -58,13 +59,17 @@
                     <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                 @endforeach
             </flux:select>
+            <flux:date-picker mode="range" size="sm" wire:model.live="range" clearable />
+            @if ($this->hasFilters)
+                <flux:button variant="ghost" size="sm" wire:click="clearFilters" icon="x-mark">Clear</flux:button>
+            @endif
         </div>
 
         @if ($this->paginatedEntries->isEmpty())
             <div class="py-12 text-center">
                 <flux:icon icon="arrows-right-left" variant="outline" class="mx-auto h-8 w-8 text-zinc-400" />
                 <flux:text class="mt-3">
-                    @if ($typeFilter !== 'all' || $networkFilter !== 'all' || $statusFilter !== 'all')
+                    @if ($this->hasFilters)
                         No transactions match your filters. Try a different combination.
                     @else
                         No transactions yet. Deposits and withdrawals will show up here once they happen.
@@ -91,6 +96,7 @@
                     <flux:table.column class="max-md:hidden">Reference</flux:table.column>
                     <flux:table.column class="max-md:hidden">Network</flux:table.column>
                     <flux:table.column>Gross</flux:table.column>
+                    <flux:table.column class="max-lg:hidden">USD</flux:table.column>
                     <flux:table.column class="max-md:hidden">Fee</flux:table.column>
                     <flux:table.column>Net</flux:table.column>
                     <flux:table.column class="max-md:hidden">Status</flux:table.column>
@@ -100,9 +106,7 @@
                     @foreach ($this->paginatedEntries as $tx)
                         <flux:table.row wire:key="tx-{{ $tx['id'] }}">
                             <flux:table.cell class="whitespace-nowrap">
-                                <flux:tooltip content="{{ date('M j, Y H:i', strtotime($tx['timestamp'])) }} UTC">
-                                    <span>{{ \Carbon\Carbon::parse($tx['timestamp'])->diffForHumans() }}</span>
-                                </flux:tooltip>
+                                {{ \App\Support\Dates::humanFlat(\Carbon\Carbon::parse($tx['timestamp'])) }}
                             </flux:table.cell>
                             <flux:table.cell>
                                 <flux:badge size="sm" color="{{ $tx['type'] === 'deposit' ? 'green' : 'amber' }}">{{ ucfirst($tx['type']) }}</flux:badge>
@@ -122,6 +126,9 @@
                             </flux:table.cell>
                             <flux:table.cell class="font-ledger">
                                 {{ $tx['gross'] }} {{ $tx['symbol'] }}
+                            </flux:table.cell>
+                            <flux:table.cell class="max-lg:hidden font-ledger whitespace-nowrap">
+                                {{ $tx['usd'] ?? '—' }}
                             </flux:table.cell>
                             <flux:table.cell class="max-md:hidden font-ledger">
                                 @if ($tx['fee'] !== null)

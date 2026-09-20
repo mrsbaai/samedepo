@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Livewire\Dashboard;
 
+use App\Jobs\DeliverWebhook;
+use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
 use App\Notifications\WebhookEndpointFailing;
 use App\Services\Webhooks\WebhookDispatcher;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -66,6 +69,48 @@ class WebhookSettings extends Component
         }
 
         return "Couldn't load webhook settings. Please try again.";
+    }
+
+    #[Computed]
+    public function endpoint(): ?WebhookEndpoint
+    {
+        return WebhookEndpoint::query()->first();
+    }
+
+    /**
+     * @return Collection<int, WebhookDelivery>
+     */
+    #[Computed]
+    public function deliveries(): Collection
+    {
+        $endpoint = $this->endpoint();
+
+        if ($endpoint === null) {
+            return collect();
+        }
+
+        return WebhookDelivery::query()
+            ->where('webhook_endpoint_id', $endpoint->id)
+            ->latest('id')
+            ->limit(10)
+            ->get();
+    }
+
+    public function redeliver(int $deliveryId): void
+    {
+        $endpoint = $this->endpoint();
+
+        $delivery = $endpoint === null
+            ? null
+            : WebhookDelivery::query()
+                ->where('webhook_endpoint_id', $endpoint->id)
+                ->find($deliveryId);
+
+        if ($delivery === null || $delivery->status !== WebhookDelivery::STATUS_FAILED) {
+            return;
+        }
+
+        DeliverWebhook::dispatch($endpoint->id, $delivery->event, $delivery->payload ?? []);
     }
 
     public function save(): void

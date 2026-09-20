@@ -28,6 +28,8 @@ class ApiKeys extends Component
 
     public ?int $selectedKeyId = null;
 
+    public bool $showCreateModal = false;
+
     public bool $showRevokeModal = false;
 
     public bool $showReplaceModal = false;
@@ -82,12 +84,14 @@ class ApiKeys extends Component
             'user_id' => Auth::id(),
             'name' => $validated['newKeyName'],
             'key_hash' => Hash::make($token),
+            'key_prefix' => substr($token, 0, 12),
             'status' => 'active',
         ]);
 
         $this->revealedKey = $token;
         $this->successMessage = "API key generated for {$validated['newKeyName']}. Copy it now — you won't see it again.";
         $this->newKeyName = '';
+        $this->showCreateModal = false;
         $this->resetPage();
     }
 
@@ -149,6 +153,7 @@ class ApiKeys extends Component
             'user_id' => Auth::id(),
             'name' => $name,
             'key_hash' => Hash::make($token),
+            'key_prefix' => substr($token, 0, 12),
             'status' => 'active',
         ]);
 

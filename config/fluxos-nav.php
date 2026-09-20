@@ -40,6 +40,12 @@ return [
                 'label' => 'Transaction History',
             ],
             [
+                'icon' => 'arrow-up-tray',
+                'route' => 'withdrawals',
+                'path' => '/withdrawals',
+                'label' => 'Withdrawals',
+            ],
+            [
                 'icon' => 'code-bracket',
                 'route' => 'public.api-docs',
                 'path' => '/api-docs',

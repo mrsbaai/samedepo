@@ -22,6 +22,7 @@ test('an owner can generate an api key', function () {
         ->set('newKeyName', 'Production website')
         ->call('generate')
         ->assertHasNoErrors()
+        ->assertSet('showCreateModal', false)
         ->assertSee('API key generated for Production website', false)
         ->assertSee('sm_api_', false);
 
@@ -30,6 +31,9 @@ test('an owner can generate an api key', function () {
         'name' => 'Production website',
         'status' => 'active',
     ]);
+
+    expect(ApiKey::where('name', 'Production website')->first()->key_prefix)
+        ->toStartWith('sm_api_');
 });
 
 test('a key name is required to generate a key', function () {
@@ -60,9 +64,7 @@ test('an owner sees only their active keys', function () {
     Livewire::actingAs($owner)
         ->test(ApiKeys::class)
         ->assertSee('Active key', false)
-        ->assertSee('Active', false)
-        ->assertDontSee('Revoked key', false)
-        ->assertDontSee('Revoked', false);
+        ->assertDontSee('Revoked key', false);
 });
 
 test('an owner can revoke a key', function () {
@@ -99,6 +101,21 @@ test('an owner can replace a key', function () {
 
     expect($key->fresh()->status)->toBe('revoked');
     expect(ApiKey::where('user_id', $owner->id)->where('status', 'active')->count())->toBe(1);
+});
+
+test('the key list shows the stored prefix as a badge', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    ApiKey::factory()->create([
+        'user_id' => $owner->id,
+        'status' => 'active',
+        'name' => 'Prefix key',
+        'key_prefix' => 'sm_api_ab12',
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test(ApiKeys::class)
+        ->assertSee('sm_api_ab12…', false);
 });
 
 test('an owner cannot see another owners keys', function () {

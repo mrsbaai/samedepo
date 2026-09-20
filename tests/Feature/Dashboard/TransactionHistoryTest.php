@@ -4,6 +4,7 @@ use App\Livewire\Dashboard\TransactionHistory;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
+use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
 use Livewire\Livewire;
@@ -163,6 +164,93 @@ test('pagination works across combined pages of transactions', function () {
     $component->call('nextPage');
 
     expect($component->instance()->paginatedEntries->count())->toBe(3);
+});
+
+test('search matches customer reference or tx hash across deposits and withdrawals', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'CUST-FINDME']);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'status' => 'credited',
+        'tx_hash' => 'deposit-plain-hash',
+        'detected_at' => now(),
+    ]);
+    makeLedgerDeposit($owner, ['tx_hash' => 'deposit-other-hash']);
+    makeLedgerWithdrawal($owner, ['tx_hash' => 'withdrawal-search-hash']);
+
+    $component = Livewire::actingAs($owner)->test(TransactionHistory::class);
+
+    $component->set('search', 'findme')
+        ->assertSee('deposit-plain-hash', false)
+        ->assertDontSee('deposit-other-hash', false)
+        ->assertDontSee('withdrawal-search-hash', false);
+
+    $component->set('search', 'search-hash')
+        ->assertDontSee('deposit-plain-hash', false)
+        ->assertSee('withdrawal-search-hash', false);
+});
+
+test('date range filter narrows the ledger to the selected days', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    makeLedgerDeposit($owner, ['tx_hash' => 'old-deposit-hash', 'detected_at' => now()->subDays(10)]);
+    makeLedgerWithdrawal($owner, ['tx_hash' => 'new-withdrawal-hash', 'created_at' => now()]);
+
+    Livewire::actingAs($owner)
+        ->test(TransactionHistory::class)
+        ->assertSee('old-deposit-hash', false)
+        ->assertSee('new-withdrawal-hash', false)
+        ->set('range', ['start' => now()->subDay()->format('Y-m-d'), 'end' => now()->format('Y-m-d')])
+        ->assertDontSee('old-deposit-hash', false)
+        ->assertSee('new-withdrawal-hash', false);
+});
+
+test('usd column shows the stored value or an approximate current-rate value', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '100000.00']);
+
+    makeLedgerDeposit($owner, [
+        'network' => 'bitcoin',
+        'status' => 'credited',
+        'gross_amount' => '0.50000000',
+        'credited_amount' => '0.49000000',
+        'usd_value' => '49000.00',
+        'tx_hash' => 'stored-usd-hash',
+    ]);
+    makeLedgerDeposit($owner, [
+        'network' => 'bitcoin',
+        'status' => 'credited',
+        'gross_amount' => '0.10000000',
+        'credited_amount' => '0.09800000',
+        'usd_value' => null,
+        'tx_hash' => 'approx-usd-hash',
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test(TransactionHistory::class)
+        ->assertSee('$49,000.00', false)
+        ->assertSee('≈$9,800.00', false);
+});
+
+test('the clear button appears only when filters are set and resets them', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    makeLedgerDeposit($owner, ['tx_hash' => 'clearable-tx-hash']);
+
+    Livewire::actingAs($owner)
+        ->test(TransactionHistory::class)
+        ->assertDontSee('clearFilters', false)
+        ->set('statusFilter', 'credited')
+        ->assertSee('clearFilters', false)
+        ->call('clearFilters')
+        ->assertSet('statusFilter', 'all')
+        ->assertSet('search', '')
+        ->assertSet('range', null)
+        ->assertSee('clearable-tx-hash', false);
 });
 
 test('empty state is shown when there are no transactions', function () {

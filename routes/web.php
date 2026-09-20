@@ -47,6 +47,7 @@ use App\Livewire\Dashboard\TransactionHistory;
 use App\Livewire\Dashboard\UserDashboard;
 use App\Livewire\Dashboard\WebhookSettings;
 use App\Livewire\Dashboard\Withdraw;
+use App\Livewire\Dashboard\Withdrawals;
 use App\Livewire\Dashboard\WithdrawalSettings;
 use App\Livewire\Demo\EmailInbox;
 use App\Livewire\PublicPages\FeeCalculator;
@@ -156,6 +157,7 @@ Route::middleware(['auth', 'owner'])->group(function (): void {
     Route::get('/api-keys', ApiKeys::class)->name('api-keys');
     Route::get('/webhook-settings', WebhookSettings::class)->name('webhook-settings');
     Route::get('/withdrawal-settings', WithdrawalSettings::class)->name('withdrawal-settings');
+    Route::get('/withdrawals', Withdrawals::class)->name('withdrawals');
     Route::get('/withdraw/{network}', Withdraw::class)
         ->name('withdraw')
         ->whereIn('network', Network::slugs());

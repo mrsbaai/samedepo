@@ -95,7 +95,7 @@ return [
             'address_group' => 'evm',
             'xpub' => 'blockchain.usdt_erc20.xpub',
             'slug' => 'usdt-erc20',
-            'chart_color' => 'teal-400',
+            'chart_color' => 'violet-400',
             'icon' => 'usdt',
             'enabled' => env('NETWORK_USDT_ERC20_ENABLED', true),
             'settings' => ['min_deposit' => '10.00000000', 'withdrawal_min_usd' => '100.00', 'sweep_min_usd' => '300.00'],

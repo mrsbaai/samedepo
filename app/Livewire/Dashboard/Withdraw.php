@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Livewire\Dashboard;
 
+use App\Actions\CancelWithdrawal;
 use App\Models\Balance;
-use App\Models\EnergyRental;
-use App\Models\GasExpense;
-use App\Models\LedgerEntry;
 use App\Models\PlatformSettings;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
@@ -162,57 +160,6 @@ class Withdraw extends Component
             ->first();
     }
 
-    #[Computed]
-    public function sentWithdrawal(): ?Withdrawal
-    {
-        if ($this->pendingWithdrawal() !== null) {
-            return null;
-        }
-
-        return Withdrawal::query()
-            ->where('network', $this->networkKey())
-            ->where('status', 'sent')
-            ->latest()
-            ->first();
-    }
-
-    #[Computed]
-    public function reconciliation(): ?array
-    {
-        $withdrawal = $this->pendingWithdrawal() ?? $this->sentWithdrawal();
-
-        if ($withdrawal === null || $withdrawal->network_fee === null) {
-            return null;
-        }
-
-        $expense = GasExpense::query()
-            ->where('expensable_type', Withdrawal::class)
-            ->where('expensable_id', $withdrawal->id)
-            ->first();
-
-        if ($expense === null) {
-            return null;
-        }
-
-        $rentalNative = EnergyRental::query()
-            ->where('purposable_type', (new Withdrawal)->getMorphClass())
-            ->where('purposable_id', $withdrawal->id)
-            ->whereIn('status', ['filled', 'expired'])
-            ->sum('cost_native');
-
-        $adjustment = LedgerEntry::query()
-            ->where('withdrawal_id', $withdrawal->id)
-            ->where('reason', 'network_fee_adjustment')
-            ->latest('id')
-            ->value('amount');
-
-        return [
-            'actual_native' => bcadd((string) $expense->amount, (string) $rentalNative, 8),
-            'native_symbol' => Network::nativeSymbol($withdrawal->network),
-            'adjustment' => $adjustment === null ? null : (string) $adjustment,
-        ];
-    }
-
     public function formattedAmount(string $amount): string
     {
         $decimals = $this->networkMeta()['decimals'];
@@ -284,25 +231,15 @@ class Withdraw extends Component
         $this->showCancelModal = true;
     }
 
-    public function cancelWithdrawal(): void
+    public function cancelWithdrawal(CancelWithdrawal $cancelWithdrawal): void
     {
         $withdrawal = $this->pendingWithdrawal();
 
-        if ($withdrawal === null || $withdrawal->status !== 'pending') {
+        if ($withdrawal === null || ! $cancelWithdrawal($withdrawal)) {
             $this->showCancelModal = false;
 
             return;
         }
-
-        DB::transaction(function () use ($withdrawal) {
-            $balance = Balance::query()
-                ->where('user_id', Auth::id())
-                ->where('network', $this->networkKey())
-                ->first();
-
-            $balance?->update(['amount' => $withdrawal->gross_amount]);
-            $withdrawal->update(['status' => 'cancelled']);
-        });
 
         $this->showCancelModal = false;
         $this->successMessage = 'Withdrawal cancelled. The reserved balance has been returned to your available balance.';

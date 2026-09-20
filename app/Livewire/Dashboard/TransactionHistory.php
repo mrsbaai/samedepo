@@ -6,8 +6,10 @@ namespace App\Livewire\Dashboard;
 
 use App\Models\Deposit;
 use App\Models\LedgerEntry;
+use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Support\Network;
+use Flux\DateRange;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -36,11 +38,15 @@ class TransactionHistory extends Component
 
     public string $uiState = 'normal';
 
+    public string $search = '';
+
     public string $typeFilter = 'all';
 
     public string $networkFilter = 'all';
 
     public string $statusFilter = 'all';
+
+    public ?DateRange $range = null;
 
     public function mount(): void
     {
@@ -75,6 +81,35 @@ class TransactionHistory extends Component
             ->all();
     }
 
+    #[Computed]
+    public function hasFilters(): bool
+    {
+        return $this->search !== ''
+            || $this->typeFilter !== 'all'
+            || $this->networkFilter !== 'all'
+            || $this->statusFilter !== 'all'
+            || ($this->range?->hasStart() ?? false);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function usdRates(): array
+    {
+        return UsdValuation::query()->pluck('conversion_value', 'network')->all();
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->typeFilter = 'all';
+        $this->networkFilter = 'all';
+        $this->statusFilter = 'all';
+        $this->range = null;
+        $this->resetPage();
+    }
+
     private function dbNetworkFor(string $slug): ?string
     {
         foreach (Network::keys() as $dbValue) {
@@ -102,6 +137,25 @@ class TransactionHistory extends Component
         }
 
         return number_format((float) $amount, $decimals, '.', '');
+    }
+
+    private function usdDisplay(?string $stored, string $network, ?string $amount): ?string
+    {
+        if ($stored !== null) {
+            return '$'.number_format((float) $stored, 2);
+        }
+
+        if ($amount === null) {
+            return null;
+        }
+
+        $rate = $this->usdRates[$network] ?? null;
+
+        if ($rate === null) {
+            return null;
+        }
+
+        return '≈$'.number_format((float) bcmul($amount, (string) $rate, 8), 2);
     }
 
     private function presentDeposit(Deposit $deposit): array
@@ -140,6 +194,11 @@ class TransactionHistory extends Component
             'userRef' => $deposit->customer?->customer_reference,
             'customer' => $deposit->customer,
             'txHash' => $deposit->tx_hash,
+            'usd' => $this->usdDisplay(
+                $deposit->usd_value === null ? null : (string) $deposit->usd_value,
+                $deposit->network,
+                $deposit->credited_amount === null ? (string) $deposit->gross_amount : (string) $deposit->credited_amount,
+            ),
         ];
     }
 
@@ -185,6 +244,11 @@ class TransactionHistory extends Component
             'userRef' => 'Owner',
             'customer' => null,
             'txHash' => $withdrawal->tx_hash,
+            'usd' => $this->usdDisplay(
+                $withdrawal->usd_value === null ? null : (string) $withdrawal->usd_value,
+                $withdrawal->network,
+                $withdrawal->amount_sent === null ? (string) $withdrawal->gross_amount : (string) $withdrawal->amount_sent,
+            ),
         ];
     }
 
@@ -217,6 +281,7 @@ class TransactionHistory extends Component
             'userRef' => $label,
             'customer' => null,
             'txHash' => $entry->withdrawal?->tx_hash ?? $entry->deposit?->tx_hash,
+            'usd' => null,
         ];
     }
 
@@ -231,6 +296,10 @@ class TransactionHistory extends Component
         }
 
         $dbNetwork = $this->networkFilter !== 'all' ? $this->dbNetworkFor($this->networkFilter) : null;
+        $search = $this->search !== '' ? '%'.addcslashes($this->search, '%_\\').'%' : null;
+        [$from, $to] = $this->range?->hasStart() && $this->range->hasEnd()
+            ? [$this->range->start()->startOfDay(), $this->range->end()->endOfDay()]
+            : [null, null];
 
         $entries = [];
 
@@ -240,6 +309,11 @@ class TransactionHistory extends Component
                 ->where('status', '!=', 'ignored')
                 ->when($dbNetwork !== null, fn ($query) => $query->where('network', $dbNetwork))
                 ->when($this->statusFilter !== 'all', fn ($query) => $query->where('status', $this->statusFilter))
+                ->when($search !== null, fn ($query) => $query->where(function ($q) use ($search) {
+                    $q->where('tx_hash', 'like', $search)
+                        ->orWhereHas('customer', fn ($c) => $c->where('customer_reference', 'like', $search));
+                }))
+                ->when($from !== null, fn ($query) => $query->whereBetween('detected_at', [$from, $to]))
                 ->get();
 
             foreach ($deposits as $deposit) {
@@ -251,6 +325,8 @@ class TransactionHistory extends Component
             $withdrawals = Withdrawal::query()
                 ->when($dbNetwork !== null, fn ($query) => $query->where('network', $dbNetwork))
                 ->when($this->statusFilter !== 'all', fn ($query) => $query->where('status', $this->statusFilter))
+                ->when($search !== null, fn ($query) => $query->where('tx_hash', 'like', $search))
+                ->when($from !== null, fn ($query) => $query->whereBetween('created_at', [$from, $to]))
                 ->get();
 
             foreach ($withdrawals as $withdrawal) {
@@ -263,6 +339,11 @@ class TransactionHistory extends Component
                 $ledgerEntries = LedgerEntry::query()
                     ->whereIn('reason', ['network_fee_adjustment', 'consolidation_fee', 'gas_recovery_credit'])
                     ->when($dbNetwork !== null, fn ($query) => $query->where('network', $dbNetwork))
+                    ->when($search !== null, fn ($query) => $query->where(function ($q) use ($search) {
+                        $q->whereHas('withdrawal', fn ($w) => $w->where('tx_hash', 'like', $search))
+                            ->orWhereHas('deposit', fn ($d) => $d->where('tx_hash', 'like', $search));
+                    }))
+                    ->when($from !== null, fn ($query) => $query->whereBetween('created_at', [$from, $to]))
                     ->get();
 
                 foreach ($ledgerEntries as $entry) {
@@ -290,6 +371,16 @@ class TransactionHistory extends Component
             $page,
             ['path' => request()->url()]
         );
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedRange(): void
+    {
+        $this->resetPage();
     }
 
     public function updatedTypeFilter(): void

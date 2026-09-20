@@ -15,15 +15,17 @@
         <flux:skeleton class="h-9 w-64 mb-6" />
         <flux:table>
             <flux:table.columns>
-                <flux:table.column>Customer reference</flux:table.column>
-                <flux:table.column class="max-md:hidden">Registered</flux:table.column>
-                <flux:table.column></flux:table.column>
+                <flux:table.column>Registered</flux:table.column>
+                <flux:table.column>Reference</flux:table.column>
+                <flux:table.column>Total USD</flux:table.column>
+                <flux:table.column>Deposits</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach (range(1, 5) as $r)
                     <flux:table.row>
                         <flux:table.cell><flux:skeleton class="h-4 w-24" /></flux:table.cell>
-                        <flux:table.cell class="max-md:hidden"><flux:skeleton class="h-4 w-20" /></flux:table.cell>
+                        <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
+                        <flux:table.cell><flux:skeleton class="h-4 w-16" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-12" /></flux:table.cell>
                     </flux:table.row>
                 @endforeach
@@ -44,21 +46,39 @@
         @else
             <flux:table :paginate="$this->paginatedCustomers" pagination:scroll-to>
                 <flux:table.columns>
-                    <flux:table.column>Customer reference</flux:table.column>
-                    <flux:table.column class="max-md:hidden">Registered</flux:table.column>
-                    <flux:table.column></flux:table.column>
+                    <flux:table.column sortable :sorted="$sort === 'created_at'" :direction="$direction" wire:click="sort('created_at')" class="max-md:hidden">Registered</flux:table.column>
+                    <flux:table.column sortable :sorted="$sort === 'customer_reference'" :direction="$direction" wire:click="sort('customer_reference')">Reference</flux:table.column>
+                    @foreach ($this->networkColumns as $key => $meta)
+                        <flux:table.column sortable :sorted="$sort === 'usd_{{ $key }}'" :direction="$direction" wire:click="sort('usd_{{ $key }}')" class="max-lg:hidden">{{ $meta['label'] }}</flux:table.column>
+                    @endforeach
+                    <flux:table.column sortable :sorted="$sort === 'total_usd'" :direction="$direction" wire:click="sort('total_usd')">Total USD</flux:table.column>
+                    <flux:table.column sortable :sorted="$sort === 'deposits_count'" :direction="$direction" wire:click="sort('deposits_count')" class="max-md:hidden">Deposits</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($this->paginatedCustomers as $customer)
                         <flux:table.row wire:key="cust-{{ $customer->id }}">
-                            <flux:table.cell variant="strong">{{ $customer->customer_reference }}</flux:table.cell>
                             <flux:table.cell class="max-md:hidden whitespace-nowrap">
-                                <flux:tooltip content="{{ $customer->created_at->format('M j, Y H:i') }} UTC">
-                                    <span>{{ $customer->created_at->diffForHumans() }}</span>
-                                </flux:tooltip>
+                                {{ \App\Support\Dates::humanFlat($customer->created_at) }}
                             </flux:table.cell>
-                            <flux:table.cell class="py-0">
-                                <flux:button variant="ghost" size="sm" icon="chevron-right" href="{{ route('customers.show', $customer) }}" wire:navigate />
+                            <flux:table.cell>
+                                <flux:link href="{{ route('customers.show', $customer) }}" variant="strong" wire:navigate>{{ $customer->customer_reference }}</flux:link>
+                            </flux:table.cell>
+                            @foreach ($this->networkColumns as $key => $meta)
+                                <flux:table.cell class="max-lg:hidden whitespace-nowrap">
+                                    @php($crypto = $customer->{"crypto_{$key}"})
+                                    @if ($crypto !== null && (float) $crypto > 0)
+                                        <span class="font-ledger">{{ number_format((float) $crypto, $meta['decimals'], '.', '') }} {{ $meta['symbol'] }}</span>
+                                        <div class="text-xs text-zinc-500 dark:text-zinc-400">${{ number_format((float) ($customer->{"usd_{$key}"} ?? 0), 2) }}</div>
+                                    @else
+                                        <span class="text-zinc-400">&mdash;</span>
+                                    @endif
+                                </flux:table.cell>
+                            @endforeach
+                            <flux:table.cell variant="strong" class="font-ledger whitespace-nowrap">
+                                ${{ number_format((float) ($customer->total_usd ?? 0), 2) }}
+                            </flux:table.cell>
+                            <flux:table.cell class="max-md:hidden font-ledger">
+                                {{ $customer->deposits_count }}
                             </flux:table.cell>
                         </flux:table.row>
                     @endforeach

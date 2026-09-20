@@ -5,9 +5,7 @@ use App\Models\Balance;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
-use App\Models\GasExpense;
 use App\Models\GasPolicy;
-use App\Models\LedgerEntry;
 use App\Models\PlatformSettings;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
@@ -152,9 +150,9 @@ test('platform fee note hides when the deposit fee percent is zero', function ()
         ->assertDontSee('fee was taken when each deposit was credited');
 });
 
-test('sent withdrawal card shows locked fees and reconciliation', function () {
+test('sent withdrawals live on the history page, not the withdraw page', function () {
     $owner = ownerWithTrc20Balance('0.00000000');
-    $withdrawal = Withdrawal::factory()->create([
+    Withdrawal::factory()->create([
         'user_id' => $owner->id,
         'network' => 'usdt_trc20',
         'gross_amount' => '100.00000000',
@@ -166,36 +164,19 @@ test('sent withdrawal card shows locked fees and reconciliation', function () {
         'status' => 'sent',
         'tx_hash' => 'abc123',
     ]);
-    GasExpense::create([
-        'network' => 'usdt_trc20',
-        'tx_hash' => 'abc123',
-        'amount' => '4.50000000',
-        'expensable_type' => Withdrawal::class,
-        'expensable_id' => $withdrawal->id,
-    ]);
-    LedgerEntry::factory()->create([
-        'user_id' => $owner->id,
-        'network' => 'usdt_trc20',
-        'amount' => '0.57255000',
-        'reason' => 'network_fee_adjustment',
-        'withdrawal_id' => $withdrawal->id,
-    ]);
 
     Livewire::actingAs($owner)
         ->test(Withdraw::class, ['network' => 'usdt-trc20'])
-        ->assertSee('Withdrawal sent')
-        ->assertSee('Amount requested')
-        ->assertSee('100.00 USDT')
-        ->assertSee('Network fee')
-        ->assertSee('1.98 USDT')
-        ->assertSee('Consolidation fee')
-        ->assertSee('3.00 USDT')
-        ->assertSee('Amount sent')
-        ->assertSee('95.02 USDT')
-        ->assertSee('Actual network cost')
-        ->assertSee('4.50000000 TRX')
-        ->assertSee('Refund')
-        ->assertSee('0.57 USDT');
+        ->assertDontSee('Withdrawal sent')
+        ->assertSee('Withdrawal history')
+        ->assertSee(route('withdrawals'), false);
+
+    $this->actingAs($owner)
+        ->get(route('withdrawals'))
+        ->assertOk()
+        ->assertSee('100.00 USDT', false)
+        ->assertSee('95.02 USDT', false)
+        ->assertSee('Sent', false);
 });
 
 test('withdraw fee estimate is cached for five minutes', function () {

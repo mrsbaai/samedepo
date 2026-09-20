@@ -7,6 +7,7 @@ namespace App\Services\Webhooks;
 use App\Jobs\DeliverWebhook;
 use App\Models\Deposit;
 use App\Models\UsdValuation;
+use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
 use App\Support\Network;
 use Illuminate\Support\Facades\Http;
@@ -104,10 +105,29 @@ class WebhookDispatcher
                 'X-Samedepo-Signature' => hash_hmac('sha256', $json, $endpoint->secret),
             ])->withBody($json, 'application/json')->post($endpoint->url);
 
+            $this->recordDelivery($endpoint, $event, $payload, $response->successful(), $response->status());
+
             return $response->successful();
         } catch (Throwable) {
+            $this->recordDelivery($endpoint, $event, $payload, false, null);
+
             return false;
         }
+    }
+
+    private function recordDelivery(WebhookEndpoint $endpoint, string $event, array $payload, bool $success, ?int $responseCode): void
+    {
+        if (! $endpoint->exists) {
+            return;
+        }
+
+        WebhookDelivery::create([
+            'webhook_endpoint_id' => $endpoint->id,
+            'event' => $event,
+            'status' => $success ? WebhookDelivery::STATUS_DELIVERED : WebhookDelivery::STATUS_FAILED,
+            'response_code' => $responseCode,
+            'payload' => $payload,
+        ]);
     }
 
     private function eventEnabled(string $event, WebhookEndpoint $endpoint): bool

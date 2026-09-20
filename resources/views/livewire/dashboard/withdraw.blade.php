@@ -33,54 +33,6 @@
                 <flux:text size="sm" variant="subtle">${{ $this->formattedUsd() }} USD</flux:text>
             </flux:card>
 
-            @if ($this->sentWithdrawal)
-                @php($w = $this->sentWithdrawal)
-                <flux:card class="space-y-3 p-4">
-                    <div class="flex items-center justify-between">
-                        <flux:text size="sm" class="font-medium">Withdrawal sent</flux:text>
-                        <flux:badge size="sm" color="green">Sent</flux:badge>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <flux:text variant="subtle" size="sm">Amount requested</flux:text>
-                        <flux:text class="font-ledger">{{ $this->formattedAmount((string) $w->gross_amount) }} {{ $this->networkMeta['symbol'] }}</flux:text>
-                    </div>
-                    @if ($w->network_fee !== null)
-                        <div class="flex items-center justify-between">
-                            <flux:text variant="subtle" size="sm">Network fee</flux:text>
-                            <flux:text class="font-ledger">−{{ $this->formattedAmount((string) $w->network_fee) }} {{ $this->networkMeta['symbol'] }}</flux:text>
-                        </div>
-                    @endif
-                    @if ($w->consolidation_fee !== null && bccomp((string) $w->consolidation_fee, '0', 8) > 0)
-                        <div class="flex items-center justify-between">
-                            <flux:text variant="subtle" size="sm">Consolidation fee</flux:text>
-                            <flux:text class="font-ledger">−{{ $this->formattedAmount((string) $w->consolidation_fee) }} {{ $this->networkMeta['symbol'] }}</flux:text>
-                        </div>
-                    @endif
-                    @if ($w->amount_sent !== null)
-                        <div class="flex items-center justify-between">
-                            <flux:text variant="subtle" size="sm">Amount sent</flux:text>
-                            <flux:text class="font-ledger">{{ $this->formattedAmount((string) $w->amount_sent) }} {{ $this->networkMeta['symbol'] }}</flux:text>
-                        </div>
-                    @endif
-                    @if ($this->reconciliation)
-                        <div class="flex items-center justify-between">
-                            <flux:text variant="subtle" size="sm">Actual network cost</flux:text>
-                            <flux:text class="font-ledger">{{ $this->reconciliation['actual_native'] }} {{ $this->reconciliation['native_symbol'] }}</flux:text>
-                        </div>
-                        @if ($this->reconciliation['adjustment'] !== null && bccomp($this->reconciliation['adjustment'], '0', 8) !== 0)
-                            <div class="flex items-center justify-between">
-                                <flux:text variant="subtle" size="sm">{{ bccomp($this->reconciliation['adjustment'], '0', 8) > 0 ? 'Refund' : 'Overage' }}</flux:text>
-                                <flux:text class="font-ledger">{{ $this->formattedAmount(ltrim($this->reconciliation['adjustment'], '-')) }} {{ $this->networkMeta['symbol'] }}</flux:text>
-                            </div>
-                        @endif
-                    @endif
-                    <div class="flex items-center justify-between">
-                        <flux:text variant="subtle" size="sm">Sent</flux:text>
-                        <flux:text size="sm">{{ $w->updated_at->diffForHumans() }}</flux:text>
-                    </div>
-                </flux:card>
-            @endif
-
             @if ($this->pendingWithdrawal)
                 <flux:card class="space-y-3 p-4">
                     <div class="flex items-center justify-between">
@@ -217,6 +169,10 @@
                 </div>
                 <flux:button variant="primary" class="w-full" wire:click="confirmRequest">Withdraw Full Balance</flux:button>
             @endif
+
+            <div class="text-center">
+                <flux:link href="{{ route('withdrawals') }}" wire:navigate class="text-sm">Withdrawal history</flux:link>
+            </div>
         </div>
     @endif
 
