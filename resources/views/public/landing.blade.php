@@ -31,9 +31,9 @@
 
             <div class="animate-float overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/40">
                 <div class="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-3">
-                    <span class="size-2.5 rounded-full bg-red-500/60"></span>
-                    <span class="size-2.5 rounded-full bg-amber-400/60"></span>
-                    <span class="size-2.5 rounded-full bg-emerald-500/60"></span>
+                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
+                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
+                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
                     <span class="ml-3 font-mono text-xs text-zinc-500">GET /api/v1/customers/{reference}</span>
                 </div>
                 @php($sampleKeys = collect($networks)->keys()->intersect(['bitcoin', 'usdt_trc20', 'ethereum']))
