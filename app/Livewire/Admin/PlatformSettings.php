@@ -1,10 +1,9 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Livewire\Admin;
 
 use App\Models\PlatformSettings as PlatformSettingsModel;
+use App\Services\Blockchain\NetworkProvisioner;
 use App\Support\Network;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
@@ -19,18 +18,22 @@ class PlatformSettings extends Component
     public string $depositFee = '';
 
     /**
-     * @var array<string, string> Minimum deposit per network key.
+     * @var array<string, array{min_deposit: string, withdrawal_min_usd: string, sweep_min_usd: string, profit_address: string}> Per-network settings rows.
      */
-    public array $minDeposits = [];
+    public array $rows = [];
+
+    /**
+     * @var array<string, bool> Effective enabled state per network key.
+     */
+    public array $enabledState = [];
+
+    public ?string $toggleNetwork = null;
+
+    public bool $toggleTarget = false;
 
     public string $defaultWithdrawalMode = 'approval';
 
     public string $apiRequestsPerMinute = '';
-
-    /**
-     * @var array<string, string|null> Profit payout address per network key.
-     */
-    public array $profitAddresses = [];
 
     public string $profitWarnFeePercent = '';
 
@@ -38,13 +41,13 @@ class PlatformSettings extends Component
 
     public bool $showFeeModal = false;
 
-    public bool $showMinDepositModal = false;
-
     public bool $showModeModal = false;
 
     public bool $showApiRequestsModal = false;
 
     public bool $showProfitModal = false;
+
+    public bool $showToggleModal = false;
 
     public ?string $successMessage = null;
 
@@ -60,7 +63,7 @@ class PlatformSettings extends Component
     #[Computed]
     public function networks(): array
     {
-        return Network::presentAll(enabledOnly: true);
+        return Network::presentAll();
     }
 
     private function loadSettings(): void
@@ -73,13 +76,18 @@ class PlatformSettings extends Component
         $this->profitWarnFeePercent = (string) $settings->profit_payout_warn_fee_percent;
         $this->profitBlockFeePercent = (string) $settings->profit_payout_block_fee_percent;
 
-        $this->minDeposits = [];
-        $this->profitAddresses = [];
+        $this->rows = [];
+        $this->enabledState = [];
 
-        foreach (Network::enabledKeys() as $key) {
+        foreach (Network::keys() as $key) {
             $setting = PlatformSettingsModel::networkSetting($key);
-            $this->minDeposits[$key] = (string) $setting->min_deposit;
-            $this->profitAddresses[$key] = (string) ($setting->profit_address ?? '');
+            $this->rows[$key] = [
+                'min_deposit' => (string) $setting->min_deposit,
+                'withdrawal_min_usd' => (string) $setting->withdrawal_min_usd,
+                'sweep_min_usd' => (string) $setting->sweep_min_usd,
+                'profit_address' => (string) ($setting->profit_address ?? ''),
+            ];
+            $this->enabledState[$key] = (bool) (Network::get($key)['enabled'] ?? false);
         }
     }
 
@@ -91,6 +99,61 @@ class PlatformSettings extends Component
         }
 
         return "Couldn't load platform settings. Please try again.";
+    }
+
+    public function saveNetworkRow(string $key): void
+    {
+        abort_unless(Network::exists($key), 404);
+
+        $group = config('networks.address_groups.'.Network::addressGroup($key), []);
+        $profitAddress = trim((string) ($this->rows[$key]['profit_address'] ?? ''));
+
+        $validated = $this->validate([
+            "rows.{$key}.min_deposit" => ['required', 'numeric', 'min:0'],
+            "rows.{$key}.withdrawal_min_usd" => ['required', 'numeric', 'min:0'],
+            "rows.{$key}.sweep_min_usd" => ['required', 'numeric', 'min:0'],
+            "rows.{$key}.profit_address" => ['nullable', 'string', 'max:128', 'regex:'.$group['address_regex']],
+        ], [
+            "rows.{$key}.profit_address.regex" => 'Enter '.$group['address_hint'].'.',
+        ])['rows'][$key];
+
+        PlatformSettingsModel::networkSetting($key)->update([
+            'min_deposit' => $validated['min_deposit'],
+            'withdrawal_min_usd' => $validated['withdrawal_min_usd'],
+            'sweep_min_usd' => $validated['sweep_min_usd'],
+            'profit_address' => $profitAddress === '' ? null : $profitAddress,
+        ]);
+
+        $this->successMessage = Network::label($key).' settings saved.';
+    }
+
+    public function requestToggle(string $key): void
+    {
+        abort_unless(Network::exists($key), 404);
+
+        $this->toggleNetwork = $key;
+        $this->toggleTarget = ! ($this->enabledState[$key] ?? false);
+        $this->showToggleModal = true;
+    }
+
+    public function confirmToggle(NetworkProvisioner $provisioner): void
+    {
+        $key = $this->toggleNetwork;
+        abort_unless($key !== null && Network::exists($key), 404);
+
+        PlatformSettingsModel::networkSetting($key)->update(['enabled' => $this->toggleTarget]);
+        Network::flush();
+
+        if ($this->toggleTarget) {
+            $provisioner->provision($key);
+        }
+
+        $this->enabledState[$key] = $this->toggleTarget;
+        $this->showToggleModal = false;
+        $label = Network::label($key);
+        $this->successMessage = $this->toggleTarget
+            ? "{$label} enabled. Deposit addresses are issued and deposits are credited from now on."
+            : "{$label} disabled. New deposits won't be credited. Existing balances and withdrawals are unaffected.";
     }
 
     public function confirmSaveFee(): void
@@ -110,25 +173,6 @@ class PlatformSettings extends Component
 
         $this->showFeeModal = false;
         $this->successMessage = "samedepo deducts a {$validated['depositFee']}% fee before crediting confirmed deposits.";
-    }
-
-    public function confirmSaveMinDeposit(): void
-    {
-        $this->showMinDepositModal = true;
-    }
-
-    public function saveMinDeposit(): void
-    {
-        $validated = $this->validate([
-            'minDeposits.*' => ['required', 'numeric', 'min:0'],
-        ]);
-
-        foreach ($validated['minDeposits'] as $key => $minimum) {
-            PlatformSettingsModel::networkSetting($key)->update(['min_deposit' => $minimum]);
-        }
-
-        $this->showMinDepositModal = false;
-        $this->successMessage = 'Minimum deposit sizes updated.';
     }
 
     public function confirmSaveMode(): void
@@ -177,31 +221,13 @@ class PlatformSettings extends Component
 
     public function saveProfit(): void
     {
-        $rules = [];
-        $messages = [];
-
-        foreach (Network::enabledKeys() as $key) {
-            $this->profitAddresses[$key] = trim((string) ($this->profitAddresses[$key] ?? ''));
-            $groupMeta = config('networks.address_groups.'.Network::addressGroup($key), []);
-            $rules["profitAddresses.{$key}"] = ['nullable', 'string', 'max:128', 'regex:'.$groupMeta['address_regex']];
-            $messages["profitAddresses.{$key}.regex"] = "This doesn't look like a valid ".Network::label($key).' address.';
-        }
-
-        $validated = $this->validate($rules + [
+        $validated = $this->validate([
             'profitWarnFeePercent' => ['required', 'numeric', 'gt:0', 'lte:100'],
             'profitBlockFeePercent' => ['required', 'numeric', 'gt:0', 'lte:100'],
-        ], $messages);
+        ]);
 
         if (bccomp((string) $validated['profitWarnFeePercent'], (string) $validated['profitBlockFeePercent'], 8) >= 0) {
             throw ValidationException::withMessages(['profitWarnFeePercent' => 'Warning threshold must be lower than the block threshold.']);
-        }
-
-        foreach (Network::enabledKeys() as $key) {
-            $address = trim((string) ($validated['profitAddresses'][$key] ?? ''));
-
-            PlatformSettingsModel::networkSetting($key)->update([
-                'profit_address' => $address === '' ? null : $address,
-            ]);
         }
 
         PlatformSettingsModel::instance()->update([
@@ -210,7 +236,7 @@ class PlatformSettings extends Component
         ]);
 
         $this->showProfitModal = false;
-        $this->successMessage = 'Profit payout settings saved.';
+        $this->successMessage = 'Profit payout thresholds saved.';
     }
 
     public function retry(): void

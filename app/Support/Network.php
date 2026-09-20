@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Models\NetworkSetting;
+use Illuminate\Database\QueryException;
 use RuntimeException;
 
 final class Network
@@ -11,6 +13,44 @@ final class Network
     public static function all(): array
     {
         return config('networks.networks', []);
+    }
+
+    /**
+     * Apply the `network_settings.enabled` overrides on top of the current
+     * config registry. Runs once at application boot and after any toggle via
+     * flush(); a null `enabled` column defers to the config/env flag.
+     */
+    public static function applyOverrides(): void
+    {
+        try {
+            $overrides = NetworkSetting::query()
+                ->whereNotNull('enabled')
+                ->pluck('enabled', 'network');
+        } catch (QueryException) {
+            return;
+        }
+
+        if ($overrides->isEmpty()) {
+            return;
+        }
+
+        $networks = config('networks.networks', []);
+        foreach ($overrides as $key => $enabled) {
+            if (isset($networks[$key])) {
+                $networks[$key]['enabled'] = (bool) $enabled;
+            }
+        }
+
+        config(['networks.networks' => $networks]);
+    }
+
+    /**
+     * Re-merge the DB `enabled` overrides after writing a `network_settings`
+     * row so the next registry read sees the toggle immediately.
+     */
+    public static function flush(): void
+    {
+        self::applyOverrides();
     }
 
     public static function enabled(): array
@@ -67,6 +107,11 @@ final class Network
     public static function chain(string $key): string
     {
         return self::get($key)['chain'];
+    }
+
+    public static function chainLabel(string $key): string
+    {
+        return config('networks.chains.'.self::chain($key), self::chain($key));
     }
 
     public static function kind(string $key): string

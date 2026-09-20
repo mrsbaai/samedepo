@@ -113,6 +113,19 @@
                             </dl>
                         </section>
 
+                        <section class="grid gap-4 py-5 md:grid-cols-[12rem_1fr] md:gap-8">
+                            <flux:heading level="2">Confirmations</flux:heading>
+                            <dl class="grid gap-4 md:grid-cols-3">
+                                @foreach ($networks as $meta)
+                                    <div>
+                                        <dt><flux:text size="sm">{{ $meta['label'] }}</flux:text></dt>
+                                        <dd class="mt-1 font-ledger text-sm font-medium tabular-nums text-white">{{ $meta['confirmations'] }} confirmations</dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                            <flux:text size="sm" class="md:col-start-2">A deposit is credited once it reaches the required confirmations for its network.</flux:text>
+                        </section>
+
                         <section class="grid gap-3 py-5 md:grid-cols-[12rem_1fr] md:gap-8">
                             <flux:heading level="2">API request limit</flux:heading>
                             <div>
@@ -158,6 +171,7 @@
   }
 }</code></pre>
                                             <flux:text class="mt-2 text-sm"><code>status</code> is <code>created</code> on the first request (HTTP 201) and <code>existing</code> on later requests (HTTP 200). All addresses include a <code>qr</code> URL for the deposit address and a <code>minimum_deposit</code> in the network's native currency — deposits below this amount are not credited.</flux:text>
+                                            <flux:text class="mt-2 text-sm">Every EVM asset shares one <code>0x</code> deposit address per customer — a single address accepts all enabled ERC-20 and BEP-20 networks.</flux:text>
                                             </div>
                                         @endif
                                     </article>

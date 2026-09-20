@@ -60,13 +60,15 @@ class CustomerDetail extends Component
             ->sortBy(fn ($address) => array_search($address->network, Network::keys(), true))
             ->values()
             ->map(function ($address) {
-                $meta = Network::exists($address->network) ? Network::present($address->network) : ['slug' => str_replace('_', '-', $address->network), 'label' => $address->network, 'symbol' => ''];
+                $meta = Network::exists($address->network) ? Network::present($address->network) : ['slug' => str_replace('_', '-', $address->network), 'label' => $address->network, 'symbol' => '', 'icon' => ''];
 
                 return [
                     'network' => $address->network,
                     'networkSlug' => $meta['slug'],
                     'networkLabel' => $meta['label'],
                     'symbol' => $meta['symbol'],
+                    'icon' => $meta['icon'] ?? '',
+                    'chainLabel' => Network::exists($address->network) ? Network::chainLabel($address->network) : $address->network,
                     'address' => $address->address,
                 ];
             })

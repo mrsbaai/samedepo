@@ -95,11 +95,18 @@ class WithdrawalSettings extends Component
         ];
     }
 
+    private function addressMessages(): array
+    {
+        $hint = config('networks.address_groups.'.Network::addressGroup($this->editingNetwork).'.address_hint', 'a valid address');
+
+        return ['editingAddress.regex' => "Enter {$hint}."];
+    }
+
     public function confirmSave(): void
     {
         $this->validate([
             'editingAddress' => $this->addressRules(),
-        ]);
+        ], $this->addressMessages());
 
         $this->showConfirmModal = true;
     }
@@ -108,7 +115,7 @@ class WithdrawalSettings extends Component
     {
         $validated = $this->validate([
             'editingAddress' => $this->addressRules(),
-        ]);
+        ], $this->addressMessages());
 
         WithdrawalAddress::updateOrCreate(
             [

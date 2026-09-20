@@ -35,6 +35,8 @@ class ApiDocsController
                     $key => Network::present($key) + [
                         'min_deposit' => PlatformSettings::networkSetting($key)->min_deposit,
                         'example_address' => Network::exampleAddress($key),
+                        'confirmations' => Network::confirmations($key),
+                        'chain_label' => Network::chainLabel($key),
                     ],
                 ])
                 ->all(),

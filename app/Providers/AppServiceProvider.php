@@ -102,6 +102,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Network::applyOverrides();
         $this->configureRateLimiting();
         $this->configureRememberDuration();
         $this->configureAuthenticatedGuestRedirect();

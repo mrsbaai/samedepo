@@ -14,7 +14,7 @@ test('an admin can view the platform settings page', function () {
         ->assertOk()
         ->assertSee('Platform Settings', false)
         ->assertSee('Deposit Fee', false)
-        ->assertSee('Minimum Deposits', false)
+        ->assertSee('Networks', false)
         ->assertSee('Default Withdrawal Mode', false)
         ->assertSee('API Request Limit', false);
 });
@@ -52,13 +52,13 @@ test('an admin can update minimum deposit sizes', function () {
 
     Livewire::actingAs($admin)
         ->test(PlatformSettings::class)
-        ->set('minDeposits.bitcoin', '0.001')
-        ->set('minDeposits.usdt_trc20', '20')
-        ->set('minDeposits.usdt_erc20', '25')
-        ->call('confirmSaveMinDeposit')
-        ->call('saveMinDeposit')
-        ->assertHasNoErrors()
-        ->assertSee('Minimum deposit sizes updated', false);
+        ->set('rows.bitcoin.min_deposit', '0.001')
+        ->call('saveNetworkRow', 'bitcoin')
+        ->set('rows.usdt_trc20.min_deposit', '20')
+        ->call('saveNetworkRow', 'usdt_trc20')
+        ->set('rows.usdt_erc20.min_deposit', '25')
+        ->call('saveNetworkRow', 'usdt_erc20')
+        ->assertHasNoErrors();
 
     $this->assertDatabaseHas('network_settings', ['network' => 'bitcoin', 'min_deposit' => 0.001]);
     $this->assertDatabaseHas('network_settings', ['network' => 'usdt_trc20', 'min_deposit' => 20]);
@@ -166,15 +166,18 @@ test('an admin can update profit payout settings', function () {
 
     Livewire::actingAs($admin)
         ->test(PlatformSettings::class)
-        ->set('profitAddresses.bitcoin', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')
-        ->set('profitAddresses.usdt_trc20', 'T'.str_repeat('1', 33))
-        ->set('profitAddresses.usdt_erc20', '0x'.str_repeat('a', 40))
+        ->set('rows.bitcoin.profit_address', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')
+        ->call('saveNetworkRow', 'bitcoin')
+        ->set('rows.usdt_trc20.profit_address', 'T'.str_repeat('1', 33))
+        ->call('saveNetworkRow', 'usdt_trc20')
+        ->set('rows.usdt_erc20.profit_address', '0x'.str_repeat('a', 40))
+        ->call('saveNetworkRow', 'usdt_erc20')
         ->set('profitWarnFeePercent', '1.5')
         ->set('profitBlockFeePercent', '4.0')
         ->call('confirmSaveProfit')
         ->call('saveProfit')
         ->assertHasNoErrors()
-        ->assertSee('Profit payout settings saved.', false);
+        ->assertSee('Profit payout thresholds saved.', false);
 
     $this->assertDatabaseHas('network_settings', ['network' => 'bitcoin', 'profit_address' => '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
     $this->assertDatabaseHas('network_settings', ['network' => 'usdt_trc20', 'profit_address' => 'T'.str_repeat('1', 33)]);
@@ -191,11 +194,10 @@ test('profit payout settings reject an invalid tron address', function () {
 
     Livewire::actingAs($admin)
         ->test(PlatformSettings::class)
-        ->set('profitAddresses.usdt_trc20', 'not-a-tron-address')
-        ->call('confirmSaveProfit')
-        ->call('saveProfit')
-        ->assertHasErrors(['profitAddresses.usdt_trc20'])
-        ->assertSeeText("This doesn't look like a valid USDT (TRC20) address.");
+        ->set('rows.usdt_trc20.profit_address', 'not-a-tron-address')
+        ->call('saveNetworkRow', 'usdt_trc20')
+        ->assertHasErrors(['rows.usdt_trc20.profit_address'])
+        ->assertSeeText('Enter a TRON address starting with T.');
 });
 
 test('profit payout settings reject a warning threshold above or equal to the block threshold', function () {
@@ -226,13 +228,9 @@ test('empty profit payout address clears the saved address', function () {
 
     Livewire::actingAs($admin)
         ->test(PlatformSettings::class)
-        ->set('profitAddresses.usdt_trc20', '')
-        ->set('profitWarnFeePercent', '1.5')
-        ->set('profitBlockFeePercent', '4.0')
-        ->call('confirmSaveProfit')
-        ->call('saveProfit')
-        ->assertHasNoErrors()
-        ->assertSee('Profit payout settings saved.', false);
+        ->set('rows.usdt_trc20.profit_address', '')
+        ->call('saveNetworkRow', 'usdt_trc20')
+        ->assertHasNoErrors();
 
     $this->assertDatabaseHas('network_settings', ['network' => 'usdt_trc20', 'profit_address' => null]);
 });
@@ -243,7 +241,8 @@ test('saving profit payout settings does not change unrelated platform settings'
 
     Livewire::actingAs($admin)
         ->test(PlatformSettings::class)
-        ->set('profitAddresses.bitcoin', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')
+        ->set('rows.bitcoin.profit_address', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')
+        ->call('saveNetworkRow', 'bitcoin')
         ->set('profitWarnFeePercent', '1.5')
         ->set('profitBlockFeePercent', '4.0')
         ->call('confirmSaveProfit')

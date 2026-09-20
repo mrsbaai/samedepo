@@ -262,6 +262,17 @@ return [
     |
     */
 
+    /*
+    | Human-readable chain names for UI badges.
+    */
+    'chains' => [
+        'bitcoin' => 'Bitcoin',
+        'litecoin' => 'Litecoin',
+        'ethereum' => 'Ethereum',
+        'bsc' => 'BSC',
+        'tron' => 'TRON',
+    ],
+
     'address_groups' => [
         'bitcoin' => [
             'driver' => 'xpub',

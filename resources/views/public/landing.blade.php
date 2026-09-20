@@ -91,7 +91,7 @@
             <flux:timeline size="lg" class="[--flux-timeline-item-gap:2rem]">
                 @foreach ([
                     ['Send a customer reference', 'Make one GET request with a reference from your system, like cus_482.'],
-                    ['Get permanent deposit addresses', 'samedepo returns one permanent address for Bitcoin, USDT (TRC20), and USDT (ERC20).'],
+                    ['Get permanent deposit addresses', 'samedepo returns one permanent address for '.collect($networks)->pluck('label')->join(', ', ' and ').'.'],
                     ['Receive confirmed deposits', 'We watch for deposits, wait for confirmations, credit your balance, and send your webhook.'],
                 ] as [$heading, $copy])
                     <flux:timeline.item>
@@ -117,7 +117,7 @@
             <div class="divide-y divide-zinc-800 border-y border-zinc-800">
                 @foreach ([
                     ['bolt', 'SegWit', 'Lower-cost Bitcoin transfers', 'Bitcoin deposits use native SegWit addresses. They reduce transaction size and network fees without changing how customers send Bitcoin.'],
-                    ['banknotes', 'Gas', 'Automatic USDT gas handling', 'samedepo handles ETH, TRX, energy, and bandwidth from treasury. Website owners and their customers don\'t need to fund deposit addresses with separate gas balances.'],
+                    ['banknotes', 'Gas', 'Automatic USDT gas handling', 'samedepo handles native gas — ETH, TRX, energy, and bandwidth — from treasury. Website owners and their customers don\'t need to fund deposit addresses with separate gas balances.'],
                     ['shield-check', 'Custody', 'Isolated transaction signing', 'Private wallet keys never enter the website application. Deposits and withdrawals are signed by an isolated service through authenticated requests.'],
                 ] as [$icon, $tag, $heading, $copy])
                     <div class="grid gap-4 py-8 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-6">
