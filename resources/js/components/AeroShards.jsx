@@ -1294,8 +1294,8 @@ export default function AeroShards({
   const resolvedSpeed = clamp(speed, 0, 2);
   const resolvedSpin = clamp(spin, 0, 2);
   const resolvedInteraction = INTERACTIONS[interaction] ?? INTERACTIONS.repel;
-  const resolvedDensity = clamp(density, 0.5, 1.5);
-  const resolvedShardSize = clamp(shardSize, 0.5, 1.5);
+  const resolvedDensity = clamp(density, 0.05, 1.5);
+  const resolvedShardSize = clamp(shardSize, 0.5, 2.5);
   const resolvedStretch = clamp(stretch, 0.6, 1.8);
   const resolvedTurbulence = clamp(turbulence, 0, 2);
   const resolvedGlow = clamp(glow, 0, 2);
