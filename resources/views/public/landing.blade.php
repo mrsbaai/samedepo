@@ -31,10 +31,12 @@
 
             <div class="animate-float overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/40">
                 <div class="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-3">
-                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
-                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
-                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
+                    <span class="size-2.5 rounded-full bg-red-500/60"></span>
+                    <span class="size-2.5 rounded-full bg-amber-400/60"></span>
+                    <span class="size-2.5 rounded-full bg-emerald-500/60"></span>
+                    <span class="ml-3 font-mono text-xs text-zinc-500">GET /api/v1/customers/{reference}</span>
                 </div>
+                @php($sampleKeys = collect($networks)->keys()->intersect(['bitcoin', 'usdt_trc20', 'ethereum']))
                 <pre class="overflow-hidden whitespace-pre-wrap break-words p-5 font-mono leading-6 text-zinc-300 sm:p-6 text-[clamp(0.65rem,1.6vw,0.8rem)]"><code><span class="text-(--color-accent)">curl</span> {{ url('/api/v1/customers/cus_482') }} \
   -H "Authorization: Bearer sk_live_..." \
   -H "Accept: application/json"
@@ -45,12 +47,11 @@
   <span class="text-zinc-300">"data"</span>: {
     <span class="text-zinc-300">"customer_reference"</span>: "cus_482",
     <span class="text-zinc-300">"addresses"</span>: [
-      @foreach ($networks as $key => $meta){ <span class="text-zinc-300">"network"</span>: "{{ $key }}", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"{{ \App\Support\Network::exampleAddress($key) }}"</span> }@if (!$loop->last),
-      @endif
+      @foreach ($sampleKeys as $key){ <span class="text-zinc-300">"network"</span>: "{{ $key }}", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"{{ \App\Support\Network::exampleAddress($key) }}"</span> },
       @endforeach
+      <span class="text-zinc-500"># … {{ count($networks) - $sampleKeys->count() }} more networks</span>
     ]
-  },
-  
+  }
 }
 <span class="text-zinc-500"># That's it. Really.</span></code></pre>
             </div>
