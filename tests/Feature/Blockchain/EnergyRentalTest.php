@@ -27,6 +27,8 @@ class EnergyRentalBroadcasterFake implements BlockchainBroadcaster, EstimatesTra
 
     public ?string $nativeTopupFee = '0.27000000';
 
+    public ?int $transferEnergy = null;
+
     public ?string $recipientBalance = '0.00000000';
 
     public ?string $treasuryBalance = '30.00000000';
@@ -89,6 +91,13 @@ class EnergyRentalBroadcasterFake implements BlockchainBroadcaster, EstimatesTra
     public function estimateTransferFee(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?string
     {
         return $tokenTransfer ? $this->transferFee : $this->nativeTopupFee;
+    }
+
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        $fee = $this->estimateTransferFee($network, $tokenTransfer, $destination, $sourceIndex);
+
+        return $fee === null ? null : ['fee' => $fee, 'energy' => $this->transferEnergy];
     }
 
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
@@ -161,6 +170,7 @@ function rentalFixture(array $options = []): array
 
     $broadcaster = new EnergyRentalBroadcasterFake;
     $broadcaster->tronResource = $options['tronResource'] ?? $broadcaster->tronResource;
+    $broadcaster->transferEnergy = array_key_exists('transferEnergy', $options) ? $options['transferEnergy'] : 64285;
 
     Http::fake(tronSaveFakes($options['fakes'] ?? []));
 
@@ -178,13 +188,44 @@ test('rent mode orders energy instead of topping up', function () {
         ->and($rental->purpose)->toBe('sweep')
         ->and($rental->purposable_type)->toBe($sweep->getMorphClass())
         ->and($rental->purposable_id)->toBe($sweep->id)
-        ->and($rental->energy)->toBe(77142)
+        // signer-simulated 64285 + 10% headroom policy
+        ->and($rental->energy)->toBe(70714)
         ->and($rental->expires_at->greaterThan(now()->addMinutes(59)))->toBeTrue()
         ->and($rental->expires_at->lessThan(now()->addMinutes(61)))->toBeTrue();
     expect(GasTopup::count())->toBe(0);
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource')
         && $request->data()['receiver'] === 'TDeposit3');
+});
+
+test('a missing simulation falls back to 130000 energy', function () {
+    [$service, , $sweep] = rentalFixture([
+        'transferEnergy' => null,
+        'fakes' => [
+            'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 200000]]),
+        ],
+    ]);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
+    expect(EnergyRental::sole()->energy)->toBe(130000);
+});
+
+test('the headroom percent policy scales the simulated energy', function () {
+    GasPolicy::factory()->create([
+        'network' => 'native_trx',
+        'reserve_threshold' => '10.00000000',
+        'top_up_amount' => '1.00000000',
+        'max_top_up' => '20.00000000',
+        'energy_mode' => 'rent',
+        'rent_max_price_sun' => 90,
+        'rent_duration_sec' => 3600,
+        'rent_energy_headroom_percent' => 20,
+    ]);
+
+    $service = new GasTreasuryService(new EnergyRentalBroadcasterFake);
+
+    expect($service->estimateNeededEnergy(64285, 'usdt_trc20'))->toBe(77142)
+        ->and($service->estimateNeededEnergy(null, 'usdt_trc20'))->toBe(130000);
 });
 
 test('an already provisioned address needs no order', function () {

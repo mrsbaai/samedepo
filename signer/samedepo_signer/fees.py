@@ -26,7 +26,7 @@ TRON_BANDWIDTH_PRICE_SUN = 1000
 SUN_PER_TRX = Decimal(10 ** 6)
 _FEE_CACHE_TTL = 60
 
-_fee_cache: dict[tuple, tuple[float, str]] = {}
+_fee_cache: dict[tuple, tuple[float, dict]] = {}
 _energy_price_cache: Optional[tuple[float, int]] = None
 
 
@@ -192,13 +192,6 @@ def trc20_energy_estimate(client, source: str, destination: Optional[str]) -> in
         return TRC20_ENERGY_HOLDER_FALLBACK
 
 
-def _tron_token_fee_sun(client, source: str, destination: Optional[str]) -> int:
-    return (
-        trc20_energy_estimate(client, source, destination) * _energy_price_sun(client)
-        + TRC20_BANDWIDTH_BYTES * TRON_BANDWIDTH_PRICE_SUN
-    )
-
-
 def _tron_native_fee_sun(client, destination: Optional[str]) -> int:
     fee = TRX_TRANSFER_BYTES * TRON_BANDWIDTH_PRICE_SUN
     if destination is None:
@@ -214,7 +207,7 @@ def _tron(
     token_transfer: bool = False,
     destination: Optional[str] = None,
     source_index: Optional[int] = None,
-) -> Optional[str]:
+) -> Optional[dict]:
     source = keys.derive_address("usdt_trc20", 0 if source_index is None else int(source_index))
     cache_key = (token_transfer, source, destination or "")
     now = time.monotonic()
@@ -225,16 +218,17 @@ def _tron(
         from samedepo_signer.transactions import _trx_client  # lazy: transactions imports fees
 
         client = _trx_client()
-        sun = (
-            _tron_token_fee_sun(client, source, destination)
-            if token_transfer
-            else _tron_native_fee_sun(client, destination)
-        )
+        if token_transfer:
+            energy = trc20_energy_estimate(client, source, destination)
+            price = _energy_price_sun(client)
+            sun = energy * price + TRC20_BANDWIDTH_BYTES * TRON_BANDWIDTH_PRICE_SUN
+            result = {"fee": f"{Decimal(sun) / SUN_PER_TRX:.8f}", "energy": energy, "energy_price_sun": price}
+        else:
+            result = {"fee": f"{Decimal(_tron_native_fee_sun(client, destination)) / SUN_PER_TRX:.8f}"}
     except Exception:
         return None
-    fee = f"{Decimal(sun) / SUN_PER_TRX:.8f}"
-    _fee_cache[cache_key] = (now, fee)
-    return fee
+    _fee_cache[cache_key] = (now, result)
+    return result
 
 
 def estimate(
@@ -242,19 +236,20 @@ def estimate(
     token_transfer: bool = False,
     destination: Optional[str] = None,
     source_index: Optional[int] = None,
-) -> Optional[str]:
+) -> Optional[dict]:
     if network not in config.NETWORKS:
         return None
-    if network == "bitcoin":
-        return _btc()
-    if network == "litecoin":
-        return _ltc()
-    if network == "usdt_erc20" and token_transfer:
-        return _erc20()
-    if network == "usdt_erc20":
-        return _eth()
     if network == "usdt_trc20":
         return _tron(token_transfer, destination, source_index)
-    if config.family(network) == "evm":
-        return _evm(network, token_transfer, destination, source_index)
-    return None
+    fee = None
+    if network == "bitcoin":
+        fee = _btc()
+    elif network == "litecoin":
+        fee = _ltc()
+    elif network == "usdt_erc20" and token_transfer:
+        fee = _erc20()
+    elif network == "usdt_erc20":
+        fee = _eth()
+    elif config.family(network) == "evm":
+        fee = _evm(network, token_transfer, destination, source_index)
+    return None if fee is None else {"fee": fee}

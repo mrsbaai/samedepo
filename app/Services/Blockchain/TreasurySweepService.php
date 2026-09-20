@@ -128,6 +128,20 @@ class TreasurySweepService
         foreach ($groups as $rows) {
             $first = $rows->first();
 
+            // An open withdrawal bills these costs out of amount_sent via
+            // ConsolidationBiller::outstanding — charging the balance here too
+            // would double-charge, and the balance is already zeroed.
+            $withdrawalInFlight = Withdrawal::query()
+                ->withoutGlobalScope('owner')
+                ->where('user_id', $first->owner_id)
+                ->where('network', $first->network)
+                ->whereIn('status', ['pending', 'approved'])
+                ->exists();
+
+            if ($withdrawalInFlight) {
+                continue;
+            }
+
             DB::transaction(fn () => $this->billOwner((int) $first->owner_id, $first->network));
         }
     }

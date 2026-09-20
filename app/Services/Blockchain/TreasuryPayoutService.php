@@ -11,7 +11,6 @@ use App\Models\TreasuryPayout;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
-use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
 use App\Support\Network;
 use Illuminate\Support\Facades\DB;
 
@@ -56,9 +55,12 @@ class TreasuryPayoutService
             return $this->blocked($result, 'Amount exceeds withdrawable profit.');
         }
 
-        $result['fee_native'] = $this->broadcaster instanceof EstimatesTransferFee
-            ? $this->broadcaster->estimateTransferFee($network, Network::isToken($network), $savedDestination)
-            : $this->broadcaster->estimateFee($network, Network::isToken($network));
+        $result['transfer_resources'] = $this->broadcaster->estimateTransferResources(
+            $network,
+            Network::isToken($network),
+            $savedDestination,
+        );
+        $result['fee_native'] = $result['transfer_resources']['fee'] ?? null;
 
         if ($result['fee_native'] === null) {
             return $this->blocked($result, 'Fee estimate unavailable');
@@ -67,7 +69,7 @@ class TreasuryPayoutService
         // Under rent mode the honest estimate is the rental price, not the burn cost.
         $rentalFee = $this->gasTreasury->rentalFeeEstimateNative(
             $network,
-            $this->gasTreasury->estimateNeededEnergy((string) $result['fee_native']),
+            $this->gasTreasury->estimateNeededEnergy($result['transfer_resources']['energy'] ?? null, $network),
         );
 
         if ($rentalFee !== null) {
@@ -146,14 +148,13 @@ class TreasuryPayoutService
         }
 
         if (Network::family($payout->network) === 'tron' && $this->gasTreasury->policy($payout->network)->energy_mode === 'rent') {
-            $burnFeeNative = (string) ($preview['burn_fee_native'] ?? $preview['fee_native']);
             $rented = $this->gasTreasury->ensureEnergyViaRental(
                 $payout->network,
                 (int) $wallet->derivation_index,
                 (string) $wallet->address,
                 'payout',
                 $payout,
-                $this->gasTreasury->estimateNeededEnergy($burnFeeNative),
+                $preview['transfer_resources'] ?? null,
             );
 
             if ($rented === false) {

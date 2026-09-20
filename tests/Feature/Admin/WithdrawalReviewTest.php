@@ -28,7 +28,7 @@ test('the admin review shows the same live buffered fee the owner sees', functio
     PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20.00']);
 
     $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
-    $broadcaster->shouldReceive('estimateFee')->once()->with('usdt_trc20', true)->andReturn('5.00000000');
+    $broadcaster->shouldReceive('estimateWithdrawalFee')->once()->with(Mockery::type(Withdrawal::class))->andReturn('5.00000000');
     app()->instance(BlockchainBroadcaster::class, $broadcaster);
 
     Livewire::actingAs($admin)
@@ -50,7 +50,7 @@ test('the admin review says so when the fee estimate is unavailable', function (
     ]);
 
     $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
-    $broadcaster->shouldReceive('estimateFee')->andThrow(new RuntimeException('signer unavailable'));
+    $broadcaster->shouldReceive('estimateWithdrawalFee')->andThrow(new RuntimeException('signer unavailable'));
     app()->instance(BlockchainBroadcaster::class, $broadcaster);
 
     Livewire::actingAs($admin)

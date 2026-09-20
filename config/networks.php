@@ -67,7 +67,7 @@ return [
             'slug' => 'usdt-trc20',
             'icon' => 'usdt',
             'enabled' => env('NETWORK_USDT_TRC20_ENABLED', true),
-            'settings' => ['min_deposit' => '10.00000000', 'withdrawal_min_usd' => '100.00', 'sweep_min_usd' => '25.00'],
+            'settings' => ['min_deposit' => '10.00000000', 'withdrawal_min_usd' => '100.00', 'sweep_min_usd' => '100.00'],
         ],
 
         'usdt_erc20' => [

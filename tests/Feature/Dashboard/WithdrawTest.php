@@ -51,15 +51,15 @@ test('the withdraw page labels the estimated network fee as up to', function () 
 
     $this->app->instance(BlockchainBroadcaster::class, new class extends NullBlockchainBroadcaster
     {
-        public function estimateFee(string $network, bool $tokenTransfer = true): ?string
+        public function estimateTransferResources(string $network, bool $tokenTransfer = true, ?string $destination = null, ?int $sourceIndex = null): ?array
         {
-            return '6.77350000';
+            return ['fee' => '6.77350000', 'energy' => null];
         }
     });
 
     Livewire::actingAs($owner)
         ->test(Withdraw::class, ['network' => 'usdt-trc20'])
-        ->assertSee('Estimated network fee (up to)', false);
+        ->assertSee('Network fee (up to)', false);
 });
 
 test('withdraw redirects to withdrawal settings when no address is saved', function () {

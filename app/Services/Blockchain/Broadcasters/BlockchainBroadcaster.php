@@ -30,6 +30,12 @@ interface BlockchainBroadcaster extends WithdrawalFeeEstimator
 
     public function estimateFee(string $network, bool $tokenTransfer = true): ?string;
 
+    /**
+     * Estimate a transfer fee plus chain-resource data the signer knows
+     * (TRON: simulated energy usage). Returns ['fee' => string, 'energy' => ?int].
+     */
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array;
+
     public function broadcastPayout(TreasuryPayout $payout): ?string;
 
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string;

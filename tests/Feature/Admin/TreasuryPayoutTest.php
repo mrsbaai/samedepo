@@ -30,6 +30,8 @@ class PayoutBroadcasterFake implements BlockchainBroadcaster
 
     public ?array $tronResource = null;
 
+    public ?int $transferEnergy = null;
+
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
         return null;
@@ -72,6 +74,11 @@ class PayoutBroadcasterFake implements BlockchainBroadcaster
     public function estimateFee(string $network, bool $tokenTransfer = true): ?string
     {
         return $this->fee;
+    }
+
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        return $this->fee === null ? null : ['fee' => $this->fee, 'energy' => $this->transferEnergy ?? null];
     }
 
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
@@ -280,6 +287,7 @@ test('a payout waits for an ordered rental', function () {
         'https://api.tronsave.io/v2/buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['orderId' => 'order-123']]),
     ]);
     $broadcaster = new PayoutBroadcasterFake;
+    $broadcaster->transferEnergy = 64285;
     $broadcaster->tronResource = [
         'energy_limit' => 0,
         'energy_used' => 0,
@@ -326,6 +334,7 @@ test('the payout sends once the rental fills', function () {
         'expires_at' => now()->addHour(),
     ]);
     $broadcaster = new PayoutBroadcasterFake;
+    $broadcaster->transferEnergy = 64285;
     // The delegation landed: the treasury now holds enough rented energy.
     $broadcaster->tronResource = [
         'energy_limit' => 80000,

@@ -180,6 +180,11 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
 
     public function estimateTransferFee(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?string
     {
+        return $this->estimateTransferResources($network, $tokenTransfer, $destination, $sourceIndex)['fee'] ?? null;
+    }
+
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
         $response = $this->post('/fee', array_filter([
             'network' => $network,
             'token_transfer' => $tokenTransfer,
@@ -187,11 +192,14 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
             'source_index' => $sourceIndex,
         ], fn ($value) => $value !== null));
 
-        if ($response?->successful()) {
-            return $response->json('data.fee');
+        if (! $response?->successful() || $response->json('data.fee') === null) {
+            return null;
         }
 
-        return null;
+        return [
+            'fee' => $response->json('data.fee'),
+            'energy' => ($energy = $response->json('data.energy')) !== null ? (int) $energy : null,
+        ];
     }
 
     public function broadcastPayout(TreasuryPayout $payout): ?string

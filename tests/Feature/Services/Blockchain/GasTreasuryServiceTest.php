@@ -51,6 +51,8 @@ class GasTreasuryBroadcasterFake implements BlockchainBroadcaster, EstimatesTran
 
     public ?array $tronResource = null;
 
+    public ?int $transferEnergy = null;
+
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
         return null;
@@ -113,6 +115,13 @@ class GasTreasuryBroadcasterFake implements BlockchainBroadcaster, EstimatesTran
         return $this->transferFee ?? $this->estimateFee($network, $tokenTransfer);
     }
 
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        $fee = $this->estimateTransferFee($network, $tokenTransfer, $destination, $sourceIndex);
+
+        return $fee === null ? null : ['fee' => $fee, 'energy' => $this->transferEnergy ?? null];
+    }
+
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
     {
         $this->topupCalls[] = compact('network', 'sourceIndex', 'destinationIndex', 'amount', 'fee');
@@ -172,6 +181,11 @@ class LegacyGasTreasuryBroadcasterFake implements BlockchainBroadcaster
     public function estimateFee(string $network, bool $tokenTransfer = true): ?string
     {
         return $this->fee;
+    }
+
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        return $this->fee === null ? null : ['fee' => $this->fee, 'energy' => null];
     }
 
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string

@@ -50,6 +50,11 @@ class NullBlockchainBroadcaster implements BlockchainBroadcaster
         return null;
     }
 
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        return null;
+    }
+
     public function broadcastPayout(TreasuryPayout $payout): ?string
     {
         return null;

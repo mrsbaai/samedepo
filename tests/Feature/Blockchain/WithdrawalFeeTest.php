@@ -38,6 +38,8 @@ class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
 
     public ?array $tronResource = null;
 
+    public ?int $transferEnergy = null;
+
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
         return 'sweep-tx-123';
@@ -87,6 +89,11 @@ class WithdrawalFeeBroadcasterFake implements BlockchainBroadcaster
     public function estimateFee(string $network, bool $tokenTransfer = true): ?string
     {
         return '0.00100000';
+    }
+
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        return ['fee' => '0.00100000', 'energy' => $this->transferEnergy];
     }
 
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
@@ -247,7 +254,16 @@ test('outstanding consolidation costs are charged inside the withdrawal, not the
 
 test('consolidation cost is billed to the owner balance when the sweep confirms, not at withdrawal', function () {
     seedTokenValuations('usdt_trc20', '0.33', '1.00');
-    [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    $owner = User::factory()->create(['role' => 'owner']);
+    TreasuryWallet::firstOrCreate(
+        ['network' => 'usdt_trc20'],
+        [
+            'derivation_index' => 0,
+            'address' => 'treasury-usdt_trc20',
+            'available_funds' => '1000.00000000',
+            'native_balance' => '1000.00000000',
+        ],
+    );
     Balance::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => '50.00000000']);
     // Treasury outflow = top-up 12.7285 TRX + top-up tx fee 0.3 TRX = 13.0285 TRX -> 4.299405 USDT
     $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '12.72850000', '0.30000000');
@@ -262,6 +278,7 @@ test('consolidation cost is billed to the owner balance when the sweep confirms,
 
     // Billing is idempotent and the withdrawal only carries its own gas.
     (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();
+    [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000', ['user_id' => $owner->id]);
     [$processor] = feeTestProcessor(fee: '5.00000000');
     $processor->process();
     $withdrawal->refresh();
@@ -275,7 +292,9 @@ test('an expired rental on a confirmed sweep is still billed to the owner', func
     // pollRentals flips filled rentals to expired after expires_at — the cost
     // was paid either way and must remain billable.
     seedTokenValuations('usdt_trc20', '0.33', '1.00');
-    [, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    // A cancelled withdrawal hands the cost back to the sweep-time billing path.
+    $withdrawal->update(['status' => 'cancelled']);
     $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '0.00000000');
     $rental = EnergyRental::create([
         'network' => 'usdt_trc20',
@@ -300,6 +319,44 @@ test('an expired rental on a confirmed sweep is still billed to the owner', func
         ->and($rental->refresh()->fee_recovered_at)->not->toBeNull()
         ->and((string) LedgerEntry::where('user_id', $owner->id)->where('reason', 'consolidation_fee')->value('amount'))
         ->toBe('-1.37280000');
+});
+
+test('an open withdrawal defers sweep billing and send charges it inside the withdrawal', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    Balance::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => '0.00000000']);
+    // 9.09090910 TRX * 0.33 = 3.00 USDT outstanding.
+    $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '9.09090910');
+
+    (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();
+
+    expect(LedgerEntry::query()->where('reason', 'consolidation_fee')->count())->toBe(0)
+        ->and($sweep->refresh()->fee_recovered_at)->toBeNull()
+        ->and((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('0.00000000');
+
+    [$processor] = feeTestProcessor(fee: '5.00000000');
+    $processor->process();
+    $withdrawal->refresh();
+
+    expect($withdrawal->status)->toBe('sent')
+        ->and($withdrawal->consolidation_fee)->toBe('3.00000000')
+        ->and($withdrawal->amount_sent)->toBe('95.02000000')
+        ->and($sweep->fresh()->fee_recovered_at)->not->toBeNull()
+        ->and(LedgerEntry::query()->where('reason', 'consolidation_fee')->count())->toBe(1);
+});
+
+test('a cancelled withdrawal lets the sweep scheduler bill the balance again', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    [$withdrawal, $owner] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    Balance::create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => '50.00000000']);
+    $sweep = createUnrecoveredSweep($owner, 'usdt_trc20', '12.72850000', '0.30000000');
+    $withdrawal->update(['status' => 'cancelled']);
+
+    (new TreasurySweepService(new WithdrawalFeeBroadcasterFake))->billConsolidationCosts();
+
+    expect($sweep->refresh()->fee_recovered_at)->not->toBeNull()
+        ->and((string) Balance::where('user_id', $owner->id)->value('amount'))->toBe('45.70059500')
+        ->and(LedgerEntry::query()->where('reason', 'consolidation_fee')->count())->toBe(1);
 });
 
 test('consolidation billing waits when the valuation is missing', function () {
@@ -500,6 +557,7 @@ test('a waiting rental blocks the withdrawal as energy_rental_pending', function
     [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000', ['mode' => 'approval', 'status' => 'approved']);
     [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
     $broadcaster->tronResource = noEnergy();
+    $broadcaster->transferEnergy = 64285;
 
     $processor->process();
 
@@ -523,6 +581,7 @@ test('the withdrawal sends once the order fills', function () {
     [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000', ['mode' => 'approval', 'status' => 'approved']);
     [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
     $broadcaster->tronResource = noEnergy();
+    $broadcaster->transferEnergy = 64285;
 
     $processor->process();
     expect($withdrawal->fresh()->tx_hash)->toBeNull();

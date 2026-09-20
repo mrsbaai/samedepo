@@ -85,6 +85,11 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
         return $this->fee;
     }
 
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        return $this->fee === null ? null : ['fee' => $this->fee, 'energy' => null];
+    }
+
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
     {
         return $this->topupHash;

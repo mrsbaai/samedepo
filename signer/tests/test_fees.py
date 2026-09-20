@@ -50,48 +50,56 @@ def _run_tron(client, **kwargs):
 
 def test_trc20_holder_estimate():
     client = _tron_client(energy_used=64285)
-    assert _run_tron(client, token_transfer=True, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna") == "6.77350000"
+    result = _run_tron(client, token_transfer=True, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna")
+    assert result["fee"] == "6.77350000"
+    assert result["energy"] == 64285
+    assert result["energy_price_sun"] == 100
 
 
 def test_trc20_estimate_failure_falls_back_to_130k():
     client = _tron_client()
     client.trigger_constant_contract.side_effect = Exception("boom")
-    assert _run_tron(client, token_transfer=True, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna") == "13.34500000"
+    result = _run_tron(client, token_transfer=True, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna")
+    assert result["fee"] == "13.34500000"
+    assert result["energy"] == 130000
 
 
 def test_trc20_native_without_destination():
     client = _tron_client()
-    assert _run_tron(client, token_transfer=False) == "1.27000000"
+    assert _run_tron(client, token_transfer=False)["fee"] == "1.27000000"
     client.get_account.assert_not_called()
 
 
 def test_trc20_native_existing_account():
     client = _tron_client()
-    assert _run_tron(client, token_transfer=False, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna") == "0.27000000"
+    assert _run_tron(client, token_transfer=False, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna")["fee"] == "0.27000000"
 
 
 def test_trc20_native_new_account():
     client = _tron_client(account_error=AddressNotFound("account not found"))
-    assert _run_tron(client, token_transfer=False, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna") == "1.27000000"
+    assert _run_tron(client, token_transfer=False, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna")["fee"] == "1.27000000"
 
 
 def test_bitcoin_and_erc20_unchanged():
     with patch.object(fees, "_btc", return_value="0.00001000"):
-        assert fees.estimate("bitcoin") == "0.00001000"
+        assert fees.estimate("bitcoin") == {"fee": "0.00001000"}
     with patch.object(fees, "_erc20", return_value="0.00010000"):
-        assert fees.estimate("usdt_erc20", token_transfer=True) == "0.00010000"
+        assert fees.estimate("usdt_erc20", token_transfer=True) == {"fee": "0.00010000"}
 
 
 def test_second_call_within_60s_uses_cache():
     client = _tron_client(energy_used=64285)
     first = _run_tron(client, token_transfer=True, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna")
     second = _run_tron(client, token_transfer=True, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna")
-    assert first == second == "6.77350000"
+    assert first == second
+    assert first["fee"] == "6.77350000"
     assert client.trigger_constant_contract.call_count == 1
     assert client.get_chain_parameters.call_count == 1
 
 
 def test_trc20_no_destination_token_transfer_uses_fallback():
     client = _tron_client()
-    assert _run_tron(client, token_transfer=True) == "13.34500000"
+    result = _run_tron(client, token_transfer=True)
+    assert result["fee"] == "13.34500000"
+    assert result["energy"] == 130000
     client.trigger_constant_contract.assert_not_called()

@@ -72,6 +72,11 @@ class SweepRetryBroadcasterFake implements BlockchainBroadcaster
         return '0.00100000';
     }
 
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        return ['fee' => '0.00100000', 'energy' => null];
+    }
+
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
     {
         return 'topup-tx';

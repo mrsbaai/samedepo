@@ -87,6 +87,11 @@ class RecoveryBroadcasterFake implements BlockchainBroadcaster
         return '6.77350000';
     }
 
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        return ['fee' => '6.77350000', 'energy' => null];
+    }
+
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
     {
         $this->broadcastTopUpCalls[] = compact('network', 'sourceIndex', 'destinationIndex', 'amount', 'fee');

@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Models\Balance;
+use App\Models\EnergyRental;
+use App\Models\GasExpense;
+use App\Models\LedgerEntry;
 use App\Models\PlatformSettings;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Models\WithdrawalAddress;
-use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
-use App\Services\Blockchain\FeeConverter;
+use App\Services\Blockchain\WithdrawalQuote;
 use App\Support\Network;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -113,27 +114,18 @@ class Withdraw extends Component
     public function feeEstimate(): ?array
     {
         try {
-            $estimatedNative = Cache::remember(
-                'withdraw-fee-estimate:'.$this->networkKey(),
-                300,
-                fn (): ?string => app(BlockchainBroadcaster::class)->estimateFee($this->networkKey(), tokenTransfer: Network::isToken($this->networkKey())),
+            $quote = app(WithdrawalQuote::class)->quote(
+                (int) Auth::id(),
+                $this->networkKey(),
+                (string) $this->balanceModel()->amount,
+                destination: $this->withdrawalAddress()?->address,
             );
 
-            if ($estimatedNative === null) {
+            if ($quote === null) {
                 return null;
             }
 
-            $estimate = (new FeeConverter)->estimate($this->networkKey(), $estimatedNative);
-
-            if ($estimate === null) {
-                return null;
-            }
-
-            $estimate['receive'] = bccomp((string) $this->balanceModel()->amount, $estimate['total_fee'], 8) >= 0
-                ? bcsub((string) $this->balanceModel()->amount, $estimate['total_fee'], 8)
-                : '0.00000000';
-
-            return $estimate;
+            return app(WithdrawalQuote::class)->display($quote);
         } catch (\Throwable) {
             return null;
         }
@@ -168,6 +160,57 @@ class Withdraw extends Component
             ->whereIn('status', ['pending', 'approved'])
             ->latest()
             ->first();
+    }
+
+    #[Computed]
+    public function sentWithdrawal(): ?Withdrawal
+    {
+        if ($this->pendingWithdrawal() !== null) {
+            return null;
+        }
+
+        return Withdrawal::query()
+            ->where('network', $this->networkKey())
+            ->where('status', 'sent')
+            ->latest()
+            ->first();
+    }
+
+    #[Computed]
+    public function reconciliation(): ?array
+    {
+        $withdrawal = $this->pendingWithdrawal() ?? $this->sentWithdrawal();
+
+        if ($withdrawal === null || $withdrawal->network_fee === null) {
+            return null;
+        }
+
+        $expense = GasExpense::query()
+            ->where('expensable_type', Withdrawal::class)
+            ->where('expensable_id', $withdrawal->id)
+            ->first();
+
+        if ($expense === null) {
+            return null;
+        }
+
+        $rentalNative = EnergyRental::query()
+            ->where('purposable_type', (new Withdrawal)->getMorphClass())
+            ->where('purposable_id', $withdrawal->id)
+            ->whereIn('status', ['filled', 'expired'])
+            ->sum('cost_native');
+
+        $adjustment = LedgerEntry::query()
+            ->where('withdrawal_id', $withdrawal->id)
+            ->where('reason', 'network_fee_adjustment')
+            ->latest('id')
+            ->value('amount');
+
+        return [
+            'actual_native' => bcadd((string) $expense->amount, (string) $rentalNative, 8),
+            'native_symbol' => Network::nativeSymbol($withdrawal->network),
+            'adjustment' => $adjustment === null ? null : (string) $adjustment,
+        ];
     }
 
     public function formattedAmount(string $amount): string

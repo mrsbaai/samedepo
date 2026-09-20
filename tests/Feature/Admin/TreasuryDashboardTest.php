@@ -132,6 +132,7 @@ test('payout happy path creates and broadcasts a payout', function () {
 
     $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
     $broadcaster->shouldReceive('estimateFee')->andReturn('0.00100000');
+    $broadcaster->shouldReceive('estimateTransferResources')->andReturn(['fee' => '0.00100000', 'energy' => null]);
     $broadcaster->shouldReceive('broadcastPayout')->andReturn('payout-tx-123');
     app()->instance(BlockchainBroadcaster::class, $broadcaster);
 

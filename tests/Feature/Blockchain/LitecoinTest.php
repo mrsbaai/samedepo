@@ -89,6 +89,11 @@ class LtcTestBroadcaster implements BlockchainBroadcaster
         return $this->fee;
     }
 
+    public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
+    {
+        return $this->fee === null ? null : ['fee' => $this->fee, 'energy' => null];
+    }
+
     public function broadcastPayout(TreasuryPayout $payout): ?string
     {
         return null;

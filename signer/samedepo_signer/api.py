@@ -137,8 +137,8 @@ def fee():
     if estimated is None:
         abort(503, "Fee estimation unavailable")
     return _json_response({
-        "network": body["network"], "fee": estimated, "token_transfer": token_transfer,
-        "native_symbol": config.native_symbol(body["network"]),
+        "network": body["network"], "token_transfer": token_transfer,
+        "native_symbol": config.native_symbol(body["network"]), **estimated,
     })
 
 

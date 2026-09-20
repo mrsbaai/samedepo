@@ -26,7 +26,7 @@ test('the platform settings row has sensible defaults', function () {
         ->and($settings->profit_payout_block_fee_percent)->toBe('5.00');
 
     expect(PlatformSettings::networkSetting('bitcoin')->sweep_min_usd)->toBe('200.00')
-        ->and(PlatformSettings::networkSetting('usdt_trc20')->sweep_min_usd)->toBe('25.00')
+        ->and(PlatformSettings::networkSetting('usdt_trc20')->sweep_min_usd)->toBe('100.00')
         ->and(PlatformSettings::networkSetting('usdt_erc20')->sweep_min_usd)->toBe('300.00')
         ->and(PlatformSettings::networkSetting('bitcoin')->profit_address)->toBeNull()
         ->and(PlatformSettings::networkSetting('usdt_trc20')->profit_address)->toBeNull()

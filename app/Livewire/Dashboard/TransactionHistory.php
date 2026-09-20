@@ -175,6 +175,9 @@ class TransactionHistory extends Component
             'decimals' => $meta['decimals'],
             'gross' => $this->formatAmount((string) $withdrawal->gross_amount, $meta['decimals']),
             'fee' => $fee,
+            'networkFee' => $withdrawal->network_fee !== null
+                ? $this->formatAmount((string) $withdrawal->network_fee, $meta['decimals'])
+                : null,
             'consolidationFee' => $consolidationFee,
             'net' => $net,
             'status' => $withdrawal->status,

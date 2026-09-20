@@ -16,7 +16,6 @@ use App\Models\Withdrawal;
 use App\Notifications\EnergyFloatLow;
 use App\Notifications\LowGasAlert;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
-use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
 use App\Services\Blockchain\Energy\TronSaveClient;
 use App\Support\Network;
 use Illuminate\Database\Eloquent\Model;
@@ -64,10 +63,15 @@ class GasTreasuryService
             return false;
         }
 
-        $tokenFee = $this->estimateTransferFee($network, true, (string) $wallet->address, $recipientIndex);
+        $tokenResources = $this->broadcaster->estimateTransferResources($network, true, (string) $wallet->address, $recipientIndex);
+        $tokenFee = $tokenResources['fee'] ?? null;
 
         if ($tokenFee === null) {
             return false;
+        }
+
+        if (isset($tokenResources['energy'])) {
+            $tokenResources['energy'] *= max(1, $transfers);
         }
 
         $tokenFee = bcmul($tokenFee, (string) max(1, $transfers), 8);
@@ -89,7 +93,7 @@ class GasTreasuryService
                 $recipientAddress,
                 'sweep',
                 $sweep,
-                $this->estimateNeededEnergy($tokenFee),
+                $tokenResources,
             );
 
             if ($rented === true) {
@@ -123,7 +127,7 @@ class GasTreasuryService
             return false;
         }
 
-        $topupFee = $this->estimateTransferFee($network, false, $recipientAddress, (int) $wallet->derivation_index);
+        $topupFee = $this->broadcaster->estimateTransferResources($network, false, $recipientAddress, (int) $wallet->derivation_index)['fee'] ?? null;
 
         if ($topupFee === null) {
             return false;
@@ -146,7 +150,7 @@ class GasTreasuryService
         return $this->sendTopup($network, $wallet, $recipientAddress, $recipientIndex, $topupAmount, $topupFee);
     }
 
-    public function ensureGasForWithdrawal(Withdrawal $withdrawal, ?string $estimatedFeeNative = null): bool
+    public function ensureGasForWithdrawal(Withdrawal $withdrawal, ?string $estimatedFeeNative = null, ?array $transferResources = null): bool
     {
         $policy = $this->policy($withdrawal->network);
 
@@ -172,14 +176,15 @@ class GasTreasuryService
         ]);
 
         if (Network::family($withdrawal->network) === 'tron' && $policy->energy_mode === 'rent') {
-            $burnFee = $estimatedFeeNative ?? $this->estimateTransferFee($withdrawal->network, true, $withdrawal->destination_address);
+            $transferResources ??= $this->broadcaster->estimateTransferResources($withdrawal->network, true, $withdrawal->destination_address);
+            $burnFee = $estimatedFeeNative ?? ($transferResources['fee'] ?? null);
             $rented = $burnFee === null ? null : $this->ensureEnergyViaRental(
                 $withdrawal->network,
                 (int) $wallet->derivation_index,
                 (string) $wallet->address,
                 'withdrawal',
                 $withdrawal,
-                $this->estimateNeededEnergy($burnFee),
+                $transferResources,
             );
 
             if ($rented === true) {
@@ -217,24 +222,25 @@ class GasTreasuryService
     }
 
     /**
-     * Energy the sweep/withdrawal needs, derived from the burn fee estimate.
-     * The signer /fee returns TRX, not raw energy, so we invert the formula:
-     * energy = (feeSun − bandwidth) / energyPrice.
+     * Energy a TRC20 transfer needs: the signer's simulated usage plus the
+     * policy headroom. Null simulation → holder-unknown fallback (130000).
      */
-    public function estimateNeededEnergy(string $tokenFeeNative): int
+    public function estimateNeededEnergy(?int $simulatedEnergy, string $network): int
     {
-        $priceSun = (int) config('blockchain.tron_energy_price_sun', 100);
-        $feeSun = (int) bcmul($tokenFeeNative, '1000000', 0);
-        $energySun = max(0, $feeSun - 345000); // strip the bandwidth part
-        // 1.2 headroom — the simulation under-measured a live holder payout by ~14%.
-        $energy = $priceSun > 0 ? intdiv($energySun * 12 + ($priceSun * 10) - 1, $priceSun * 10) : 0;
+        if ($simulatedEnergy === null) {
+            return 130000;
+        }
 
-        return max(65000, $energy);
+        $headroom = (int) ($this->policy($network)->rent_energy_headroom_percent ?? 10);
+
+        return (int) ceil($simulatedEnergy * (100 + $headroom) / 100);
     }
 
     /**
      * true = provisioned, false = wait (order in flight / bandwidth top-up pending),
      * null = fall back to burn.
+     *
+     * @param  array|null  $transferResources  signer /fee payload: fee, energy, energy_price_sun
      */
     public function ensureEnergyViaRental(
         string $network,
@@ -242,7 +248,7 @@ class GasTreasuryService
         string $receiverAddress,
         string $purpose,
         ?Model $purposable,
-        int $neededEnergy,
+        ?array $transferResources = null,
     ): ?bool {
         $policy = $this->policy($network);
         $wallet = TreasuryWallet::query()->where('network', $network)->first();
@@ -250,6 +256,8 @@ class GasTreasuryService
         if ($policy->energy_mode !== 'rent' || $wallet === null) {
             return null;
         }
+
+        $neededEnergy = $this->estimateNeededEnergy($transferResources['energy'] ?? null, $network);
 
         // (1) Already provisioned? Rented energy shows up in the account resource.
         $resource = $this->broadcaster->getTronResource($receiverIndex);
@@ -333,7 +341,7 @@ class GasTreasuryService
 
         // (3) Price / market guards. estimateTrx is in SUN despite the name.
         $estimate = $this->tronSave->estimate($receiverAddress, $neededEnergy, (int) $policy->rent_duration_sec);
-        $burnCostSun = $neededEnergy * (int) config('blockchain.tron_energy_price_sun', 100);
+        $burnCostSun = $neededEnergy * (int) ($transferResources['energy_price_sun'] ?? 100);
 
         $fallback = match (true) {
             $estimate === null => 'estimate_unavailable',
@@ -673,15 +681,6 @@ class GasTreasuryService
             });
     }
 
-    private function estimateTransferFee(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?string
-    {
-        if ($this->broadcaster instanceof EstimatesTransferFee) {
-            return $this->broadcaster->estimateTransferFee($network, $tokenTransfer, $destination, $sourceIndex);
-        }
-
-        return $this->broadcaster->estimateFee($network, $tokenTransfer);
-    }
-
     private function chooseTopupAmount(string $tokenFee, string $recipientBalance, GasPolicy $policy): ?string
     {
         $needed = bcsub((new FeeConverter)->bufferedNativeFee($tokenFee), $recipientBalance, 8);
@@ -987,6 +986,7 @@ class GasTreasuryService
             'energy_mode' => 'burn',
             'rent_max_price_sun' => 90,
             'rent_duration_sec' => 3600,
+            'rent_energy_headroom_percent' => 10,
             'rent_float_alert_trx' => '20.00000000',
         ];
     }

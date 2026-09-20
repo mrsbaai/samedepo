@@ -22,10 +22,12 @@ class WithdrawalProcessor
         private ?GasTreasuryService $gasTreasury = null,
         private ?FeeConverter $feeConverter = null,
         private ?ConsolidationBiller $biller = null,
+        private ?WithdrawalQuote $quote = null,
     ) {
         $this->gasTreasury ??= new GasTreasuryService($this->broadcaster);
         $this->feeConverter ??= new FeeConverter;
         $this->biller ??= new ConsolidationBiller($this->feeConverter);
+        $this->quote ??= new WithdrawalQuote($this->broadcaster, $this->gasTreasury, $this->feeConverter, $this->biller);
     }
 
     public function process(): void
@@ -65,43 +67,30 @@ class WithdrawalProcessor
             return;
         }
 
-        $estimatedFeeNative = $this->broadcaster->estimateWithdrawalFee($withdrawal);
-
-        if ($estimatedFeeNative === null) {
-            $this->block($withdrawal, 'fee_unavailable');
-
-            return;
-        }
-
-        $burnFeeNative = $estimatedFeeNative;
-        $rentalFee = $this->gasTreasury->rentalFeeEstimateNative(
+        $quote = $this->quote->quote(
+            (int) $withdrawal->user_id,
             $withdrawal->network,
-            $this->gasTreasury->estimateNeededEnergy($burnFeeNative),
+            (string) $withdrawal->gross_amount,
+            $withdrawal,
+            fresh: true,
         );
 
-        if ($rentalFee !== null) {
-            $estimatedFeeNative = $rentalFee;
-        }
-
-        $networkFeeNative = $this->feeConverter->bufferedNativeFee($estimatedFeeNative);
-        $totalFee = $this->feeConverter->toNetworkUnits($withdrawal->network, $networkFeeNative);
-
-        if ($totalFee === null) {
-            $this->block($withdrawal, 'fee_conversion_failed');
+        if ($quote === null) {
+            $this->block($withdrawal, $this->quote->lastFailure() ?? 'fee_unavailable');
 
             return;
         }
+
+        $estimatedFeeNative = $quote['network_fee']['estimate_native'];
+        $networkFeeNative = $quote['network_fee']['buffered_native'];
+        $totalFee = $quote['network_fee']['amount'];
 
         // Outstanding sweep gas is charged inside the withdrawal (deducted from
         // amount_sent) instead of hitting an owner balance the withdrawal just
         // zeroed — settle() below marks it recovered after a successful send.
-        $consolidation = $this->biller->outstanding($withdrawal->user_id, $withdrawal->network);
-
-        if ($consolidation === null) {
-            $this->block($withdrawal, 'fee_conversion_failed');
-
-            return;
-        }
+        // consolidation_pending is informational only: it is billed once the
+        // pending sweeps actually run, never deducted here.
+        $consolidation = $quote['consolidation_outstanding']['amount'];
 
         $amountSent = bcsub((string) $withdrawal->gross_amount, bcadd($totalFee, $consolidation, 8), 8);
         if (bccomp($amountSent, '0', 8) < 0) {
@@ -116,7 +105,7 @@ class WithdrawalProcessor
         ]);
 
         $isToken = Network::isToken($withdrawal->network);
-        if ($isToken && ! $this->gasTreasury->ensureGasForWithdrawal($withdrawal, $burnFeeNative)) {
+        if ($isToken && ! $this->gasTreasury->ensureGasForWithdrawal($withdrawal, $estimatedFeeNative)) {
             $this->block($withdrawal, $this->gasTreasury->hasPendingRental($withdrawal) ? 'energy_rental_pending' : 'gas_unavailable');
 
             return;

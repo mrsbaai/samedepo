@@ -44,5 +44,11 @@
                 @endif
             </div>
         </flux:card>
+
+        <flux:text size="sm" variant="subtle">
+            TRC-20 withdrawals use rented TRON energy when that is cheaper than burning TRX for gas.
+            Consolidation (sweep) costs are billed to the website owner at the treasury's actual cost.
+            The SameDepo platform fee is charged once when each deposit is credited — nothing extra at withdrawal.
+        </flux:text>
     </div>
 </section>

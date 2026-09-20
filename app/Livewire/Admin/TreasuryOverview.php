@@ -267,6 +267,7 @@ class TreasuryOverview extends Component
                 "policies.$network.energy_mode" => ['required', 'string', 'in:burn,rent'],
                 "policies.$network.rent_max_price_sun" => ['required', 'integer', 'min:1'],
                 "policies.$network.rent_duration_sec" => ['required', 'integer', 'min:300'],
+                "policies.$network.rent_energy_headroom_percent" => ['nullable', 'integer', 'min:0', 'max:100'],
                 "policies.$network.rent_float_alert_trx" => ['required', 'numeric', 'min:0'],
             ];
         }
@@ -411,6 +412,7 @@ class TreasuryOverview extends Component
             'energy_mode' => $policy->energy_mode,
             'rent_max_price_sun' => $policy->rent_max_price_sun,
             'rent_duration_sec' => $policy->rent_duration_sec,
+            'rent_energy_headroom_percent' => $policy->rent_energy_headroom_percent ?? 10,
             'rent_float_alert_trx' => (string) $policy->rent_float_alert_trx,
         ];
     }

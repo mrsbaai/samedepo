@@ -7,11 +7,9 @@ namespace App\Livewire\Admin;
 use App\Models\Balance;
 use App\Models\UsdValuation;
 use App\Models\Withdrawal;
-use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
-use App\Services\Blockchain\FeeConverter;
+use App\Services\Blockchain\WithdrawalQuote;
 use App\Support\Network;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -70,20 +68,21 @@ class WithdrawalReview extends Component
     #[Computed]
     public function feeEstimate(): ?array
     {
-        $network = $this->withdrawalRecord->network;
+        $withdrawal = $this->withdrawalRecord;
 
         try {
-            $estimatedNative = Cache::remember(
-                'withdraw-fee-estimate:'.$network,
-                300,
-                fn (): ?string => app(BlockchainBroadcaster::class)->estimateFee($network, tokenTransfer: Network::isToken($network)),
+            $quote = app(WithdrawalQuote::class)->quote(
+                (int) $withdrawal->user_id,
+                $withdrawal->network,
+                (string) $withdrawal->gross_amount,
+                $withdrawal,
             );
 
-            if ($estimatedNative === null) {
+            if ($quote === null) {
                 return null;
             }
 
-            return (new FeeConverter)->estimate($network, $estimatedNative);
+            return app(WithdrawalQuote::class)->display($quote);
         } catch (\Throwable) {
             return null;
         }

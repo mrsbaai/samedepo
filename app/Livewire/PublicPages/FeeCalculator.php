@@ -108,7 +108,7 @@ class FeeCalculator extends Component
         // Share the owner/admin cache key so the public calculator and logged-in
         // withdrawal page never show different fee estimates for the same network.
         $nativeFee = Cache::remember(
-            'withdraw-fee-estimate:'.$this->network,
+            'withdraw-fee-estimate:'.$this->network.':'.md5('-'),
             300,
             fn (): string|false => rescue(
                 fn () => app(BlockchainBroadcaster::class)->estimateFee($this->network, tokenTransfer: Network::isToken($this->network)) ?? false,

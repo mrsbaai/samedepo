@@ -195,25 +195,25 @@ def _rpc(wei):
 
 def test_fee_ethereum_uses_21000_gas():
     with patch("samedepo_signer.fees.requests.post", return_value=_rpc(1_000_000_000)):
-        assert fees.estimate("ethereum") == f"{Decimal(1_000_000_000) * 21000 / Decimal(10**18):.8f}"
+        assert fees.estimate("ethereum")["fee"] == f"{Decimal(1_000_000_000) * 21000 / Decimal(10**18):.8f}"
 
 
 def test_fee_usdc_erc20_uses_token_gas_floor():
     with patch("samedepo_signer.fees.requests.post", return_value=_rpc(1_000_000_000)):
-        assert fees.estimate("usdc_erc20", token_transfer=True) == f"{Decimal(1_000_000_000) * 65000 / Decimal(10**18):.8f}"
+        assert fees.estimate("usdc_erc20", token_transfer=True)["fee"] == f"{Decimal(1_000_000_000) * 65000 / Decimal(10**18):.8f}"
 
 
 def test_fee_usdt_bep20_hits_bsc_rpc():
     with patch("samedepo_signer.fees.requests.post", return_value=_rpc(1_000_000_000)) as post, \
          patch.dict("os.environ", {"BSC_RPC_URL": "https://bsc.example/rpc"}):
-        assert fees.estimate("usdt_bep20", token_transfer=True) == f"{Decimal(1_000_000_000) * 65000 / Decimal(10**18):.8f}"
+        assert fees.estimate("usdt_bep20", token_transfer=True)["fee"] == f"{Decimal(1_000_000_000) * 65000 / Decimal(10**18):.8f}"
     assert post.call_args[0][0] == "https://bsc.example/rpc"
 
 
 def test_fee_bnb_uses_21000_gas_on_bsc_rpc():
     with patch("samedepo_signer.fees.requests.post", return_value=_rpc(1_000_000_000)) as post, \
          patch.dict("os.environ", {"BSC_RPC_URL": "https://bsc.example/rpc"}):
-        assert fees.estimate("bnb") == f"{Decimal(1_000_000_000) * 21000 / Decimal(10**18):.8f}"
+        assert fees.estimate("bnb")["fee"] == f"{Decimal(1_000_000_000) * 21000 / Decimal(10**18):.8f}"
     assert post.call_args[0][0] == "https://bsc.example/rpc"
 
 
@@ -223,7 +223,7 @@ def test_fee_litecoin_esplora_half_hour():
     resp.raise_for_status.return_value = None
     with patch("samedepo_signer.fees.requests.get", return_value=resp):
         expected = max(Decimal(10) * 141 / Decimal(10 ** 8), Decimal("0.0001"))
-        assert fees.estimate("litecoin") == f"{expected:.8f}"
+        assert fees.estimate("litecoin")["fee"] == f"{expected:.8f}"
 
 
 def test_fee_litecoin_floors_at_0_0001():
@@ -231,7 +231,7 @@ def test_fee_litecoin_floors_at_0_0001():
     resp.json.return_value = {"halfHourFee": 1}
     resp.raise_for_status.return_value = None
     with patch("samedepo_signer.fees.requests.get", return_value=resp):
-        assert fees.estimate("litecoin") == "0.00010000"
+        assert fees.estimate("litecoin")["fee"] == "0.00010000"
 
 
 def test_fee_response_includes_native_symbol():

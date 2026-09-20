@@ -57,19 +57,56 @@
                         <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue((string) $this->withdrawalRecord->gross_amount) }})</flux:text>
                     </span>
                 </div>
-                @if ($this->estimatedFee() !== null)
-                    <div class="flex items-center justify-between text-sm">
-                        <flux:text variant="subtle">Estimated network fee (up to)</flux:text>
+                @if ($this->feeEstimate !== null)
+                    @php($e = $this->feeEstimate)
+                    <div class="flex items-start justify-between text-sm gap-4">
+                        <div>
+                            <flux:text variant="subtle">Network fee (up to)</flux:text>
+                            <flux:text size="sm" variant="subtle">{{ $e['network_fee_detail']['estimate_native'] }} {{ $e['network_fee_detail']['native_symbol'] }} + {{ $e['buffer_label'] }}% buffer · {{ $e['method_label'] }}</flux:text>
+                        </div>
                         <span class="font-ledger">
-                            {{ $this->formattedAmount($this->estimatedFee()) }} {{ $this->networkMeta['symbol'] }}
-                            <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($this->estimatedFee()) }})</flux:text>
+                            {{ $this->formattedAmount($e['network_fee']) }} {{ $this->networkMeta['symbol'] }}
+                            <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($e['network_fee']) }})</flux:text>
+                        </span>
+                    </div>
+                    @if (bccomp($e['consolidation_outstanding']['amount'], '0', 8) > 0)
+                        <div class="flex items-start justify-between text-sm gap-4">
+                            <div>
+                                <flux:text variant="subtle">Consolidation already incurred</flux:text>
+                                @if ($e['outstanding_label'] !== '')
+                                    <flux:text size="sm" variant="subtle">{{ $e['consolidation_outstanding']['native'] }} {{ $e['network_fee_detail']['native_symbol'] }} · {{ $e['outstanding_label'] }}</flux:text>
+                                @endif
+                            </div>
+                            <span class="font-ledger">
+                                {{ $this->formattedAmount($e['consolidation_outstanding']['amount']) }} {{ $this->networkMeta['symbol'] }}
+                                <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($e['consolidation_outstanding']['amount']) }})</flux:text>
+                            </span>
+                        </div>
+                    @endif
+                    @if ($e['consolidation_pending'] !== null && bccomp($e['consolidation_pending']['amount'], '0', 8) > 0)
+                        <div class="flex items-start justify-between text-sm gap-4">
+                            <div>
+                                <flux:text variant="subtle">Consolidation to fund this withdrawal (estimate)</flux:text>
+                                <flux:text size="sm" variant="subtle">{{ $e['pending_label'] }}</flux:text>
+                            </div>
+                            <span class="font-ledger">
+                                {{ $this->formattedAmount($e['consolidation_pending']['amount']) }} {{ $this->networkMeta['symbol'] }}
+                                <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($e['consolidation_pending']['amount']) }})</flux:text>
+                            </span>
+                        </div>
+                    @endif
+                    <div class="flex items-center justify-between text-sm font-medium">
+                        <flux:text variant="subtle">Total fees</flux:text>
+                        <span class="font-ledger">
+                            {{ $this->formattedAmount($e['total_fee']) }} {{ $this->networkMeta['symbol'] }}
+                            <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($e['total_fee']) }})</flux:text>
                         </span>
                     </div>
                     <div class="flex items-center justify-between text-sm font-medium">
                         <flux:text variant="subtle">Estimated amount to send</flux:text>
                         <span class="font-ledger">
-                            {{ $this->formattedAmount($this->estimatedReceive()) }} {{ $this->networkMeta['symbol'] }}
-                            <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($this->estimatedReceive()) }})</flux:text>
+                            {{ $this->formattedAmount($e['receive']) }} {{ $this->networkMeta['symbol'] }}
+                            <flux:text size="sm" variant="subtle" class="inline">(~${{ $this->usdValue($e['receive']) }})</flux:text>
                         </span>
                     </div>
                     <flux:text size="sm" variant="subtle">Estimates — the final fee is locked when the withdrawal is sent.</flux:text>
