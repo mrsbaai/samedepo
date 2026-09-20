@@ -26,7 +26,6 @@ use App\Livewire\Admin\WebsiteOwnerDetail;
 use App\Livewire\Admin\WebsiteOwners;
 use App\Livewire\Admin\WithdrawalQueue;
 use App\Livewire\Admin\WithdrawalReview;
-use App\Livewire\Admin\WithdrawalSettings as AdminWithdrawalSettings;
 use App\Livewire\Authentication\ChangeEmail;
 use App\Livewire\Authentication\ChangePassword;
 use App\Livewire\Authentication\DeleteAccount;
@@ -193,7 +192,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function (): void {
     Route::get('/security/fraud', FraudIntelligence::class)->name('admin.security.fraud');
     Route::get('/security/forbidden-log', ForbiddenLog::class)->name('admin.security.forbidden-log');
     Route::get('/platform-settings', PlatformSettings::class)->name('admin.platform-settings');
-    Route::get('/withdrawal-settings', AdminWithdrawalSettings::class)->name('admin.withdrawal-settings');
     Route::get('/owners', WebsiteOwners::class)->name('admin.owners');
     Route::get('/owners/{owner}', WebsiteOwnerDetail::class)->name('admin.owners.show')->whereNumber('owner');
     Route::get('/owners/{owner}/customers/{reference}', AdminCustomerDetail::class)->name('admin.owners.customers.show')->whereNumber('owner');

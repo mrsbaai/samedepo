@@ -78,22 +78,11 @@
                     </flux:navmenu>
                 </flux:dropdown>
 
-                <flux:dropdown>
-                    <flux:navbar.item icon:trailing="chevron-down" :current="request()->is('admin/owners*') || request()->is('admin/withdrawals*') || request()->is('admin/treasury')">Finance</flux:navbar.item>
-                    <flux:navmenu class="dark">
-                        <flux:navmenu.item href="{{ $adminHref('admin.owners', '/admin/owners') }}" :current="request()->is('admin/owners*')" wire:navigate>Website Owners</flux:navmenu.item>
-                        <flux:navmenu.item href="{{ $adminHref('admin.withdrawals', '/admin/withdrawals') }}" :current="request()->is('admin/withdrawals*')" wire:navigate>Withdrawal Queue</flux:navmenu.item>
-                        <flux:navmenu.item href="{{ $adminHref('admin.treasury', '/admin/treasury') }}" :current="request()->is('admin/treasury')" wire:navigate>Treasury</flux:navmenu.item>
-                    </flux:navmenu>
-                </flux:dropdown>
+                <flux:navbar.item href="{{ $adminHref('admin.owners', '/admin/owners') }}" :current="request()->is('admin/owners*')" wire:navigate>Owners</flux:navbar.item>
+                <flux:navbar.item href="{{ $adminHref('admin.withdrawals', '/admin/withdrawals') }}" :current="request()->is('admin/withdrawals*')" wire:navigate>Withdrawals</flux:navbar.item>
+                <flux:navbar.item href="{{ $adminHref('admin.treasury', '/admin/treasury') }}" :current="request()->is('admin/treasury')" wire:navigate>Treasury</flux:navbar.item>
 
-                <flux:dropdown>
-                    <flux:navbar.item icon:trailing="chevron-down" :current="request()->is('admin/platform-settings') || request()->is('admin/withdrawal-settings')">Platform</flux:navbar.item>
-                    <flux:navmenu class="dark">
-                        <flux:navmenu.item href="{{ $adminHref('admin.platform-settings', '/admin/platform-settings') }}" :current="request()->is('admin/platform-settings')" wire:navigate>Platform Settings</flux:navmenu.item>
-                        <flux:navmenu.item href="{{ $adminHref('admin.withdrawal-settings', '/admin/withdrawal-settings') }}" :current="request()->is('admin/withdrawal-settings')" wire:navigate>Withdrawal Settings</flux:navmenu.item>
-                    </flux:navmenu>
-                </flux:dropdown>
+                <flux:navbar.item href="{{ $adminHref('admin.platform-settings', '/admin/platform-settings') }}" :current="request()->is('admin/platform-settings')" wire:navigate>Settings</flux:navbar.item>
             @else
                 @foreach ($ownerNav['main'] as $item)
                     <flux:navbar.item href="{{ $ownerNavHref($item) }}" :current="$ownerNavCurrent($item)" wire:navigate>
@@ -191,16 +180,11 @@
                     <flux:navlist.item href="{{ route('admin.security.forbidden-log') }}" :current="request()->routeIs('admin.security.forbidden-log')" wire:navigate>Forbidden Log</flux:navlist.item>
                 </flux:navlist.group>
 
-                <flux:navlist.group heading="Finance" expandable>
-                    <flux:navlist.item href="{{ $adminHref('admin.owners', '/admin/owners') }}" :current="request()->is('admin/owners*')" wire:navigate>Website Owners</flux:navlist.item>
-                    <flux:navlist.item href="{{ $adminHref('admin.withdrawals', '/admin/withdrawals') }}" :current="request()->is('admin/withdrawals*')" wire:navigate>Withdrawal Queue</flux:navlist.item>
-                    <flux:navlist.item href="{{ $adminHref('admin.treasury', '/admin/treasury') }}" :current="request()->is('admin/treasury')" wire:navigate>Treasury</flux:navlist.item>
-                </flux:navlist.group>
+                <flux:navlist.item icon="user-group" href="{{ $adminHref('admin.owners', '/admin/owners') }}" :current="request()->is('admin/owners*')" wire:navigate>Owners</flux:navlist.item>
+                <flux:navlist.item icon="queue-list" href="{{ $adminHref('admin.withdrawals', '/admin/withdrawals') }}" :current="request()->is('admin/withdrawals*')" wire:navigate>Withdrawals</flux:navlist.item>
+                <flux:navlist.item icon="building-library" href="{{ $adminHref('admin.treasury', '/admin/treasury') }}" :current="request()->is('admin/treasury')" wire:navigate>Treasury</flux:navlist.item>
 
-                <flux:navlist.group heading="Platform" expandable>
-                    <flux:navlist.item href="{{ $adminHref('admin.platform-settings', '/admin/platform-settings') }}" :current="request()->is('admin/platform-settings')" wire:navigate>Platform Settings</flux:navlist.item>
-                    <flux:navlist.item href="{{ $adminHref('admin.withdrawal-settings', '/admin/withdrawal-settings') }}" :current="request()->is('admin/withdrawal-settings')" wire:navigate>Withdrawal Settings</flux:navlist.item>
-                </flux:navlist.group>
+                <flux:navlist.item icon="cog-6-tooth" href="{{ $adminHref('admin.platform-settings', '/admin/platform-settings') }}" :current="request()->is('admin/platform-settings')" wire:navigate>Settings</flux:navlist.item>
             @else
                 @foreach ($ownerNav['main'] as $item)
                     <flux:navlist.item icon="{{ $item['icon'] }}" href="{{ $ownerNavHref($item) }}" :current="$ownerNavCurrent($item)" wire:navigate>

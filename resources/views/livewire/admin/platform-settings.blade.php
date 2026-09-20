@@ -17,7 +17,7 @@
             @endforeach
         </div>
     @else
-        <div class="max-w-5xl mx-auto">
+        <div class="max-w-6xl mx-auto">
             <flux:heading size="xl" class="mb-2">Platform Settings</flux:heading>
             <flux:subheading class="mb-8">Global configuration affecting all website owners.</flux:subheading>
 
@@ -92,7 +92,6 @@
 
             <flux:separator variant="subtle" class="my-6" />
 
-            <div class="max-w-3xl">
             {{-- Deposit Fee --}}
             <flux:card>
                 <div class="flex flex-col lg:flex-row gap-4 lg:gap-8">
@@ -185,7 +184,6 @@
                     </div>
                 </div>
             </flux:card>
-            </div>
         </div>
     @endif
 
