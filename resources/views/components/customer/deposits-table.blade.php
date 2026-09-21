@@ -14,7 +14,7 @@
     <flux:table.rows>
         @forelse ($deposits as $d)
             <flux:table.row :key="$d['id']">
-                <flux:table.cell class="whitespace-nowrap">{{ $d['at']->format('M j, H:i') }}</flux:table.cell>
+                <flux:table.cell class="whitespace-nowrap"><x-date.human :at="$d['at']" /></flux:table.cell>
 
                 <flux:table.cell>
                     <span class="flex items-center gap-2">

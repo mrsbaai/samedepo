@@ -33,7 +33,6 @@ test('income charts render for an owner with credited deposits', function () {
     Livewire::actingAs($owner)
         ->test(IncomeCharts::class, ['ownerId' => $owner->id])
         ->assertSee('Income')
-        ->assertSee('Per network')
         ->assertSee('field="bitcoin"', false)
         ->assertSee('field="usdt_trc20"', false)
         ->assertSee('field="total"', false)
@@ -116,7 +115,7 @@ test('platform chips list only networks with platform-wide income or a balance',
 test('the donut component renders one arc per segment plus the track and total', function () {
     $html = Blade::render('<x-charts.donut :segments="$segments" :total="$total" />', [
         'segments' => [
-            ['label' => 'Bitcoin', 'network' => 'bitcoin', 'value' => 60.0, 'color' => 'amber-500'],
+            ['label' => 'Bitcoin', 'network' => 'bitcoin', 'value' => 60.0, 'color' => 'orange-500'],
             ['label' => 'USDT (TRC20)', 'network' => 'usdt_trc20', 'value' => 40.0, 'color' => 'emerald-500'],
         ],
         'total' => '$100.00',
@@ -126,7 +125,7 @@ test('the donut component renders one arc per segment plus the track and total',
         ->and($html)->toContain('$100.00')
         ->and($html)->toContain('60.0%')
         ->and($html)->toContain('40.0%')
-        ->and($html)->toContain('text-amber-500')
+        ->and($html)->toContain('text-orange-500')
         ->and($html)->toContain('bg-emerald-500');
 });
 

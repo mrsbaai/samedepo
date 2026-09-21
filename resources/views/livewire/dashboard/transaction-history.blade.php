@@ -106,7 +106,7 @@
                     @foreach ($this->paginatedEntries as $tx)
                         <flux:table.row wire:key="tx-{{ $tx['id'] }}">
                             <flux:table.cell class="whitespace-nowrap">
-                                {{ \App\Support\Dates::humanFlat(\Carbon\Carbon::parse($tx['timestamp'])) }}
+                                <x-date.human :at="$tx['timestamp']" />
                             </flux:table.cell>
                             <flux:table.cell>
                                 <flux:badge size="sm" color="{{ $tx['type'] === 'deposit' ? 'green' : 'amber' }}">{{ ucfirst($tx['type']) }}</flux:badge>

@@ -19,7 +19,7 @@
         <div class="mb-6">
             <flux:heading size="xl">{{ $this->customer->customer_reference }}</flux:heading>
             <flux:text variant="subtle" size="sm" class="mt-1">
-                Customer since {{ $this->customer->created_at->format('M j, Y') }}
+                Customer since <x-date.human :at="$this->customer->created_at" />
                 · {{ $this->deposits->total() }} deposits
             </flux:text>
         </div>

@@ -6,8 +6,6 @@ namespace App\Livewire\Dashboard;
 
 use App\Actions\CancelWithdrawal;
 use App\Models\Withdrawal;
-use App\Support\Dates;
-use App\Support\ExplorerUrl;
 use App\Support\Network;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
@@ -82,7 +80,7 @@ class Withdrawals extends Component
 
         return [
             'id' => $w->id,
-            'requested' => Dates::humanFlat($w->created_at),
+            'created_at' => $w->created_at,
             'networkLabel' => $meta['label'],
             'symbol' => $meta['symbol'],
             'icon' => $meta['icon'],
@@ -97,8 +95,6 @@ class Withdrawals extends Component
             'statusLabel' => ucfirst($w->status),
             'statusColor' => self::STATUS_COLORS[$w->status] ?? 'zinc',
             'txHash' => $w->tx_hash,
-            'txShort' => $w->tx_hash !== null ? substr($w->tx_hash, 0, 6).'…'.substr($w->tx_hash, -4) : null,
-            'explorerUrl' => ExplorerUrl::for('tx', $w->network, $w->tx_hash),
             'canCancel' => $w->status === 'pending',
         ];
     }

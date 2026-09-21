@@ -73,7 +73,7 @@ test('present returns the UI metadata shape', function () {
         'symbol' => 'USDC',
         'decimals' => 2,
         'slug' => 'usdc-erc20',
-        'chart_color' => 'sky-400',
+        'chart_color' => 'blue-500',
         'icon' => 'usdc',
         'badge' => 'eth',
         'withdrawal_tip' => 'Tip: sending to an address that already holds USDC costs noticeably less gas than to an empty one.',

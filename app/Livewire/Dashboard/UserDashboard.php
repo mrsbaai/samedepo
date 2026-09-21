@@ -50,7 +50,7 @@ class UserDashboard extends Component
                 'icon' => $meta['icon'],
                 'badge' => $meta['badge'],
                 'amount' => number_format($amount, $meta['decimals'], '.', ''),
-                'usdValue' => number_format($usdValue, 2, '.', ''),
+                'usdValue' => number_format($usdValue, 2),
             ];
         })->values()->all();
     }

@@ -84,7 +84,7 @@
                 <flux:table.rows>
                     @foreach ($owners as $owner)
                         <flux:table.row wire:key="owner-{{ $owner->id }}">
-                            <flux:table.cell class="whitespace-nowrap">{{ \App\Support\Dates::humanFlat($owner->created_at) }}</flux:table.cell>
+                            <flux:table.cell class="whitespace-nowrap"><x-date.human :at="$owner->created_at" /></flux:table.cell>
                             <flux:table.cell>
                                 <flux:link href="{{ route('admin.owners.show', $owner) }}" variant="strong" wire:navigate>{{ $owner->email }}</flux:link>
                             </flux:table.cell>

@@ -111,14 +111,14 @@ test('a network column appears only when a customer has income on it', function 
         ->assertSee('$50.00', false);
 });
 
-test('the registered column uses the flat human date format', function () {
+test('the registered column shows relative time with a full date tooltip', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     Customer::factory()->create(['user_id' => $owner->id, 'created_at' => now()->subHours(3)]);
 
     Livewire::actingAs($owner)
         ->test(Customers::class)
-        ->assertSee(now()->subHours(3)->format('Y-m-d H:i'), false)
-        ->assertSee('ago (', false);
+        ->assertSee('3 hours ago', false)
+        ->assertSee(now()->subHours(3)->format('M j, H:i'), false);
 });
 
 test('customers can be sorted by total usd in both directions', function () {

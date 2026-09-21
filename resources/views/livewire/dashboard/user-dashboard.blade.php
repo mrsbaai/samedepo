@@ -1,7 +1,7 @@
-<div class="py-8">
-    <div class="mb-6">
+<div class="space-y-10">
+    <div>
         <flux:heading size="xl">Dashboard</flux:heading>
-        <flux:subheading class="mt-2">Your balances, estimated USD values, and income over time.</flux:subheading>
+        <flux:subheading class="mt-1">Balances and income across your enabled networks.</flux:subheading>
     </div>
 
     @if ($this->uiState === 'error')
@@ -12,39 +12,61 @@
             </x-slot>
         </flux:callout>
     @elseif ($this->uiState === 'loading')
-        <div class="flex flex-wrap gap-x-10 gap-y-5">
-            @foreach (range(1, 3) as $i)
-                <div class="min-w-36">
-                    <flux:skeleton class="h-5 w-24" />
-                    <flux:skeleton class="mt-2 h-8 w-28" />
-                    <flux:skeleton class="mt-2 h-4 w-24" />
-                </div>
-            @endforeach
-        </div>
-        <flux:skeleton class="mt-10 h-72 w-full" />
-    @else
-        <div class="flex flex-wrap items-start gap-x-10 gap-y-5">
-            @foreach (array_filter($this->stats, fn ($stat) => ! $stat['zero']) as $stat)
-                <div class="min-w-36">
-                    <div class="flex min-w-0 items-center gap-2">
-                        <x-crypto-icon :icon="$stat['icon']" :badge="$stat['badge']" class="size-5" />
-                        <flux:text class="truncate font-medium">{{ $stat['label'] }}</flux:text>
+        <section>
+            <div class="flex items-baseline justify-between">
+                <flux:heading size="lg">Balances</flux:heading>
+                <flux:skeleton class="h-4 w-32" />
+            </div>
+            <div class="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 xl:grid-cols-3">
+                @foreach (range(1, 3) as $i)
+                    <div class="bg-zinc-900 p-5">
+                        <flux:skeleton class="h-5 w-32" />
+                        <flux:skeleton class="mt-3 h-8 w-28" />
+                        <flux:skeleton class="mt-2 h-4 w-24" />
                     </div>
-                    <flux:heading size="xl" class="mt-2 font-ledger">{{ $stat['value'] }}</flux:heading>
-                    <flux:text size="sm" variant="subtle" class="mt-0.5 font-ledger">{{ $stat['amount'] }}</flux:text>
-                    <flux:button size="xs" variant="ghost" href="{{ route('withdraw', ['network' => $stat['network']]) }}" wire:navigate class="mt-1 -ms-2">Withdraw</flux:button>
-                </div>
-            @endforeach
-        </div>
-
-        @php($zeroStats = array_filter($this->stats, fn ($stat) => $stat['zero']))
-        @if ($zeroStats !== [])
-            <div class="mt-3 flex flex-wrap gap-x-5 gap-y-1">
-                @foreach ($zeroStats as $stat)
-                    <flux:text size="sm" variant="subtle">{{ $stat['label'] }} <span class="font-ledger">{{ $stat['value'] }}</span></flux:text>
                 @endforeach
             </div>
-        @endif
+        </section>
+        <flux:skeleton class="h-72 w-full" />
+    @else
+        @php
+            $fundedStats = array_filter($this->stats, fn ($stat) => ! $stat['zero']);
+            $zeroStats = array_filter($this->stats, fn ($stat) => $stat['zero']);
+        @endphp
+
+        <section>
+            <div class="flex items-baseline justify-between">
+                <flux:heading size="lg">Balances</flux:heading>
+                <flux:text size="sm" variant="subtle">Rates updated <x-date.human :at="$this->lastUpdated" /></flux:text>
+            </div>
+
+            @if ($fundedStats === [])
+                <flux:callout icon="wallet" class="mt-4">
+                    <flux:callout.heading>No balances yet</flux:callout.heading>
+                    <flux:callout.text>Credited deposits appear here once they confirm.</flux:callout.text>
+                </flux:callout>
+            @else
+                <div class="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 xl:grid-cols-3">
+                    @foreach ($fundedStats as $stat)
+                        <div class="bg-zinc-900 p-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <x-crypto-icon :icon="$stat['icon']" :badge="$stat['badge']" class="size-5" />
+                                    <flux:text size="sm" class="truncate font-medium">{{ $stat['label'] }}</flux:text>
+                                </div>
+                                <flux:button size="xs" variant="ghost" icon:trailing="arrow-up-right" href="{{ route('withdraw', ['network' => $stat['network']]) }}" wire:navigate>Withdraw</flux:button>
+                            </div>
+                            <flux:heading size="xl" class="mt-3 font-ledger">{{ $stat['value'] }}</flux:heading>
+                            <flux:text size="sm" variant="subtle" class="mt-0.5 font-ledger">{{ $stat['amount'] }}</flux:text>
+                        </div>
+                    @endforeach
+                </div>
+
+                @if ($zeroStats !== [])
+                    <flux:text size="sm" variant="subtle" class="mt-3">No balance yet: {{ implode(' · ', array_column($zeroStats, 'label')) }}</flux:text>
+                @endif
+            @endif
+        </section>
 
         <livewire:dashboard.income-charts :owner-id="auth()->id()" />
     @endif

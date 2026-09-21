@@ -50,12 +50,12 @@
                     <flux:table.column class="max-lg:hidden">Consolidation</flux:table.column>
                     <flux:table.column class="max-md:hidden">Sent</flux:table.column>
                     <flux:table.column>Status</flux:table.column>
-                    <flux:table.column align="end">Tx / Action</flux:table.column>
+                    <flux:table.column align="end"></flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($this->withdrawals as $w)
                         <flux:table.row wire:key="withdrawal-{{ $w['id'] }}">
-                            <flux:table.cell class="whitespace-nowrap">{{ $w['requested'] }}</flux:table.cell>
+                            <flux:table.cell class="whitespace-nowrap"><x-date.human :at="$w['created_at']" /></flux:table.cell>
                             <flux:table.cell class="max-md:hidden">
                                 <span class="flex items-center gap-1.5">
                                     <x-crypto-icon :icon="$w['icon']" :badge="$w['badge']" class="size-4" />
@@ -90,9 +90,11 @@
                                 <flux:badge size="sm" color="{{ $w['statusColor'] }}">{{ $w['statusLabel'] }}</flux:badge>
                             </flux:table.cell>
                             <flux:table.cell align="end" class="py-0">
-                                <span class="inline-flex items-center gap-3">
-                                    @if ($w['explorerUrl'])
-                                        <flux:link href="{{ $w['explorerUrl'] }}" target="_blank" class="font-ledger">{{ $w['txShort'] }}</flux:link>
+                                <span class="inline-flex items-center gap-1">
+                                    @if ($w['txHash'])
+                                        <flux:tooltip content="Copy tx hash">
+                                            <flux:button variant="ghost" size="sm" icon="clipboard-document" class="font-ledger" onclick="navigator.clipboard.writeText('{{ $w['txHash'] }}')" />
+                                        </flux:tooltip>
                                     @endif
                                     @if ($w['canCancel'])
                                         <flux:button variant="ghost" size="sm" wire:click="confirmCancel({{ $w['id'] }})">Cancel</flux:button>

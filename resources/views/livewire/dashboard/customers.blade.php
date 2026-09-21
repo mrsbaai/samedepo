@@ -58,7 +58,7 @@
                     @foreach ($this->paginatedCustomers as $customer)
                         <flux:table.row wire:key="cust-{{ $customer->id }}">
                             <flux:table.cell class="max-md:hidden whitespace-nowrap">
-                                {{ \App\Support\Dates::humanFlat($customer->created_at) }}
+                                <x-date.human :at="$customer->created_at" />
                             </flux:table.cell>
                             <flux:table.cell>
                                 <flux:link href="{{ route('customers.show', $customer) }}" variant="strong" wire:navigate>{{ $customer->customer_reference }}</flux:link>

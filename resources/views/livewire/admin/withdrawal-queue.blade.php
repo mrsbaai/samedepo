@@ -10,21 +10,23 @@
         <flux:skeleton class="h-8 w-48 mb-6" />
         <flux:table>
             <flux:table.columns>
+                <flux:table.column>Created</flux:table.column>
+                <flux:table.column>Updated</flux:table.column>
                 <flux:table.column>Owner</flux:table.column>
                 <flux:table.column>Network</flux:table.column>
                 <flux:table.column>Amount</flux:table.column>
                 <flux:table.column>Status</flux:table.column>
-                <flux:table.column class="max-md:hidden">Requested</flux:table.column>
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach (range(1, 3) as $r)
                     <flux:table.row>
+                        <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
+                        <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-32" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-24" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-20" /></flux:table.cell>
-                        <flux:table.cell class="max-md:hidden"><flux:skeleton class="h-4 w-20" /></flux:table.cell>
                         <flux:table.cell><flux:skeleton class="h-4 w-8" /></flux:table.cell>
                     </flux:table.row>
                 @endforeach
@@ -42,16 +44,20 @@
         @else
             <flux:table :paginate="$withdrawals">
                 <flux:table.columns>
+                    <flux:table.column>Created</flux:table.column>
+                    <flux:table.column>Updated</flux:table.column>
                     <flux:table.column>Owner</flux:table.column>
                     <flux:table.column>Network</flux:table.column>
                     <flux:table.column>Amount</flux:table.column>
-                    <flux:table.column class="max-md:hidden">Requested</flux:table.column>
+                    <flux:table.column>Status</flux:table.column>
                     <flux:table.column></flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($withdrawals as $withdrawal)
                         @php($meta = $this->networkMeta($withdrawal->network))
                         <flux:table.row wire:key="wq-{{ $withdrawal->id }}">
+                            <flux:table.cell class="whitespace-nowrap"><x-date.human :at="$withdrawal->created_at" /></flux:table.cell>
+                            <flux:table.cell class="whitespace-nowrap"><x-date.human :at="$withdrawal->updated_at" /></flux:table.cell>
                             <flux:table.cell variant="strong">{{ $withdrawal->user->email }}</flux:table.cell>
                             <flux:table.cell>
                                 <span class="flex items-center gap-1.5">
@@ -72,11 +78,6 @@
                                 @else
                                     <flux:badge size="sm" color="amber">Pending</flux:badge>
                                 @endif
-                            </flux:table.cell>
-                            <flux:table.cell class="max-md:hidden whitespace-nowrap">
-                                <flux:tooltip content="{{ $withdrawal->created_at->format('M j, Y H:i') }} UTC">
-                                    <span>{{ $withdrawal->created_at->diffForHumans() }}</span>
-                                </flux:tooltip>
                             </flux:table.cell>
                             <flux:table.cell class="py-0">
                                 @if ($withdrawal->status === 'pending')

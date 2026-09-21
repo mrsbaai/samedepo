@@ -15,7 +15,7 @@ test('an owner can view the withdrawals page', function () {
         ->assertSee('Withdrawals', false);
 });
 
-test('the withdrawals table lists every status with its amounts and explorer link', function () {
+test('the withdrawals table lists every status with its amounts and copyable tx hash', function () {
     $owner = User::factory()->create(['role' => 'owner']);
 
     Withdrawal::factory()->create([
@@ -50,8 +50,7 @@ test('the withdrawals table lists every status with its amounts and explorer lin
         ->assertSee('Denied', false)
         ->assertSee('100.00 USDT', false)
         ->assertSee('0.49985000 BTC', false)
-        ->assertSee('a1b2c3…c9d0', false)
-        ->assertSee('https://mempool.space/tx/a1b2c3d4e5f6a7b8c9d0', false);
+        ->assertSee("navigator.clipboard.writeText('a1b2c3d4e5f6a7b8c9d0')", false);
 });
 
 test('a pending withdrawal can be cancelled and the balance is restored', function () {

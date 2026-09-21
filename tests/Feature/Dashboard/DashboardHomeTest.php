@@ -34,7 +34,7 @@ test('balance cards display each network usd value above its crypto amount and l
     $this->actingAs($owner)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('$30000.00', false)
+        ->assertSee('$30,000.00', false)
         ->assertSee('$100.00', false)
         ->assertSee('$50.00', false)
         ->assertSee('0.50000000 BTC', false)
@@ -48,7 +48,7 @@ test('balance cards display each network usd value above its crypto amount and l
         ->assertSee(route('withdraw', ['network' => 'usdt-trc20']), false)
         ->assertSee(route('withdraw', ['network' => 'usdt-erc20']), false)
         ->assertSee('Withdraw', false)
-        ->assertDontSee('$30150.00', false);
+        ->assertDontSee('$30,150.00', false);
 });
 
 test('error state renders a callout and retry resets to normal', function () {

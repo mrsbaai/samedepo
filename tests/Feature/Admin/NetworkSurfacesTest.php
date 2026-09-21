@@ -195,7 +195,7 @@ test('disabled networks are hidden from landing, limits, api docs and owner surf
     $this->actingAs($owner)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('USDC (ERC20)', false)
+        ->assertSee('No balances yet', false)
         ->assertDontSee('Litecoin', false);
 });
 

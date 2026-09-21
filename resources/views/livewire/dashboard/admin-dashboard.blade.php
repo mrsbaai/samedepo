@@ -1,31 +1,30 @@
-<div class="space-y-8">
+<div class="space-y-10">
     <div>
         <flux:heading size="xl">Overview</flux:heading>
-        <flux:subheading class="mt-2">Platform activity and operational status.</flux:subheading>
+        <flux:subheading class="mt-1">Platform activity and operational status.</flux:subheading>
     </div>
 
     @if ($tickets->isNotEmpty())
         <section>
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <flux:icon name="ticket" class="size-5 text-zinc-400" />
-                    <flux:heading size="md">Open support tickets</flux:heading>
-                </div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <flux:heading size="lg">Open support tickets</flux:heading>
                 <flux:link href="{{ route('admin.tickets') }}" variant="subtle">View all tickets</flux:link>
             </div>
 
-            <div class="mt-3">
+            <div class="mt-4">
                 @include('components.admin.open-tickets', ['tickets' => $tickets])
             </div>
         </section>
     @endif
 
     <section>
-        <div class="flex items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-                <flux:icon name="clock" class="size-5 text-zinc-400" />
-                <flux:heading size="md">Pending withdrawals</flux:heading>
-                <flux:badge size="sm" color="amber">{{ number_format($pendingWithdrawals['count']) }}</flux:badge>
+                <flux:heading size="lg">Pending withdrawals</flux:heading>
+                <flux:badge size="sm" :color="$pendingWithdrawals['count'] > 0 ? 'amber' : 'zinc'">{{ number_format($pendingWithdrawals['count']) }}</flux:badge>
+                @if ($pendingWithdrawals['usdValue'] > 0)
+                    <flux:text size="sm" variant="subtle">&asymp; ${{ number_format($pendingWithdrawals['usdValue'], 2) }}</flux:text>
+                @endif
             </div>
             @if ($pendingWithdrawals['count'] > count($pendingWithdrawals['items']))
                 <flux:link href="{{ route('admin.withdrawals') }}" variant="subtle">View all</flux:link>
@@ -33,7 +32,7 @@
         </div>
 
         @if ($pendingWithdrawals['items']->isEmpty())
-            <flux:text class="mt-4 text-zinc-500">No pending withdrawals.</flux:text>
+            <flux:text variant="subtle" class="mt-3">No pending withdrawals.</flux:text>
         @else
             <flux:table container:class="mt-4">
                 <flux:table.columns>
@@ -69,67 +68,10 @@
         @endif
     </section>
 
-    @php
-        $hasSecuritySummary = $securitySummary['events24h'] > 0 || $securitySummary['blockedIps'] > 0 || $securitySummary['blockedDevices'] > 0;
-    @endphp
-
-    @if ($hasSecuritySummary)
-        <section>
-            <flux:card variant="soft">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <flux:icon name="shield-exclamation" class="size-5 text-zinc-400" />
-                        <flux:heading size="md">Security summary</flux:heading>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        @if ($securitySummary['status'] === 'active')
-                            <flux:badge color="red">Active attack</flux:badge>
-                        @elseif ($securitySummary['status'] === 'elevated')
-                            <flux:badge color="amber">Elevated</flux:badge>
-                        @else
-                            <flux:badge color="green">Calm</flux:badge>
-                        @endif
-
-                        <flux:link href="{{ route('admin.security.threats') }}" variant="subtle">Investigate</flux:link>
-                    </div>
-                </div>
-
-                <div class="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
-                    <div>
-                        <flux:text size="sm" class="text-zinc-500">Events (1h)</flux:text>
-                        <flux:heading size="xl" class="mt-1">{{ number_format($securitySummary['events1h']) }}</flux:heading>
-                    </div>
-                    <div>
-                        <flux:text size="sm" class="text-zinc-500">Events (24h)</flux:text>
-                        <flux:heading size="xl" class="mt-1">{{ number_format($securitySummary['events24h']) }}</flux:heading>
-                    </div>
-                    <div>
-                        <flux:text size="sm" class="text-zinc-500">Distinct IPs (1h)</flux:text>
-                        <flux:heading size="xl" class="mt-1">{{ number_format($securitySummary['ips1h']) }}</flux:heading>
-                    </div>
-                    <div>
-                        <flux:text size="sm" class="text-zinc-500">Distinct IPs (24h)</flux:text>
-                        <flux:heading size="xl" class="mt-1">{{ number_format($securitySummary['ips24h']) }}</flux:heading>
-                    </div>
-                    <div>
-                        <flux:text size="sm" class="text-zinc-500">Blocked IPs</flux:text>
-                        <flux:heading size="xl" class="mt-1">{{ number_format($securitySummary['blockedIps']) }}</flux:heading>
-                    </div>
-                    <div>
-                        <flux:text size="sm" class="text-zinc-500">Blocked devices</flux:text>
-                        <flux:heading size="xl" class="mt-1">{{ number_format($securitySummary['blockedDevices']) }}</flux:heading>
-                    </div>
-                </div>
-            </flux:card>
-        </section>
-    @endif
-
     <section wire:poll.visible.10s="refreshTreasuryData">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-                <flux:icon name="banknotes" class="size-5 text-zinc-400" />
-                <flux:heading size="md">Treasury</flux:heading>
+                <flux:heading size="lg">Treasury</flux:heading>
                 @php
                     $statusColor = ['healthy' => 'green', 'attention' => 'amber', 'deficit' => 'red'][$treasury['status']];
                 @endphp
@@ -145,23 +87,23 @@
             </div>
         </div>
 
-        <div class="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-4">
-            <div>
+        <div class="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 lg:grid-cols-4">
+            <div class="bg-zinc-900 p-5">
                 <flux:text size="sm" variant="subtle">Withdrawable profit</flux:text>
-                <flux:heading size="xl" class="mt-1">${{ number_format((float) $treasury['totalWithdrawableUsd'], 2) }}</flux:heading>
+                <flux:heading size="xl" class="mt-2 font-ledger">${{ number_format((float) $treasury['totalWithdrawableUsd'], 2) }}</flux:heading>
             </div>
-            <div>
+            <div class="bg-zinc-900 p-5">
                 <flux:text size="sm" variant="subtle">Total profit</flux:text>
-                <flux:heading size="xl" class="mt-1 {{ bccomp($treasury['totalEquityUsd'], '0', 8) < 0 ? 'text-red-600 dark:text-red-400' : '' }}">${{ number_format((float) $treasury['totalEquityUsd'], 2) }}</flux:heading>
+                <flux:heading size="xl" class="mt-2 font-ledger {{ bccomp($treasury['totalEquityUsd'], '0', 8) < 0 ? 'text-red-600 dark:text-red-400' : '' }}">${{ number_format((float) $treasury['totalEquityUsd'], 2) }}</flux:heading>
             </div>
-            <div>
+            <div class="bg-zinc-900 p-5">
                 <flux:text size="sm" variant="subtle">Unswept funds</flux:text>
-                <flux:heading size="xl" class="mt-1">${{ number_format((float) $treasury['unsweptUsd'], 2) }}</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">{{ $treasury['unsweptAddresses'] }} {{ Str::plural('address', $treasury['unsweptAddresses']) }}</flux:text>
+                <flux:heading size="xl" class="mt-2 font-ledger">${{ number_format((float) $treasury['unsweptUsd'], 2) }}</flux:heading>
+                <flux:text size="sm" variant="subtle" class="mt-1">{{ $treasury['unsweptAddresses'] }} {{ Str::plural('address', $treasury['unsweptAddresses']) }}</flux:text>
             </div>
-            <div>
+            <div class="bg-zinc-900 p-5">
                 <flux:text size="sm" variant="subtle">Failed ops (24h)</flux:text>
-                <flux:heading size="xl" class="mt-1 {{ $treasury['failures24h'] > 0 ? 'text-amber-600 dark:text-amber-400' : '' }}">{{ number_format($treasury['failures24h']) }}</flux:heading>
+                <flux:heading size="xl" class="mt-2 font-ledger {{ $treasury['failures24h'] > 0 ? 'text-amber-600 dark:text-amber-400' : '' }}">{{ number_format($treasury['failures24h']) }}</flux:heading>
             </div>
         </div>
 
@@ -208,7 +150,54 @@
         @endif
     </section>
 
-    <section>
-        <livewire:dashboard.income-charts :owner-id="null" heading="Platform income" />
-    </section>
+    @php
+        $hasSecuritySummary = $securitySummary['events24h'] > 0 || $securitySummary['blockedIps'] > 0 || $securitySummary['blockedDevices'] > 0;
+    @endphp
+
+    @if ($hasSecuritySummary)
+        <section>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <flux:heading size="lg">Security summary</flux:heading>
+                    @if ($securitySummary['status'] === 'active')
+                        <flux:badge size="sm" color="red">Active attack</flux:badge>
+                    @elseif ($securitySummary['status'] === 'elevated')
+                        <flux:badge size="sm" color="amber">Elevated</flux:badge>
+                    @else
+                        <flux:badge size="sm" color="green">Calm</flux:badge>
+                    @endif
+                </div>
+                <flux:link href="{{ route('admin.security.threats') }}" variant="subtle">Investigate</flux:link>
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-3 lg:grid-cols-6">
+                <div class="bg-zinc-900 p-5">
+                    <flux:text size="sm" variant="subtle">Events (1h)</flux:text>
+                    <flux:heading size="xl" class="mt-2 font-ledger">{{ number_format($securitySummary['events1h']) }}</flux:heading>
+                </div>
+                <div class="bg-zinc-900 p-5">
+                    <flux:text size="sm" variant="subtle">Events (24h)</flux:text>
+                    <flux:heading size="xl" class="mt-2 font-ledger">{{ number_format($securitySummary['events24h']) }}</flux:heading>
+                </div>
+                <div class="bg-zinc-900 p-5">
+                    <flux:text size="sm" variant="subtle">Distinct IPs (1h)</flux:text>
+                    <flux:heading size="xl" class="mt-2 font-ledger">{{ number_format($securitySummary['ips1h']) }}</flux:heading>
+                </div>
+                <div class="bg-zinc-900 p-5">
+                    <flux:text size="sm" variant="subtle">Distinct IPs (24h)</flux:text>
+                    <flux:heading size="xl" class="mt-2 font-ledger">{{ number_format($securitySummary['ips24h']) }}</flux:heading>
+                </div>
+                <div class="bg-zinc-900 p-5">
+                    <flux:text size="sm" variant="subtle">Blocked IPs</flux:text>
+                    <flux:heading size="xl" class="mt-2 font-ledger">{{ number_format($securitySummary['blockedIps']) }}</flux:heading>
+                </div>
+                <div class="bg-zinc-900 p-5">
+                    <flux:text size="sm" variant="subtle">Blocked devices</flux:text>
+                    <flux:heading size="xl" class="mt-2 font-ledger">{{ number_format($securitySummary['blockedDevices']) }}</flux:heading>
+                </div>
+            </div>
+        </section>
+    @endif
+
+    <livewire:dashboard.income-charts :owner-id="null" heading="Platform income" />
 </div>

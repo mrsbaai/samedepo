@@ -72,7 +72,7 @@
                             <flux:text variant="subtle" size="sm">Approved</flux:text>
                             <flux:text size="sm">{{ $this->pendingWithdrawal->decided_at?->diffForHumans() }}</flux:text>
                         </div>
-                        <flux:text size="sm" variant="subtle">Your funds are queued to send as soon as treasury funds and network gas are available.</flux:text>
+                        <flux:text size="sm" variant="subtle">Your funds are queued for withdrawal and will be sent shortly.</flux:text>
                     @else
                         <flux:button variant="ghost" size="sm" wire:click="confirmCancel" class="w-full">Cancel Withdrawal</flux:button>
                     @endif
