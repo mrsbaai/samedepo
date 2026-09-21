@@ -14,7 +14,7 @@ Website owners who want customers to repeatedly top up a crypto balance.
 
 ## Features
 
-- **Owner dashboard** — real-time balances, recent activity, deposits, transaction history, and customer management.
+- **Owner dashboard** — real-time balances, income charts with range/network controls, transaction history, withdrawal history, and customer management.
 - **Customer deposit addresses** — permanent addresses per customer with copy-to-clipboard; all EVM assets (ETH/BNB/USDC/USDT on Ethereum and BSC) share one `0x` address, and each UTXO/TRON network gets its own.
 - **API keys** — generate, name, revoke, and replace owner-scoped API keys; only the hash is stored.
 - **Signed webhooks** — configure an HTTPS endpoint and receive queued, HMAC-signed `deposit.pending` (first detection) and `deposit.credited` (after required confirmations) events, plus withdrawal-status events, with automatic retries.
@@ -23,7 +23,7 @@ Website owners who want customers to repeatedly top up a crypto balance.
 - **TRC20 gas at real cost** — TRC20 settlement uses real on-chain fee estimates, right-sized gas top-ups, automatic stranded-gas recovery, and rented TRON energy (TronSave) with automatic burn fallback — no staked or locked capital (Feature 022, live).
 - **Transparent fee estimates & calculator** — owners see a full withdrawal fee breakdown before confirming, and guests can estimate deposit and withdrawal fees at `/fee-calculator`.
 - **Complete treasury operations** — admin treasury console shows per-network addresses, available/native/unswept balances, revenue, pending withdrawals, recent sweeps, and guarded profit-only payouts.
-- **Admin console** — manage platform settings, withdrawal approvals, website owners, treasury balances, gas reserves, automatic top-up policies, network pauses, and public content. The overview now includes a live Treasury status card with withdrawable profit, gas float health, and one-click profit withdrawal.
+- **Admin console** — manage platform settings, withdrawal approvals, website owners, treasury balances, gas reserves, automatic top-up policies, network pauses, and public content. The overview leads with open tickets and pending withdrawals, a four-KPI treasury summary, and platform-wide income charts; `/admin/transactions` is a searchable cross-owner ledger.
 - **Owner financial visibility** — `/admin/owners/{owner}` shows a wide financial overview with customer/deposit growth, per-network volume, earned revenue, gas cost, unrecovered exposure, liabilities, withdrawals, and owner settings in one page.
 - **Admin customer drill-down** — `/admin/owners/{owner}/customers/{reference}` lets admins inspect a customer's deposit addresses and full deposit history across the owner's account.
 - **Public API documentation** — live endpoints, webhooks, deposit fees, per-network minimum deposits, and per-key request limits at `/api-docs`.
