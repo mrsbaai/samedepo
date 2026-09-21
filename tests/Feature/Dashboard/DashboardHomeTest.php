@@ -2,6 +2,9 @@
 
 use App\Livewire\Dashboard\UserDashboard;
 use App\Models\Balance;
+use App\Models\Customer;
+use App\Models\Deposit;
+use App\Models\DepositAddress;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Support\CryptoIcon;
@@ -49,6 +52,74 @@ test('balance cards display each network usd value above its crypto amount and l
         ->assertSee(route('withdraw', ['network' => 'usdt-erc20']), false)
         ->assertSee('Withdraw', false)
         ->assertDontSee('$30,150.00', false);
+});
+
+test('latest deposits shows the ten newest deposits', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+
+    foreach (range(1, 12) as $i) {
+        Deposit::factory()->create([
+            'deposit_address_id' => $address->id,
+            'customer_id' => $customer->id,
+            'user_id' => $owner->id,
+            'network' => 'bitcoin',
+            'status' => 'credited',
+            'credited_amount' => '1.00000000',
+            'tx_hash' => 'txhash-'.str_pad((string) $i, 2, '0', STR_PAD_LEFT),
+        ]);
+    }
+
+    Livewire::actingAs($owner)
+        ->test(UserDashboard::class)
+        ->assertSee('Latest deposits', false)
+        ->assertSee('txhash-12', false)
+        ->assertSee('txhash-03', false)
+        ->assertDontSee('txhash-02', false)
+        ->assertDontSee('txhash-01', false);
+});
+
+test('latest deposits shows pending status and hides ignored and other owners deposits', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $other = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    $otherCustomer = Customer::factory()->create(['user_id' => $other->id]);
+    $otherAddress = DepositAddress::factory()->create(['customer_id' => $otherCustomer->id, 'network' => 'bitcoin']);
+
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'status' => 'pending',
+        'confirmation_count' => 1,
+        'tx_hash' => 'pending-tx-hash',
+    ]);
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'status' => 'ignored',
+        'tx_hash' => 'ignored-tx-hash',
+    ]);
+    Deposit::factory()->create([
+        'deposit_address_id' => $otherAddress->id,
+        'customer_id' => $otherCustomer->id,
+        'user_id' => $other->id,
+        'network' => 'bitcoin',
+        'status' => 'credited',
+        'tx_hash' => 'other-owner-hash',
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test(UserDashboard::class)
+        ->assertSee('pending-tx-hash', false)
+        ->assertSee('Pending · 1/3 confirmations', false)
+        ->assertDontSee('ignored-tx-hash', false)
+        ->assertDontSee('other-owner-hash', false);
 });
 
 test('error state renders a callout and retry resets to normal', function () {

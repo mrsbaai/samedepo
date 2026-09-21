@@ -47,7 +47,7 @@
                     <flux:table.column class="max-md:hidden">Network</flux:table.column>
                     <flux:table.column>Amount</flux:table.column>
                     <flux:table.column class="max-lg:hidden">Network fee</flux:table.column>
-                    <flux:table.column class="max-lg:hidden">Consolidation</flux:table.column>
+                    <flux:table.column class="max-lg:hidden"><span class="inline-flex items-center gap-1">Consolidation <flux:tooltip toggleable content="Consolidation is the network cost of sweeping funds from your customers' deposit addresses into one address before your withdrawal is sent."><button type="button" class="inline-flex text-zinc-400"><flux:icon.information-circle variant="mini" class="size-4" /></button></flux:tooltip></span></flux:table.column>
                     <flux:table.column class="max-md:hidden">Sent</flux:table.column>
                     <flux:table.column>Status</flux:table.column>
                     <flux:table.column align="end"></flux:table.column>

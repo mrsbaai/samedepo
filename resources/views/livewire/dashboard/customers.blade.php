@@ -64,11 +64,9 @@
                                 <flux:link href="{{ route('customers.show', $customer) }}" variant="strong" wire:navigate>{{ $customer->customer_reference }}</flux:link>
                             </flux:table.cell>
                             @foreach ($this->networkColumns as $key => $meta)
-                                <flux:table.cell class="max-lg:hidden whitespace-nowrap">
-                                    @php($crypto = $customer->{"crypto_{$key}"})
-                                    @if ($crypto !== null && (float) $crypto > 0)
-                                        <span class="font-ledger">{{ number_format((float) $crypto, $meta['decimals'], '.', '') }} {{ $meta['symbol'] }}</span>
-                                        <div class="text-xs text-zinc-500 dark:text-zinc-400">${{ number_format((float) ($customer->{"usd_{$key}"} ?? 0), 2) }}</div>
+                                <flux:table.cell class="max-lg:hidden whitespace-nowrap font-ledger">
+                                    @if ((float) ($customer->{"usd_{$key}"} ?? 0) > 0)
+                                        ${{ number_format((float) $customer->{"usd_{$key}"}, 2) }}
                                     @else
                                         <span class="text-zinc-400">&mdash;</span>
                                     @endif

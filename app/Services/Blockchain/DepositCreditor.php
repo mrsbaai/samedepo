@@ -70,7 +70,7 @@ class DepositCreditor
             'status' => 'credited',
             'fee_amount' => $fee,
             'credited_amount' => $net,
-            'usd_value' => $usdRate === null ? null : bcmul($net, (string) $usdRate, 2),
+            'usd_value' => $usdRate === null ? null : number_format((float) bcmul($net, (string) $usdRate, 8), 2, '.', ''),
             'credited_at' => now(),
         ]);
 

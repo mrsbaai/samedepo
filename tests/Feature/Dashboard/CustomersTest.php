@@ -107,8 +107,8 @@ test('a network column appears only when a customer has income on it', function 
         ->test(Customers::class)
         ->assertSee('USDT (TRC20)', false)
         ->assertDontSee('Bitcoin', false)
-        ->assertSee('50.00 USDT', false)
-        ->assertSee('$50.00', false);
+        ->assertSee('$50.00', false)
+        ->assertDontSee('50.00 USDT', false);
 });
 
 test('the registered column shows relative time with a full date tooltip', function () {

@@ -24,6 +24,31 @@
                 @endforeach
             </div>
         </section>
+        <section>
+            <flux:heading size="lg">Latest deposits</flux:heading>
+            <flux:card size="sm" class="mt-4">
+                <flux:table>
+                    <flux:table.columns>
+                        <flux:table.column>Time</flux:table.column>
+                        <flux:table.column>Customer</flux:table.column>
+                        <flux:table.column>Network</flux:table.column>
+                        <flux:table.column align="end">Amount</flux:table.column>
+                        <flux:table.column align="end">USD</flux:table.column>
+                        <flux:table.column>Status</flux:table.column>
+                        <flux:table.column></flux:table.column>
+                    </flux:table.columns>
+                    <flux:table.rows>
+                        @foreach (range(1, 5) as $r)
+                            <flux:table.row>
+                                @foreach (range(1, 7) as $c)
+                                    <flux:table.cell><flux:skeleton class="h-4 w-16" /></flux:table.cell>
+                                @endforeach
+                            </flux:table.row>
+                        @endforeach
+                    </flux:table.rows>
+                </flux:table>
+            </flux:card>
+        </section>
         <flux:skeleton class="h-72 w-full" />
     @else
         @php
@@ -59,6 +84,66 @@
                 @if ($zeroStats !== [])
                     <flux:text size="sm" variant="subtle" class="mt-3">No balance yet: {{ implode(' · ', array_column($zeroStats, 'label')) }}</flux:text>
                 @endif
+            @endif
+        </section>
+
+        <section>
+            <flux:heading size="lg">Latest deposits</flux:heading>
+
+            @if ($this->latestDeposits === [])
+                <flux:text size="sm" variant="subtle" class="mt-4">No deposits yet.</flux:text>
+            @else
+                <flux:card size="sm" class="mt-4">
+                    <flux:table>
+                        <flux:table.columns>
+                            <flux:table.column>Time</flux:table.column>
+                            <flux:table.column>Customer</flux:table.column>
+                            <flux:table.column>Network</flux:table.column>
+                            <flux:table.column align="end">Amount</flux:table.column>
+                            <flux:table.column align="end">USD</flux:table.column>
+                            <flux:table.column>Status</flux:table.column>
+                            <flux:table.column></flux:table.column>
+                        </flux:table.columns>
+                        <flux:table.rows>
+                            @foreach ($this->latestDeposits as $deposit)
+                                <flux:table.row wire:key="deposit-{{ $deposit['id'] }}">
+                                    <flux:table.cell class="whitespace-nowrap"><x-date.human :at="$deposit['at']" /></flux:table.cell>
+                                    <flux:table.cell>
+                                        @if ($deposit['customer'])
+                                            <flux:link href="{{ route('customers.show', $deposit['customer']) }}" wire:navigate>{{ $deposit['customer']->customer_reference }}</flux:link>
+                                        @else
+                                            &mdash;
+                                        @endif
+                                    </flux:table.cell>
+                                    <flux:table.cell>
+                                        <span class="flex items-center gap-1.5">
+                                            <x-crypto-icon :icon="$deposit['icon']" :badge="$deposit['badge']" class="size-4" />
+                                            {{ $deposit['networkLabel'] }}
+                                        </span>
+                                    </flux:table.cell>
+                                    <flux:table.cell align="end" class="font-ledger whitespace-nowrap">
+                                        @if ($deposit['credited'] !== null)
+                                            {{ $deposit['credited'] }} {{ $deposit['symbol'] }}
+                                        @else
+                                            <span class="text-zinc-500 dark:text-zinc-400">{{ $deposit['gross'] }} {{ $deposit['symbol'] }}</span>
+                                        @endif
+                                    </flux:table.cell>
+                                    <flux:table.cell align="end" variant="strong" class="font-ledger whitespace-nowrap">
+                                        {{ $deposit['usd'] ?? '—' }}
+                                    </flux:table.cell>
+                                    <flux:table.cell class="py-0">
+                                        <flux:badge size="sm" color="{{ $deposit['statusColor'] }}">{{ $deposit['statusLabel'] }}</flux:badge>
+                                    </flux:table.cell>
+                                    <flux:table.cell class="py-0">
+                                        @if ($deposit['txHash'])
+                                            <x-hash-actions :value="$deposit['txHash']" :url="$deposit['explorerUrl']" />
+                                        @endif
+                                    </flux:table.cell>
+                                </flux:table.row>
+                            @endforeach
+                        </flux:table.rows>
+                    </flux:table>
+                </flux:card>
             @endif
         </section>
 

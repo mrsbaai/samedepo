@@ -4,6 +4,7 @@ use App\Livewire\Dashboard\TransactionHistory;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
+use App\Models\LedgerEntry;
 use App\Models\UsdValuation;
 use App\Models\User;
 use App\Models\Withdrawal;
@@ -90,6 +91,33 @@ test('type filter shows only deposits or only withdrawals', function () {
         ->set('typeFilter', 'withdrawal')
         ->assertDontSee('dep-tx-hash', false)
         ->assertSee('wd-tx-hash', false);
+});
+
+test('the adjustment type filter shows only ledger adjustments', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    makeLedgerDeposit($owner, ['tx_hash' => 'adj-dep-hash']);
+    makeLedgerWithdrawal($owner, ['tx_hash' => 'adj-wd-hash']);
+    LedgerEntry::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'amount' => '-0.00100000',
+        'reason' => 'consolidation_fee',
+    ]);
+
+    $component = Livewire::actingAs($owner)
+        ->test(TransactionHistory::class)
+        ->set('typeFilter', 'adjustment');
+
+    $entries = collect($component->instance()->paginatedEntries->items());
+    expect($entries)->toHaveCount(1)
+        ->and($entries->first()['type'])->toBe('adjustment');
+
+    $component->set('typeFilter', 'deposit');
+
+    $entries = collect($component->instance()->paginatedEntries->items());
+    expect($entries)->toHaveCount(1)
+        ->and($entries->first()['type'])->toBe('deposit');
 });
 
 test('network filter narrows the ledger to a single network', function () {

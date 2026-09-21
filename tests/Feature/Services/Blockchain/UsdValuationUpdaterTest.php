@@ -44,5 +44,28 @@ test('it creates all supported valuations and stores zero for missing prices', f
     $expected = array_fill_keys(Network::valuationKeys(), '0.000000');
     $expected['bitcoin'] = '64000.000000';
 
+    foreach (['usdt_trc20', 'usdt_erc20', 'usdt_bep20', 'usdc_erc20', 'usdc_bep20'] as $key) {
+        $expected[$key] = '1.000000';
+    }
+
     expect(UsdValuation::query()->pluck('conversion_value', 'network')->all())->toBe($expected);
+});
+
+test('stablecoins are pinned to one regardless of the feed price', function () {
+    (new UsdValuationUpdater(priceFeed([
+        'bitcoin' => 65000.25,
+        'usdt_trc20' => 0.999736,
+        'usdt_erc20' => 0.999736,
+        'usdt_bep20' => 0.999736,
+        'usdc_erc20' => 0.999787,
+        'usdc_bep20' => 0.999787,
+    ])))->update();
+
+    $valuations = UsdValuation::query()->pluck('conversion_value', 'network')->all();
+
+    foreach (['usdt_trc20', 'usdt_erc20', 'usdt_bep20', 'usdc_erc20', 'usdc_bep20'] as $key) {
+        expect($valuations[$key])->toBe('1.000000');
+    }
+
+    expect($valuations['bitcoin'])->toBe('65000.250000');
 });

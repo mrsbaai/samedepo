@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Models\Balance;
+use App\Models\Deposit;
 use App\Models\UsdValuation;
+use App\Support\DepositRow;
 use App\Support\Network;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -68,6 +70,23 @@ class UserDashboard extends Component
             'badge' => $balance['badge'],
             'zero' => (float) $balance['amount'] === 0.0,
         ])->all();
+    }
+
+    #[Computed]
+    public function latestDeposits(): array
+    {
+        return Deposit::query()
+            ->with('customer')
+            ->where('status', '!=', 'ignored')
+            ->latest('id')
+            ->limit(10)
+            ->get()
+            ->map(fn (Deposit $deposit) => DepositRow::present($deposit) + [
+                'customer' => $deposit->customer,
+                'usd' => $deposit->usd_value === null ? null : '$'.number_format((float) $deposit->usd_value, 2),
+                'statusColor' => DepositRow::STATUS_COLORS[$deposit->status] ?? 'zinc',
+            ])
+            ->all();
     }
 
     public function retry(): void

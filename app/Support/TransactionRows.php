@@ -58,7 +58,7 @@ final class TransactionRows
 
         $entries = [];
 
-        if ($typeFilter !== 'withdrawal') {
+        if (in_array($typeFilter, ['all', 'deposit'], true)) {
             $deposits = Deposit::query()
                 ->withoutGlobalScope('owner')
                 ->when($this->ownerId !== null, fn ($query) => $query->where('user_id', $this->ownerId))
@@ -79,7 +79,7 @@ final class TransactionRows
             }
         }
 
-        if ($typeFilter !== 'deposit') {
+        if (in_array($typeFilter, ['all', 'withdrawal'], true)) {
             $withdrawals = Withdrawal::query()
                 ->withoutGlobalScope('owner')
                 ->when($this->ownerId !== null, fn ($query) => $query->where('user_id', $this->ownerId))

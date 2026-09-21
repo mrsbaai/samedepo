@@ -101,9 +101,7 @@ class Customers extends Component
             ->withSum(['deposits as total_usd' => fn ($q) => $q->where('status', 'credited')], 'usd_value');
 
         foreach (array_keys($this->networkColumns) as $key) {
-            $query
-                ->withSum(["deposits as usd_{$key}" => fn ($q) => $q->where('status', 'credited')->where('network', $key)], 'usd_value')
-                ->withSum(["deposits as crypto_{$key}" => fn ($q) => $q->where('status', 'credited')->where('network', $key)], 'credited_amount');
+            $query->withSum(["deposits as usd_{$key}" => fn ($q) => $q->where('status', 'credited')->where('network', $key)], 'usd_value');
         }
 
         return $query

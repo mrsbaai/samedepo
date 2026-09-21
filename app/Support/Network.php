@@ -211,6 +211,11 @@ final class Network
         return self::family($key) === 'evm';
     }
 
+    public static function isStablecoin(string $key): bool
+    {
+        return self::exists($key) && in_array(self::symbol($key), ['USDT', 'USDC'], true);
+    }
+
     public static function sameChainTokens(string $key): array
     {
         $chain = self::chain($key);

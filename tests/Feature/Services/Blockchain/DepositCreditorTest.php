@@ -274,6 +274,46 @@ test('it stores the usd value at the live rate when crediting', function () {
     expect($deposit->fresh()->usd_value)->toBe('58800.00');
 });
 
+test('it rounds the stored usd value instead of truncating it', function () {
+    $owner = User::factory()->create(['role' => 'owner', 'deposit_fee_override' => 0]);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '2.50000000',
+        'status' => 'pending',
+        'confirmation_count' => 3,
+    ]);
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '0.999']);
+
+    app(DepositCreditor::class)->credit();
+
+    expect($deposit->fresh()->usd_value)->toBe('2.50');
+});
+
+test('it stores the exact usd value for a stablecoin deposit at rate one', function () {
+    $owner = User::factory()->create(['role' => 'owner', 'deposit_fee_override' => 0]);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '19.60000000',
+        'status' => 'pending',
+        'confirmation_count' => 20,
+    ]);
+    UsdValuation::factory()->create(['network' => 'usdt_trc20', 'conversion_value' => '1']);
+
+    app(DepositCreditor::class)->credit();
+
+    expect($deposit->fresh()->usd_value)->toBe('19.60');
+});
+
 test('it leaves usd value null when no valuation exists', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);

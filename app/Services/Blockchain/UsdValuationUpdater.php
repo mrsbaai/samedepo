@@ -19,7 +19,7 @@ class UsdValuationUpdater
         foreach (Network::valuationKeys() as $network) {
             UsdValuation::updateOrCreate(
                 ['network' => $network],
-                ['conversion_value' => $prices[$network] ?? 0],
+                ['conversion_value' => Network::isStablecoin($network) ? 1 : ($prices[$network] ?? 0)],
             );
         }
     }

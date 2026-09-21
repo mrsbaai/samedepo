@@ -1,7 +1,7 @@
 <div class="py-8">
     <div class="mb-6">
         <flux:heading size="xl">Transaction History</flux:heading>
-        <flux:subheading class="mt-2">Full ledger of deposits and withdrawals with fees broken out per transaction.</flux:subheading>
+        <flux:subheading class="mt-2">Full ledger of deposits, withdrawals and adjustments.</flux:subheading>
     </div>
 
     @if ($this->uiState === 'error')
@@ -23,16 +23,17 @@
                 <flux:table.column>Type</flux:table.column>
                 <flux:table.column class="max-md:hidden">Reference</flux:table.column>
                 <flux:table.column class="max-md:hidden">Network</flux:table.column>
-                <flux:table.column>Gross</flux:table.column>
-                <flux:table.column class="max-md:hidden">Fee</flux:table.column>
-                <flux:table.column>Net</flux:table.column>
+                <flux:table.column align="end">Gross</flux:table.column>
+                <flux:table.column align="end">Net</flux:table.column>
+                <flux:table.column align="end" class="max-lg:hidden">Net USD</flux:table.column>
                 <flux:table.column class="max-md:hidden">Status</flux:table.column>
+                <flux:table.column></flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach (range(1, 5) as $r)
                     <flux:table.row>
-                        @foreach (range(1, 8) as $c)
-                            <flux:table.cell @class(['max-md:hidden' => in_array($c, [3, 4, 6, 8])])><flux:skeleton class="h-4 w-16" /></flux:table.cell>
+                        @foreach (range(1, 9) as $c)
+                            <flux:table.cell @class(['max-md:hidden' => in_array($c, [3, 4, 8]), 'max-lg:hidden' => $c === 7])><flux:skeleton class="h-4 w-16" /></flux:table.cell>
                         @endforeach
                     </flux:table.row>
                 @endforeach
@@ -45,7 +46,7 @@
                 <flux:select.option value="all">All types</flux:select.option>
                 <flux:select.option value="deposit">Deposits</flux:select.option>
                 <flux:select.option value="withdrawal">Withdrawals</flux:select.option>
-                <flux:select.option value="adjustment">Fees</flux:select.option>
+                <flux:select.option value="adjustment">Adjustments</flux:select.option>
             </flux:select>
             <flux:select size="sm" wire:model.live="networkFilter" class="w-auto">
                 <flux:select.option value="all">All networks</flux:select.option>
@@ -95,10 +96,9 @@
                     <flux:table.column>Type</flux:table.column>
                     <flux:table.column class="max-md:hidden">Reference</flux:table.column>
                     <flux:table.column class="max-md:hidden">Network</flux:table.column>
-                    <flux:table.column>Gross</flux:table.column>
-                    <flux:table.column class="max-lg:hidden">USD</flux:table.column>
-                    <flux:table.column class="max-md:hidden">Fee</flux:table.column>
-                    <flux:table.column>Net</flux:table.column>
+                    <flux:table.column align="end">Gross</flux:table.column>
+                    <flux:table.column align="end">Net</flux:table.column>
+                    <flux:table.column align="end" class="max-lg:hidden">Net USD</flux:table.column>
                     <flux:table.column class="max-md:hidden">Status</flux:table.column>
                     <flux:table.column></flux:table.column>
                 </flux:table.columns>
@@ -114,6 +114,11 @@
                             <flux:table.cell class="max-md:hidden">
                                 @if ($tx['customer'])
                                     <flux:link href="{{ route('customers.show', $tx['customer']) }}" wire:navigate>{{ $tx['userRef'] }}</flux:link>
+                                @elseif (str_contains($tx['userRef'] ?? '', 'Consolidation'))
+                                    <span class="inline-flex items-center gap-1">
+                                        {{ $tx['userRef'] }}
+                                        <flux:tooltip toggleable content="Consolidation is the network cost of sweeping funds from your customers' deposit addresses into one address before your withdrawal is sent."><button type="button" class="inline-flex text-zinc-400"><flux:icon.information-circle variant="mini" class="size-4" /></button></flux:tooltip>
+                                    </span>
                                 @else
                                     {{ $tx['userRef'] ?? '—' }}
                                 @endif
@@ -124,33 +129,21 @@
                                     {{ $tx['networkLabel'] }}
                                 </span>
                             </flux:table.cell>
-                            <flux:table.cell class="font-ledger">
+                            <flux:table.cell align="end" class="font-ledger">
                                 {{ $tx['gross'] }} {{ $tx['symbol'] }}
                             </flux:table.cell>
-                            <flux:table.cell class="max-lg:hidden font-ledger whitespace-nowrap">
-                                {{ $tx['usd'] ?? '—' }}
-                            </flux:table.cell>
-                            <flux:table.cell class="max-md:hidden font-ledger">
-                                @if ($tx['fee'] !== null)
-                                    <flux:tooltip content="{{ $tx['type'] === 'withdrawal' && $tx['status'] !== 'sent' ? 'Estimated network fee' : 'Fee' }}">
-                                        <span>{{ $tx['networkFee'] ?? $tx['fee'] }} {{ $tx['symbol'] }}</span>
-                                    </flux:tooltip>
-                                    @if (($tx['consolidationFee'] ?? null) !== null)
-                                        <div class="text-xs text-zinc-500 dark:text-zinc-400">+ {{ $tx['consolidationFee'] }} consolidation</div>
-                                    @endif
-                                @else
-                                    &mdash;
-                                @endif
-                            </flux:table.cell>
-                            <flux:table.cell variant="strong" class="font-ledger">
+                            <flux:table.cell align="end" variant="strong" class="font-ledger">
                                 @if ($tx['net'] !== null)
                                     {{ $tx['net'] }} {{ $tx['symbol'] }}
                                 @else
                                     &mdash;
                                 @endif
                             </flux:table.cell>
+                            <flux:table.cell align="end" class="max-lg:hidden font-ledger whitespace-nowrap">
+                                {{ $tx['usd'] ?? '—' }}
+                            </flux:table.cell>
                             <flux:table.cell class="max-md:hidden py-0">
-                                <flux:badge size="sm" color="{{ $statusColors[$tx['status']] ?? 'zinc' }}">{{ $tx['statusLabel'] }}</flux:badge>
+                                <flux:badge size="sm" color="{{ $statusColors[$tx['status']] ?? 'zinc' }}">{{ $tx['statusLabel'] }}@if (str_contains($tx['statusLabel'], 'Consolidation')) <flux:tooltip toggleable content="Consolidation is the network cost of sweeping funds from your customers' deposit addresses into one address before your withdrawal is sent."><button type="button" class="inline-flex text-zinc-400"><flux:icon.information-circle variant="mini" class="size-4" /></button></flux:tooltip>@endif</flux:badge>
                             </flux:table.cell>
                             <flux:table.cell class="py-0">
                                 @if ($tx['txHash'])
