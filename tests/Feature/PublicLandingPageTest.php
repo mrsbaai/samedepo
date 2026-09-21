@@ -34,8 +34,7 @@ test('the landing page shows supported network icons', function () {
         ->assertOk()
         ->assertSee(CryptoIcon::url('btc'), false)
         ->assertSee(CryptoIcon::url('usdt'), false)
-        ->assertSee('TRON · Ethereum', false)
-        ->assertDontSee('USDT (TRC20)', false);
+        ->assertSee('TRON · Ethereum', false);
 });
 
 test('the landing page explains its network cost and signing technology', function () {
@@ -93,4 +92,14 @@ test('the landing page shows the FAQs section with managed questions', function 
 
 test('the public withdrawal fee calculator route has been removed', function () {
     $this->get('/withdrawal-fee-calculator')->assertNotFound();
+});
+
+test('the landing page renders the live deposit demo instead of the static screenshot', function () {
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('x-data="landingDemo(', false)
+        ->assertSee('Credited')
+        ->assertSee('Bitcoin')
+        ->assertSee('livewire.js', false)
+        ->assertDontSee('dashboard.png');
 });

@@ -158,4 +158,21 @@
     margin-bottom: 0;
 }
 
+/* Landing live-demo: accent tint that fades on newly credited rows/balances. */
+@keyframes demo-flash {
+    0%, 30% { background-color: color-mix(in oklab, var(--color-accent) 22%, transparent); }
+    100% { background-color: transparent; }
+}
+
+@utility animate-demo-flash {
+    animation: demo-flash 1.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-demo * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+
 

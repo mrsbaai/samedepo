@@ -64,6 +64,7 @@ use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
+use Livewire\Livewire;
 
 /*
 ||--------------------------------------------------------------------------
@@ -305,6 +306,8 @@ Route::get('/security/delete/recover', function (Request $request): mixed {
 */
 
 Route::get('/', function () {
+    Livewire::forceAssetInjection();
+
     return view('public.landing', [
         'faqs' => Faq::orderBy('position')->orderBy('id')->get(),
         'networks' => Network::presentAll(enabledOnly: true),

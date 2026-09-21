@@ -168,11 +168,9 @@
             </div>
         </div>
 
-        <figure class="mx-auto mt-16 max-w-5xl">
-            <a href="{{ route('signup') }}" wire:navigate>
-                <img src="{{ asset('images/dashboard.png') }}" alt="samedepo dashboard showing per-network balances and recent credited deposits" class="block w-full cursor-pointer rounded-xl ring-1 ring-white/10 shadow-2xl shadow-black/60 transition duration-300 hover:ring-white/20 hover:brightness-110" />
-            </a>
-        </figure>
+        <div class="mx-auto mt-16 max-w-5xl">
+            <x-landing.live-demo />
+        </div>
     </section>
 
 </x-layouts.public>
