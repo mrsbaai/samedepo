@@ -139,8 +139,8 @@
                             </div>
                         </div>
                         <flux:text size="sm" variant="subtle">Estimates — the final fee is locked when the withdrawal is sent.</flux:text>
-                        @if ($e['platform_fee_percent'] !== '' && $e['platform_fee_percent'] !== '0')
-                            <flux:text size="sm" variant="subtle">SameDepo's {{ $e['platform_fee_percent'] }}% fee was taken when each deposit was credited. Nothing else is charged on withdrawal.</flux:text>
+                        @if ($this->networkMeta['withdrawal_tip'] !== null)
+                            <flux:text size="sm" variant="subtle"><flux:icon.light-bulb class="inline size-4 align-text-bottom" /> {{ $this->networkMeta['withdrawal_tip'] }}</flux:text>
                         @endif
                         <flux:accordion>
                             <flux:accordion.item heading="How this is calculated">

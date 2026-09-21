@@ -234,6 +234,7 @@ final class Network
             'chart_color' => $network['chart_color'] ?? 'zinc-400',
             'icon' => $network['icon'],
             'badge' => $network['kind'] === 'token' ? config('networks.chain_icons.'.$network['chain']) : null,
+            'withdrawal_tip' => $network['withdrawal_tip'] ?? null,
         ];
     }
 

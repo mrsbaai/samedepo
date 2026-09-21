@@ -55,7 +55,8 @@ test('withdraw page shows the exact buffered and converted fee breakdown', funct
         ->assertSee("Estimated amount you'll receive", false)
         ->assertSee('98.02 USDT')
         ->assertSee('Estimates — the final fee is locked when the withdrawal is sent.')
-        ->assertSee("SameDepo's 2% fee was taken when each deposit was credited", false)
+        ->assertSee('Tip: sending to an address that already holds USDT uses about half the energy.')
+        ->assertDontSee('fee was taken when each deposit was credited')
         ->assertSee('How this is calculated')
         ->assertDontSee('Consolidation already incurred')
         ->assertDontSee('Consolidation to fund this withdrawal');
@@ -135,18 +136,34 @@ test('withdraw page shows miner fee for a native coin with no consolidation', fu
         ->assertDontSee('Consolidation to fund this withdrawal');
 });
 
-test('platform fee note hides when the deposit fee percent is zero', function () {
-    $owner = ownerWithTrc20Balance();
-    PlatformSettings::instance()->update(['global_deposit_fee_percent' => '0.00']);
+test('withdraw page shows no tip for networks without one configured', function () {
+    config(['networks.networks.bnb.enabled' => true]);
+    config(['networks.networks.usdt_bep20.enabled' => true]);
+
+    $owner = User::factory()->create(['role' => 'owner']);
+    foreach (['bnb' => '2.00000000', 'usdt_bep20' => '500.00000000'] as $network => $amount) {
+        WithdrawalAddress::factory()->create([
+            'user_id' => $owner->id,
+            'network' => $network,
+            'address' => '0x8ba1f109551bD432803012645Hac136c22C501'.$network,
+        ]);
+        Balance::factory()->create(['user_id' => $owner->id, 'network' => $network, 'amount' => $amount]);
+        UsdValuation::factory()->create(['network' => $network, 'conversion_value' => $network === 'bnb' ? '600.00' : '1.00']);
+    }
+    UsdValuation::factory()->create(['network' => 'native_bnb', 'conversion_value' => '600.00']);
+    PlatformSettings::instance()->update(['withdrawal_fee_buffer_percent' => '20.00']);
 
     $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
-    $broadcaster->shouldReceive('estimateTransferResources')->andReturn(['fee' => '5.00000000', 'energy' => null]);
+    $broadcaster->shouldReceive('estimateTransferResources')->andReturn(['fee' => '0.00050000', 'energy' => null]);
     app()->instance(BlockchainBroadcaster::class, $broadcaster);
 
-    Livewire::actingAs($owner)
-        ->test(Withdraw::class, ['network' => 'usdt-trc20'])
-        ->assertSee('Network fee (up to)')
-        ->assertDontSee('fee was taken when each deposit was credited');
+    foreach (['bnb', 'usdt-bep20'] as $slug) {
+        Livewire::actingAs($owner)
+            ->test(Withdraw::class, ['network' => $slug])
+            ->assertSee('Network fee (up to)')
+            ->assertSee('Estimates — the final fee is locked when the withdrawal is sent.')
+            ->assertDontSee('Tip:');
+    }
 });
 
 test('sent withdrawals live on the history page, not the withdraw page', function () {

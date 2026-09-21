@@ -76,7 +76,19 @@ test('present returns the UI metadata shape', function () {
         'chart_color' => 'sky-400',
         'icon' => 'usdc',
         'badge' => 'eth',
+        'withdrawal_tip' => 'Tip: sending to an address that already holds USDC costs noticeably less gas than to an empty one.',
     ]);
+});
+
+test('present exposes withdrawal_tip only when configured', function () {
+    expect(Network::present('usdt_trc20')['withdrawal_tip'])
+        ->toBe('Tip: sending to an address that already holds USDT uses about half the energy.')
+        ->and(Network::present('ethereum')['withdrawal_tip'])
+        ->toBe('Tip: gas is usually cheapest at weekends and outside US business hours.')
+        ->and(Network::present('bitcoin')['withdrawal_tip'])->toBeString()
+        ->and(Network::present('bnb')['withdrawal_tip'])->toBeNull()
+        ->and(Network::present('usdt_bep20')['withdrawal_tip'])->toBeNull()
+        ->and(Network::present('usdc_bep20')['withdrawal_tip'])->toBeNull();
 });
 
 test('valuationKeys returns all network keys plus distinct native keys', function () {

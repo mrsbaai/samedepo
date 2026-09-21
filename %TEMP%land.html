@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+
+<html lang="en" class="dark">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Deposit addresses that never change — samedepo</title>
+        <meta name="description" content="samedepo gives every customer of a website owner the same permanent crypto deposit address and automatic top-up tracking.">
+
+        
+        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link href="https://fonts.bunny.net/css?family=geist:400,500,600,700|geist-mono:400,500|space-grotesk:500,600,700" rel="stylesheet" />
+
+        <meta name="color-scheme" content="dark">
+
+        <link rel="icon" type="image/svg+xml" href="https://samedepo.com/favicon.svg?v=1788087730">
+<link rel="icon" type="image/png" sizes="32x32" href="https://samedepo.com/favicon-32x32.png?v=1788087730">
+<link rel="apple-touch-icon" sizes="180x180" href="https://samedepo.com/favicon-180x180.png?v=1788087730">
+
+        <link rel="preload" as="style" href="https://samedepo.com/build/assets/app-ZeVsz3NY.css" /><link rel="modulepreload" href="https://samedepo.com/build/assets/app-DaAgDAd1.js" /><link rel="stylesheet" href="https://samedepo.com/build/assets/app-ZeVsz3NY.css" data-navigate-track="reload" /><script type="module" src="https://samedepo.com/build/assets/app-DaAgDAd1.js" data-navigate-track="reload"></script>                <link rel="preload" as="style" href="https://samedepo.com/build/assets/hero-background-3qRyQhhn.css" /><link rel="modulepreload" href="https://samedepo.com/build/assets/hero-background-BtWHx5uP.js" /><link rel="stylesheet" href="https://samedepo.com/build/assets/hero-background-3qRyQhhn.css" data-navigate-track="reload" /><script type="module" src="https://samedepo.com/build/assets/hero-background-BtWHx5uP.js" data-navigate-track="reload"></script>    
+            <!-- Livewire Styles --><style >[wire\:loading][wire\:loading], [wire\:loading\.delay][wire\:loading\.delay], [wire\:loading\.list-item][wire\:loading\.list-item], [wire\:loading\.inline-block][wire\:loading\.inline-block], [wire\:loading\.inline][wire\:loading\.inline], [wire\:loading\.block][wire\:loading\.block], [wire\:loading\.flex][wire\:loading\.flex], [wire\:loading\.table][wire\:loading\.table], [wire\:loading\.grid][wire\:loading\.grid], [wire\:loading\.inline-flex][wire\:loading\.inline-flex] {display: none;}[wire\:loading\.delay\.none][wire\:loading\.delay\.none], [wire\:loading\.delay\.shortest][wire\:loading\.delay\.shortest], [wire\:loading\.delay\.shorter][wire\:loading\.delay\.shorter], [wire\:loading\.delay\.short][wire\:loading\.delay\.short], [wire\:loading\.delay\.default][wire\:loading\.delay\.default], [wire\:loading\.delay\.long][wire\:loading\.delay\.long], [wire\:loading\.delay\.longer][wire\:loading\.delay\.longer], [wire\:loading\.delay\.longest][wire\:loading\.delay\.longest] {display: none;}[wire\:offline][wire\:offline] {display: none;}[wire\:dirty]:not(textarea):not(input):not(select) {display: none;}:root {--livewire-progress-bar-color: #2299dd;}[x-cloak] {display: none !important;}[wire\:cloak] {display: none !important;}dialog#livewire-error::backdrop {background-color: rgba(0, 0, 0, .6);}</style>
+</head>
+    <body class="min-h-screen overflow-x-clip bg-zinc-900 text-zinc-100 antialiased">
+        <div id="hero-background" class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-screen hidden md:block"></div>
+        <div>
+            <header class="[grid-area:header] z-10 min-h-14  bg-transparent" data-flux-header>
+            <div class="mx-auto w-full h-full [:where(&)]:max-w-7xl px-6 lg:px-8 flex items-center">
+            <a href="https://samedepo.com" class="inline-flex font-logo" data-brand data-brand-variant="guest" wire:navigate>
+    <img src="https://samedepo.com/logo.svg" alt="" class="h-5 w-auto">
+    <span data-brand-name class="">samedepo</span>
+</a>
+
+                <nav class="flex items-center gap-1 py-3  ml-6 max-lg:hidden" data-flux-navbar>
+    <a href="https://samedepo.com/#how-it-works" class="px-3 h-8 flex items-center rounded-lg relative px-2.5! text-zinc-500 dark:text-white/80  data-current:after:absolute data-current:after:-bottom-3 data-current:after:inset-x-0 data-current:after:h-[2px] [--hover-fill:color-mix(in_oklab,_var(--color-accent-content),_transparent_90%)] hover:text-zinc-800 dark:hover:text-white data-current:text-(--color-accent-content) hover:data-current:text-(--color-accent-content) hover:bg-zinc-800/5 dark:hover:bg-white/10 hover:data-current:bg-(--hover-fill) data-current:after:bg-(--color-accent-content)" data-flux-navbar-items="data-flux-navbar-items">
+        <div class=" flex-1 text-sm font-medium leading-none whitespace-nowrap [[data-nav-footer]_&]:hidden [[data-nav-sidebar]_[data-nav-footer]_&]:block" data-content>How it works</div>
+    </a>
+                    <a href="https://samedepo.com/api-docs" class="px-3 h-8 flex items-center rounded-lg relative px-2.5! text-zinc-500 dark:text-white/80  data-current:after:absolute data-current:after:-bottom-3 data-current:after:inset-x-0 data-current:after:h-[2px] [--hover-fill:color-mix(in_oklab,_var(--color-accent-content),_transparent_90%)] hover:text-zinc-800 dark:hover:text-white data-current:text-(--color-accent-content) hover:data-current:text-(--color-accent-content) hover:bg-zinc-800/5 dark:hover:bg-white/10 hover:data-current:bg-(--hover-fill) data-current:after:bg-(--color-accent-content)" data-flux-navbar-items="data-flux-navbar-items" wire:navigate="">
+        <div class=" flex-1 text-sm font-medium leading-none whitespace-nowrap [[data-nav-footer]_&]:hidden [[data-nav-sidebar]_[data-nav-footer]_&]:block" data-content>API Docs</div>
+    </a>
+</nav>
+
+                <div class="flex-1" data-flux-spacer></div>
+
+                <div class="flex items-center gap-2">
+                                            <a href="https://samedepo.com/signin" data-flux-button="data-flux-button" class="relative items-center font-medium justify-center gap-2 whitespace-nowrap disabled:opacity-75 dark:disabled:opacity-75 disabled:cursor-default disabled:pointer-events-none justify-center h-8 text-sm rounded-md px-3 inline-flex  bg-transparent hover:bg-zinc-800/5 dark:hover:bg-white/15 text-zinc-800 dark:text-white" wire:navigate="">
+        Sign in
+    </a>
+                        <a href="https://samedepo.com/signup" data-flux-button="data-flux-button" class="relative items-center font-medium justify-center gap-2 whitespace-nowrap disabled:opacity-75 dark:disabled:opacity-75 disabled:cursor-default disabled:pointer-events-none justify-center h-8 text-sm rounded-md px-3 inline-flex  bg-[var(--color-accent)] hover:bg-[color-mix(in_oklab,_var(--color-accent),_transparent_10%)] text-[var(--color-accent-foreground)] border border-black/10 dark:border-0 shadow-[inset_0px_1px_--theme(--color-white/.2)] [[data-flux-button-group]_&amp;]:border-e-0 [:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-e-[1px] dark:[:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-e-0 dark:[:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-s-[1px] [:is([data-flux-button-group]&gt;&amp;:not(:first-child),_[data-flux-button-group]_:not(:first-child)&gt;&amp;)]:border-s-[color-mix(in_srgb,var(--color-accent-foreground),transparent_85%)]" data-flux-group-target="data-flux-group-target" wire:navigate="">
+        Sign up
+    </a>
+                                    </div>
+        </div>
+    </header>
+
+            <div class="[grid-area:main] p-6 lg:p-8 [[data-flux-container]_&amp;]:px-0 mx-auto w-full [:where(&amp;)]:max-w-7xl py-0" data-flux-main>
+    <section class="py-12 sm:py-28">
+        <div class="grid gap-10 sm:gap-12 lg:grid-cols-2 lg:items-center">
+            <div class="text-center lg:text-left">
+                <h1 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-2xl [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 text-4xl sm:text-5xl font-semibold tracking-tight" data-flux-heading>Same deposit address.<br />
+                    Simpler account top-ups.<br /></h1>
+
+        
+                <p class="[:where(&amp;)]:font-normal text-base [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-6 text-zinc-400" data-flux-text >Give every user a permanent deposit address through one API endpoint. Receive a webhook when
+                    their deposit is confirmed, so your app can credit their balance automatically.</p>
+                <div class="mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-10 sm:flex-row sm:items-center lg:justify-start">
+                    <a href="https://samedepo.com/signup" data-flux-button="data-flux-button" class="relative items-center font-medium justify-center gap-2 whitespace-nowrap disabled:opacity-75 dark:disabled:opacity-75 disabled:cursor-default disabled:pointer-events-none justify-center h-10 text-sm rounded-lg ps-4 pe-4 inline-flex  bg-[var(--color-accent)] hover:bg-[color-mix(in_oklab,_var(--color-accent),_transparent_10%)] text-[var(--color-accent-foreground)] border border-black/10 dark:border-0 shadow-[inset_0px_1px_--theme(--color-white/.2)] [[data-flux-button-group]_&amp;]:border-e-0 [:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-e-[1px] dark:[:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-e-0 dark:[:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-s-[1px] [:is([data-flux-button-group]&gt;&amp;:not(:first-child),_[data-flux-button-group]_:not(:first-child)&gt;&amp;)]:border-s-[color-mix(in_srgb,var(--color-accent-foreground),transparent_85%)]   justify-center" data-flux-group-target="data-flux-group-target" wire:navigate="">
+        Create a free account
+    </a>
+                    <a href="https://samedepo.com/api-docs" data-flux-button="data-flux-button" class="relative items-center font-medium justify-center gap-2 whitespace-nowrap disabled:opacity-75 dark:disabled:opacity-75 disabled:cursor-default disabled:pointer-events-none justify-center h-10 text-sm rounded-lg ps-4 pe-4 inline-flex  bg-transparent hover:bg-zinc-800/5 dark:hover:bg-white/15 text-zinc-800 dark:text-white      justify-center" wire:navigate="">
+        Read the API docs
+    </a>
+                </div>
+
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/40">
+                <div class="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-3">
+                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
+                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
+                    <span class="size-2.5 rounded-full bg-zinc-700"></span>
+                    <span class="ml-3 font-mono text-xs text-zinc-500">GET /api/v1/customers/{reference}</span>
+                </div>
+                                <pre class="overflow-hidden whitespace-pre-wrap break-words p-5 font-mono leading-6 text-zinc-300 sm:p-6 text-[clamp(0.65rem,1.6vw,0.8rem)]"><code><span class="text-(--color-accent)">curl</span> https://samedepo.com/api/v1/customers/cus_482 \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Accept: application/json"
+
+<span class="text-zinc-500"># Response · 201 Created</span>
+{
+  <span class="text-zinc-300">"status"</span>: "created",
+  <span class="text-zinc-300">"data"</span>: {
+    <span class="text-zinc-300">"customer_reference"</span>: "cus_482",
+    <span class="text-zinc-300">"addresses"</span>: [
+      { <span class="text-zinc-300">"network"</span>: "bitcoin", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"1A1z...DivfNa"</span> },
+      { <span class="text-zinc-300">"network"</span>: "usdt_trc20", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"TXn9...v4mQ2"</span> },
+      { <span class="text-zinc-300">"network"</span>: "ethereum", <span class="text-zinc-300">"address"</span>: <span class="text-(--color-accent)">"0x4f...B9cE1"</span> },
+            <span class="text-zinc-500"># … 6 more networks</span>
+    ]
+  }
+}
+<span class="text-zinc-500"># That's it. Really.</span></code></pre>
+            </div>
+        </div>
+    </section>
+
+    
+    <section class="py-12 sm:py-16">
+        <div class="flex flex-col gap-8 border-y border-zinc-800 py-8 lg:flex-row lg:items-center lg:justify-between">
+            <div class="max-w-sm">
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-(--color-accent)" data-flux-text >9 networks. One integration.</p>                <h2 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2" data-flux-heading>Give your users permanent deposit addresses.</h2>
+
+                    </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-10 gap-y-4">
+                                                        <div class="flex items-center gap-3">
+                        <span class="relative inline-flex shrink-0 size-8">
+            <img src="https://samedepo.com/build/assets/btc-DIog7A4K.svg" alt="" class="block size-full" />
+            </span>
+                        <div class="leading-tight">
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-zinc-100" data-flux-text >BTC</p>                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono text-zinc-500" data-flux-text >Bitcoin</p>                        </div>
+                    </div>
+                                                        <div class="flex items-center gap-3">
+                        <span class="relative inline-flex shrink-0 size-8">
+            <img src="https://samedepo.com/build/assets/usdt-C72ZycfX.svg" alt="" class="block size-full" />
+            </span>
+                        <div class="leading-tight">
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-zinc-100" data-flux-text >USDT</p>                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono text-zinc-500" data-flux-text >TRON · Ethereum · BSC</p>                        </div>
+                    </div>
+                                                        <div class="flex items-center gap-3">
+                        <span class="relative inline-flex shrink-0 size-8">
+            <img src="https://samedepo.com/build/assets/ltc-DsuV0rQY.svg" alt="" class="block size-full" />
+            </span>
+                        <div class="leading-tight">
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-zinc-100" data-flux-text >LTC</p>                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono text-zinc-500" data-flux-text >Litecoin</p>                        </div>
+                    </div>
+                                                        <div class="flex items-center gap-3">
+                        <span class="relative inline-flex shrink-0 size-8">
+            <img src="https://samedepo.com/build/assets/eth-BufXdG9K.svg" alt="" class="block size-full" />
+            </span>
+                        <div class="leading-tight">
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-zinc-100" data-flux-text >ETH</p>                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono text-zinc-500" data-flux-text >Ethereum</p>                        </div>
+                    </div>
+                                                        <div class="flex items-center gap-3">
+                        <span class="relative inline-flex shrink-0 size-8">
+            <img src="https://samedepo.com/build/assets/usdc-CJ_qyDuP.svg" alt="" class="block size-full" />
+            </span>
+                        <div class="leading-tight">
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-zinc-100" data-flux-text >USDC</p>                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono text-zinc-500" data-flux-text >Ethereum · BSC</p>                        </div>
+                    </div>
+                                                        <div class="flex items-center gap-3">
+                        <span class="relative inline-flex shrink-0 size-8">
+            <img src="https://samedepo.com/build/assets/bnb-C7_MdwOn.svg" alt="" class="block size-full" />
+            </span>
+                        <div class="leading-tight">
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-zinc-100" data-flux-text >BNB</p>                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono text-zinc-500" data-flux-text >BSC</p>                        </div>
+                    </div>
+                            </div>
+        </div>
+    </section>
+
+    
+    <section id="how-it-works" class="py-20 sm:py-24 scroll-mt-20">
+        <div class="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
+            <div class="max-w-lg">
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-(--color-accent)" data-flux-text >How it works</p>                <h2 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-2xl [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2" data-flux-heading>One setup. Every deposit after that is automatic.</h2>
+
+                        <p class="[:where(&amp;)]:font-normal text-base [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-3 text-zinc-400" data-flux-text >Your server identifies the customer once. samedepo handles the address and deposit lifecycle from there.</p>            </div>
+
+            <ol class="[--flux-timeline-item-gap:2rem]" data-flux-timeline-size="lg" data-flux-timeline-align="center" data-flux-timeline>
+    <li class="" data-flux-timeline-item>
+    <div class="[[data-flux-timeline-status=complete]+[data-flux-timeline-item]_&amp;]:*:bg-accent *:bg-zinc-200 dark:*:bg-zinc-700 [[data-flux-timeline][data-flux-timeline-size=lg]_&amp;]:*:bg-zinc-100" data-flux-timeline-line-leading>
+        <div></div>
+    </div>
+
+    <div data-flux-timeline-gap-leading></div>
+
+    <div class="rounded-full font-semibold text-sm grid place-items-center *:col-start-1 *:row-start-1 [:where(&amp;)]:size-[var(--flux-timeline-indicator-size)] [[data-flux-timeline-status=complete]_&amp;]:bg-accent [[data-flux-timeline-status=complete]_&amp;]:text-accent-foreground [[data-flux-timeline-status=current]_&amp;]:border-2 [[data-flux-timeline-status=current]_&amp;]:border-accent [[data-flux-timeline-status=current]_&amp;]:bg-transparent [[data-flux-timeline-status=current]_&amp;]:text-zinc-800 dark:[[data-flux-timeline-status=current]_&amp;]:text-zinc-300 [[data-flux-timeline-status=incomplete]_&amp;]:border-2 [[data-flux-timeline-status=incomplete]_&amp;]:bg-transparent [[data-flux-timeline-status=incomplete]_&amp;]:border-zinc-100 dark:[[data-flux-timeline-status=incomplete]_&amp;]:border-zinc-700 [[data-flux-timeline-status=incomplete]_&amp;]:text-zinc-500 dark:[[data-flux-timeline-status=incomplete]_&amp;]:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-300 in-data-[flux-timeline-size=lg]:text-zinc-800 dark:in-data-[flux-timeline-size=lg]:text-white" data-flux-timeline-indicator>
+    <div data-flux-timeline-baseline class="opacity-0 [:where(&)]:text-sm" aria-hidden="true">&ZeroWidthSpace;</div>
+
+    <div>
+        1
+    </div>
+</div>                        <div class="[[data-flux-timeline-status=incomplete]_&amp;]:opacity-75" data-flux-timeline-content>
+   <div class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2" data-flux-heading>Send a customer reference</div>
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-2 text-zinc-400" data-flux-text >Make one GET request with a reference from your system, like cus_482.</p>
+</div>
+
+    <div class="[[data-flux-timeline-status=complete]_&amp;]:*:bg-accent *:bg-zinc-200 dark:*:bg-zinc-700 [[data-flux-timeline][data-flux-timeline-size=lg]_&amp;]:*:bg-zinc-100" data-flux-timeline-line-trailing>
+        <div></div>
+    </div>
+
+    <div data-flux-timeline-gap-trailing></div>
+</li>                                    <li class="" data-flux-timeline-item>
+    <div class="[[data-flux-timeline-status=complete]+[data-flux-timeline-item]_&amp;]:*:bg-accent *:bg-zinc-200 dark:*:bg-zinc-700 [[data-flux-timeline][data-flux-timeline-size=lg]_&amp;]:*:bg-zinc-100" data-flux-timeline-line-leading>
+        <div></div>
+    </div>
+
+    <div data-flux-timeline-gap-leading></div>
+
+    <div class="rounded-full font-semibold text-sm grid place-items-center *:col-start-1 *:row-start-1 [:where(&amp;)]:size-[var(--flux-timeline-indicator-size)] [[data-flux-timeline-status=complete]_&amp;]:bg-accent [[data-flux-timeline-status=complete]_&amp;]:text-accent-foreground [[data-flux-timeline-status=current]_&amp;]:border-2 [[data-flux-timeline-status=current]_&amp;]:border-accent [[data-flux-timeline-status=current]_&amp;]:bg-transparent [[data-flux-timeline-status=current]_&amp;]:text-zinc-800 dark:[[data-flux-timeline-status=current]_&amp;]:text-zinc-300 [[data-flux-timeline-status=incomplete]_&amp;]:border-2 [[data-flux-timeline-status=incomplete]_&amp;]:bg-transparent [[data-flux-timeline-status=incomplete]_&amp;]:border-zinc-100 dark:[[data-flux-timeline-status=incomplete]_&amp;]:border-zinc-700 [[data-flux-timeline-status=incomplete]_&amp;]:text-zinc-500 dark:[[data-flux-timeline-status=incomplete]_&amp;]:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-300 in-data-[flux-timeline-size=lg]:text-zinc-800 dark:in-data-[flux-timeline-size=lg]:text-white" data-flux-timeline-indicator>
+    <div data-flux-timeline-baseline class="opacity-0 [:where(&)]:text-sm" aria-hidden="true">&ZeroWidthSpace;</div>
+
+    <div>
+        2
+    </div>
+</div>                        <div class="[[data-flux-timeline-status=incomplete]_&amp;]:opacity-75" data-flux-timeline-content>
+   <div class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2" data-flux-heading>Get permanent deposit addresses</div>
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-2 text-zinc-400" data-flux-text >samedepo returns one permanent address for BTC, USDT, LTC, ETH, USDC and BNB.</p>
+</div>
+
+    <div class="[[data-flux-timeline-status=complete]_&amp;]:*:bg-accent *:bg-zinc-200 dark:*:bg-zinc-700 [[data-flux-timeline][data-flux-timeline-size=lg]_&amp;]:*:bg-zinc-100" data-flux-timeline-line-trailing>
+        <div></div>
+    </div>
+
+    <div data-flux-timeline-gap-trailing></div>
+</li>                                    <li class="" data-flux-timeline-item>
+    <div class="[[data-flux-timeline-status=complete]+[data-flux-timeline-item]_&amp;]:*:bg-accent *:bg-zinc-200 dark:*:bg-zinc-700 [[data-flux-timeline][data-flux-timeline-size=lg]_&amp;]:*:bg-zinc-100" data-flux-timeline-line-leading>
+        <div></div>
+    </div>
+
+    <div data-flux-timeline-gap-leading></div>
+
+    <div class="rounded-full font-semibold text-sm grid place-items-center *:col-start-1 *:row-start-1 [:where(&amp;)]:size-[var(--flux-timeline-indicator-size)] [[data-flux-timeline-status=complete]_&amp;]:bg-accent [[data-flux-timeline-status=complete]_&amp;]:text-accent-foreground [[data-flux-timeline-status=current]_&amp;]:border-2 [[data-flux-timeline-status=current]_&amp;]:border-accent [[data-flux-timeline-status=current]_&amp;]:bg-transparent [[data-flux-timeline-status=current]_&amp;]:text-zinc-800 dark:[[data-flux-timeline-status=current]_&amp;]:text-zinc-300 [[data-flux-timeline-status=incomplete]_&amp;]:border-2 [[data-flux-timeline-status=incomplete]_&amp;]:bg-transparent [[data-flux-timeline-status=incomplete]_&amp;]:border-zinc-100 dark:[[data-flux-timeline-status=incomplete]_&amp;]:border-zinc-700 [[data-flux-timeline-status=incomplete]_&amp;]:text-zinc-500 dark:[[data-flux-timeline-status=incomplete]_&amp;]:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-300 in-data-[flux-timeline-size=lg]:text-zinc-800 dark:in-data-[flux-timeline-size=lg]:text-white" data-flux-timeline-indicator>
+    <div data-flux-timeline-baseline class="opacity-0 [:where(&)]:text-sm" aria-hidden="true">&ZeroWidthSpace;</div>
+
+    <div>
+        3
+    </div>
+</div>                        <div class="[[data-flux-timeline-status=incomplete]_&amp;]:opacity-75" data-flux-timeline-content>
+   <div class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2" data-flux-heading>Receive confirmed deposits</div>
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-2 text-zinc-400" data-flux-text >We watch for deposits, wait for confirmations, credit your balance, and send your webhook.</p>
+</div>
+
+    <div class="[[data-flux-timeline-status=complete]_&amp;]:*:bg-accent *:bg-zinc-200 dark:*:bg-zinc-700 [[data-flux-timeline][data-flux-timeline-size=lg]_&amp;]:*:bg-zinc-100" data-flux-timeline-line-trailing>
+        <div></div>
+    </div>
+
+    <div data-flux-timeline-gap-trailing></div>
+</li>
+</ol>        </div>
+    </section>
+
+    <section class="py-20 sm:py-24">
+        <div class="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
+            <div class="max-w-lg lg:sticky lg:top-24 lg:self-start">
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-(--color-accent)" data-flux-text >Network infrastructure</p>                <h2 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-2xl [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2" data-flux-heading>Lower fees without more work.</h2>
+
+                        <p class="[:where(&amp;)]:font-normal text-base [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-3 text-zinc-400" data-flux-text >Address formats, gas, and key custody are handled for you. Your integration stays the same.</p>            </div>
+
+            <div class="divide-y divide-zinc-800 border-y border-zinc-800">
+                                    <div class="grid gap-4 py-8 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-6">
+                        <svg class="shrink-0 [:where(&amp;)]:size-6 size-5 text-(--color-accent)" data-flux-icon xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/>
+</svg>
+
+                                <div>
+                            <div class="flex items-center gap-3">
+                                <h3 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2" data-flux-heading>Lower-cost Bitcoin transfers</h3>
+
+                                        <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono uppercase tracking-wider text-zinc-500" data-flux-text >SegWit</p>                            </div>
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-2 max-w-xl text-zinc-400" data-flux-text >Bitcoin deposits use native SegWit addresses. They reduce transaction size and network fees without changing how customers send Bitcoin.</p>                        </div>
+                    </div>
+                                    <div class="grid gap-4 py-8 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-6">
+                        <svg class="shrink-0 [:where(&amp;)]:size-6 size-5 text-(--color-accent)" data-flux-icon xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"/>
+</svg>
+
+                                <div>
+                            <div class="flex items-center gap-3">
+                                <h3 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2" data-flux-heading>Automatic USDT gas handling</h3>
+
+                                        <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono uppercase tracking-wider text-zinc-500" data-flux-text >Gas</p>                            </div>
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-2 max-w-xl text-zinc-400" data-flux-text >samedepo handles native gas — ETH, TRX, energy, and bandwidth — from treasury. Website owners and their customers don&#039;t need to fund deposit addresses with separate gas balances.</p>                        </div>
+                    </div>
+                                    <div class="grid gap-4 py-8 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-6">
+                        <svg class="shrink-0 [:where(&amp;)]:size-6 size-5 text-(--color-accent)" data-flux-icon xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/>
+</svg>
+
+                                <div>
+                            <div class="flex items-center gap-3">
+                                <h3 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2" data-flux-heading>Isolated transaction signing</h3>
+
+                                        <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-mono uppercase tracking-wider text-zinc-500" data-flux-text >Custody</p>                            </div>
+                            <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-2 max-w-xl text-zinc-400" data-flux-text >Private wallet keys never enter the website application. Deposits and withdrawals are signed by an isolated service through authenticated requests.</p>                        </div>
+                    </div>
+                            </div>
+        </div>
+    </section>
+
+    
+    <section class="py-20 sm:py-24">
+        <div class="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
+            <div class="max-w-lg lg:sticky lg:top-24 lg:self-start">
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-(--color-accent)" data-flux-text >FAQs</p>                <h2 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-2xl [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2" data-flux-heading>Before you integrate.</h2>
+
+                        <p class="[:where(&amp;)]:font-normal text-base [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-3 text-zinc-400" data-flux-text >Fees, networks, confirmations, and limits, answered in plain terms.</p>                <a href="https://samedepo.com/api-docs" data-flux-button="data-flux-button" class="relative items-center font-medium justify-center gap-2 whitespace-nowrap disabled:opacity-75 dark:disabled:opacity-75 disabled:cursor-default disabled:pointer-events-none justify-center h-10 text-sm rounded-lg ps-4 pe-3 inline-flex  bg-transparent hover:bg-zinc-800/5 dark:hover:bg-white/15 text-zinc-800 dark:text-white      mt-6 -ml-3" wire:navigate="">
+        <span>Need the details? Read the API docs</span>
+        
+        
+                    
+                        <svg class="shrink-0 [:where(&amp;)]:size-4" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M2 8a.75.75 0 0 1 .75-.75h8.69L8.22 4.03a.75.75 0 0 1 1.06-1.06l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 0 1-1.06-1.06l3.22-3.22H2.75A.75.75 0 0 1 2 8Z" clip-rule="evenodd"/>
+</svg>
+    </a>
+            </div>
+
+            <div>
+                <ui-disclosure-group class="block" transition="transition" data-flux-accordion-heading>
+    <ui-disclosure
+    class="block pt-4 first:pt-0 pb-4 last:pb-0 border-b last:border-b-0 border-zinc-800/10 dark:border-white/10"
+    x-data="{ open: false }"
+    x-model.self="open"
+        data-flux-accordion-item
+>
+            <button type="button" class="group/accordion-heading flex items-center w-full text-start text-sm font-medium justify-between [&amp;&gt;svg]:ms-6 text-zinc-800 dark:text-white cursor-pointer"  data-flux-accordion-heading>
+    <span class="flex-1">Is samedepo a crypto checkout or invoicing tool?</span>
+
+            <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white hidden group-data-open/accordion-heading:block text-zinc-800! dark:text-white!" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M9.47 6.47a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 1 1-1.06 1.06L10 8.06l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25Z" clip-rule="evenodd"/>
+</svg>
+
+                <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white block group-data-open/accordion-heading:hidden" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
+</svg>
+
+            </button>
+            <div
+    x-show="open"
+     x-collapse      x-cloak     data-flux-accordion-content
+>
+    <div class="pt-2 text-sm text-zinc-500 dark:text-zinc-300">
+        No. samedepo is built for websites where customers repeatedly add funds to an account balance. Register a customer once through the API and get permanent deposit addresses—no invoices, checkout sessions, or expiring payment links.
+    </div>
+</div>
+    </ui-disclosure>
+            <ui-disclosure
+    class="block pt-4 first:pt-0 pb-4 last:pb-0 border-b last:border-b-0 border-zinc-800/10 dark:border-white/10"
+    x-data="{ open: false }"
+    x-model.self="open"
+        data-flux-accordion-item
+>
+            <button type="button" class="group/accordion-heading flex items-center w-full text-start text-sm font-medium justify-between [&amp;&gt;svg]:ms-6 text-zinc-800 dark:text-white cursor-pointer"  data-flux-accordion-heading>
+    <span class="flex-1">Which cryptocurrencies and networks does samedepo support?</span>
+
+            <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white hidden group-data-open/accordion-heading:block text-zinc-800! dark:text-white!" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M9.47 6.47a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 1 1-1.06 1.06L10 8.06l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25Z" clip-rule="evenodd"/>
+</svg>
+
+                <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white block group-data-open/accordion-heading:hidden" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
+</svg>
+
+            </button>
+            <div
+    x-show="open"
+     x-collapse      x-cloak     data-flux-accordion-content
+>
+    <div class="pt-2 text-sm text-zinc-500 dark:text-zinc-300">
+        At launch, samedepo supports Bitcoin, USDT (TRC20), and USDT (ERC20). Each customer gets one permanent deposit address for each network. Other coins or tokens sent to those addresses aren’t credited.
+    </div>
+</div>
+    </ui-disclosure>
+            <ui-disclosure
+    class="block pt-4 first:pt-0 pb-4 last:pb-0 border-b last:border-b-0 border-zinc-800/10 dark:border-white/10"
+    x-data="{ open: false }"
+    x-model.self="open"
+        data-flux-accordion-item
+>
+            <button type="button" class="group/accordion-heading flex items-center w-full text-start text-sm font-medium justify-between [&amp;&gt;svg]:ms-6 text-zinc-800 dark:text-white cursor-pointer"  data-flux-accordion-heading>
+    <span class="flex-1">How are customer deposits credited?</span>
+
+            <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white hidden group-data-open/accordion-heading:block text-zinc-800! dark:text-white!" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M9.47 6.47a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 1 1-1.06 1.06L10 8.06l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25Z" clip-rule="evenodd"/>
+</svg>
+
+                <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white block group-data-open/accordion-heading:hidden" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
+</svg>
+
+            </button>
+            <div
+    x-show="open"
+     x-collapse      x-cloak     data-flux-accordion-content
+>
+    <div class="pt-2 text-sm text-zinc-500 dark:text-zinc-300">
+        samedepo watches each deposit address and waits until the transaction reaches the network’s confirmation requirement. It then deducts the deposit fee, credits your corresponding balance, and sends a webhook to your integration.
+    </div>
+</div>
+    </ui-disclosure>
+            <ui-disclosure
+    class="block pt-4 first:pt-0 pb-4 last:pb-0 border-b last:border-b-0 border-zinc-800/10 dark:border-white/10"
+    x-data="{ open: false }"
+    x-model.self="open"
+        data-flux-accordion-item
+>
+            <button type="button" class="group/accordion-heading flex items-center w-full text-start text-sm font-medium justify-between [&amp;&gt;svg]:ms-6 text-zinc-800 dark:text-white cursor-pointer"  data-flux-accordion-heading>
+    <span class="flex-1">What does samedepo cost?</span>
+
+            <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white hidden group-data-open/accordion-heading:block text-zinc-800! dark:text-white!" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M9.47 6.47a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 1 1-1.06 1.06L10 8.06l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25Z" clip-rule="evenodd"/>
+</svg>
+
+                <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white block group-data-open/accordion-heading:hidden" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
+</svg>
+
+            </button>
+            <div
+    x-show="open"
+     x-collapse      x-cloak     data-flux-accordion-content
+>
+    <div class="pt-2 text-sm text-zinc-500 dark:text-zinc-300">
+        Creating an account and using the API is free. samedepo deducts a percentage fee from each confirmed deposit before crediting your balance. No hidden fees. Check the 
+                                                                                <a class="inline font-medium underline-offset-[6px] hover:decoration-current underline [[data-color]&gt;&amp;]:text-inherit [[data-color]&gt;&amp;]:decoration-current/20 dark:[[data-color]&gt;&amp;]:decoration-current/50 [[data-color]&gt;&amp;]:hover:decoration-current text-[var(--color-accent-content)] decoration-[color-mix(in_oklab,var(--color-accent-content),transparent_80%)]" href="https://samedepo.com/api-docs?tab=limits" data-flux-link >current fees and limits</a>                                                                                .
+    </div>
+</div>
+    </ui-disclosure>
+            <ui-disclosure
+    class="block pt-4 first:pt-0 pb-4 last:pb-0 border-b last:border-b-0 border-zinc-800/10 dark:border-white/10"
+    x-data="{ open: false }"
+    x-model.self="open"
+        data-flux-accordion-item
+>
+            <button type="button" class="group/accordion-heading flex items-center w-full text-start text-sm font-medium justify-between [&amp;&gt;svg]:ms-6 text-zinc-800 dark:text-white cursor-pointer"  data-flux-accordion-heading>
+    <span class="flex-1">How do I withdraw deposited funds?</span>
+
+            <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white hidden group-data-open/accordion-heading:block text-zinc-800! dark:text-white!" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M9.47 6.47a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 1 1-1.06 1.06L10 8.06l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25Z" clip-rule="evenodd"/>
+</svg>
+
+                <svg class="shrink-0 [:where(&amp;)]:size-5 text-zinc-300 dark:text-zinc-400 group-hover/accordion-heading:text-zinc-800 dark:group-hover/accordion-heading:text-white block group-data-open/accordion-heading:hidden" aria-hidden="true" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
+</svg>
+
+            </button>
+            <div
+    x-show="open"
+     x-collapse      x-cloak     data-flux-accordion-content
+>
+    <div class="pt-2 text-sm text-zinc-500 dark:text-zinc-300">
+        You set one withdrawal address for each supported network. Withdrawals send the full available balance, minus the blockchain network fee, once the configured minimum is reached. Limits and fees can change, so check the current values at https://samedepo.com/api-docs?tab=limits. Depending on your withdrawal mode, the request is sent immediately or reviewed before sending.
+    </div>
+</div>
+    </ui-disclosure>
+</ui-disclosure-group>
+            </div>
+        </div>
+    </section>
+
+    
+    <section class="relative pt-20 pb-0 sm:pt-28 sm:pb-0">
+        <div id="cta-background" class="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-screen -translate-x-1/2 md:block [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_70%,transparent)]"></div>
+
+        <div class="mx-auto max-w-2xl text-center">
+            <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 font-medium text-(--color-accent)" data-flux-text >Get started</p>            <h2 class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-2xl [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2" data-flux-heading>Give every customer an address that stays theirs.</h2>
+
+                    <p class="[:where(&amp;)]:font-normal text-base [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 mt-3 text-zinc-400" data-flux-text >Register them once. Deposits, confirmations, credits, and webhooks are handled from there.</p>
+            <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                <a href="https://samedepo.com/signup" data-flux-button="data-flux-button" class="relative items-center font-medium justify-center gap-2 whitespace-nowrap disabled:opacity-75 dark:disabled:opacity-75 disabled:cursor-default disabled:pointer-events-none justify-center h-10 text-sm rounded-lg ps-4 pe-3 inline-flex  bg-[var(--color-accent)] hover:bg-[color-mix(in_oklab,_var(--color-accent),_transparent_10%)] text-[var(--color-accent-foreground)] border border-black/10 dark:border-0 shadow-[inset_0px_1px_--theme(--color-white/.2)] [[data-flux-button-group]_&amp;]:border-e-0 [:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-e-[1px] dark:[:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-e-0 dark:[:is([data-flux-button-group]&gt;&amp;:last-child,_[data-flux-button-group]_:last-child&gt;&amp;)]:border-s-[1px] [:is([data-flux-button-group]&gt;&amp;:not(:first-child),_[data-flux-button-group]_:not(:first-child)&gt;&amp;)]:border-s-[color-mix(in_srgb,var(--color-accent-foreground),transparent_85%)]" data-flux-group-target="data-flux-group-target" wire:navigate="">
+        <span>Create a free account</span>
+        
+        
+                    
+                        <svg class="shrink-0 [:where(&amp;)]:size-4" data-flux-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-slot="icon">
+  <path fill-rule="evenodd" d="M2 8a.75.75 0 0 1 .75-.75h8.69L8.22 4.03a.75.75 0 0 1 1.06-1.06l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 0 1-1.06-1.06l3.22-3.22H2.75A.75.75 0 0 1 2 8Z" clip-rule="evenodd"/>
+</svg>
+    </a>
+                <a href="https://samedepo.com/api-docs" data-flux-button="data-flux-button" class="relative items-center font-medium justify-center gap-2 whitespace-nowrap disabled:opacity-75 dark:disabled:opacity-75 disabled:cursor-default disabled:pointer-events-none justify-center h-10 text-sm rounded-lg ps-4 pe-4 inline-flex  bg-transparent hover:bg-zinc-800/5 dark:hover:bg-white/15 text-zinc-800 dark:text-white" wire:navigate="">
+        Read the API docs
+    </a>
+            </div>
+        </div>
+
+        <div class="mx-auto mt-16 max-w-5xl">
+            <div class="landing-demo" x-data="landingDemo(JSON.parse('[{\u0022key\u0022:\u0022bitcoin\u0022,\u0022label\u0022:\u0022Bitcoin\u0022,\u0022symbol\u0022:\u0022BTC\u0022,\u0022decimals\u0022:8,\u0022slug\u0022:\u0022bitcoin\u0022,\u0022chart_color\u0022:\u0022amber-500\u0022,\u0022icon\u0022:\u0022btc\u0022,\u0022badge\u0022:null,\u0022balance\u0022:0.4213,\u0022min\u0022:0.0009,\u0022max\u0022:0.062,\u0022rate\u0022:81930,\u0022icon_url\u0022:\u0022https:\\\/\\\/samedepo.com\\\/build\\\/assets\\\/btc-DIog7A4K.svg\u0022,\u0022badge_url\u0022:null},{\u0022key\u0022:\u0022usdt_trc20\u0022,\u0022label\u0022:\u0022USDT (TRC20)\u0022,\u0022symbol\u0022:\u0022USDT\u0022,\u0022decimals\u0022:2,\u0022slug\u0022:\u0022usdt-trc20\u0022,\u0022chart_color\u0022:\u0022emerald-500\u0022,\u0022icon\u0022:\u0022usdt\u0022,\u0022badge\u0022:\u0022trx\u0022,\u0022balance\u0022:18420.55,\u0022min\u0022:12,\u0022max\u0022:2450,\u0022rate\u0022:0.999741,\u0022icon_url\u0022:\u0022https:\\\/\\\/samedepo.com\\\/build\\\/assets\\\/usdt-C72ZycfX.svg\u0022,\u0022badge_url\u0022:\u0022https:\\\/\\\/samedepo.com\\\/build\\\/assets\\\/trx-B2XxC5RG.svg\u0022},{\u0022key\u0022:\u0022usdt_erc20\u0022,\u0022label\u0022:\u0022USDT (ERC20)\u0022,\u0022symbol\u0022:\u0022USDT\u0022,\u0022decimals\u0022:2,\u0022slug\u0022:\u0022usdt-erc20\u0022,\u0022chart_color\u0022:\u0022violet-400\u0022,\u0022icon\u0022:\u0022usdt\u0022,\u0022badge\u0022:\u0022eth\u0022,\u0022balance\u0022:7935.1,\u0022min\u0022:12,\u0022max\u0022:2450,\u0022rate\u0022:0.999741,\u0022icon_url\u0022:\u0022https:\\\/\\\/samedepo.com\\\/build\\\/assets\\\/usdt-C72ZycfX.svg\u0022,\u0022badge_url\u0022:\u0022https:\\\/\\\/samedepo.com\\\/build\\\/assets\\\/eth-BufXdG9K.svg\u0022},{\u0022key\u0022:\u0022litecoin\u0022,\u0022label\u0022:\u0022Litecoin\u0022,\u0022symbol\u0022:\u0022LTC\u0022,\u0022decimals\u0022:8,\u0022slug\u0022:\u0022litecoin\u0022,\u0022chart_color\u0022:\u0022slate-400\u0022,\u0022icon\u0022:\u0022ltc\u0022,\u0022badge\u0022:null,\u0022balance\u0022:41.7,\u0022min\u0022:0.4,\u0022max\u0022:14,\u0022rate\u0022:58.41,\u0022icon_url\u0022:\u0022https:\\\/\\\/samedepo.com\\\/build\\\/assets\\\/ltc-DsuV0rQY.svg\u0022,\u0022badge_url\u0022:null}]'))">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    <div class="[:where(&amp;)]:bg-white dark:[:where(&amp;)]:bg-white/10 border border-zinc-200 dark:border-white/10 [:where(&amp;)]:p-4 [:where(&amp;)]:rounded-lg bg-zinc-900!" data-flux-card>
+    <div class="flex min-w-0 items-center gap-2">
+                    <span class="relative inline-flex shrink-0 size-5">
+            <img src="https://samedepo.com/build/assets/btc-DIog7A4K.svg" alt="" class="block size-full" />
+            </span>
+                    <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 truncate font-medium" data-flux-text >Bitcoin</p>                </div>
+                <div class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2 -mx-1 rounded-md px-1 font-ledger" x-text="fmtUsd(networks[0].balance * networks[0].rate)" x-bind:class="{ 'animate-demo-flash': flashKey === 'bitcoin' }" data-flux-heading>$34,517.11</div>
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-400 [:where(&amp;)]:dark:text-white/50 mt-0.5 font-ledger" x-text="fmtCrypto(networks[0].balance, networks[0]) + ' BTC'" data-flux-text >0.4213 BTC</p>
+</div>
+                    <div class="[:where(&amp;)]:bg-white dark:[:where(&amp;)]:bg-white/10 border border-zinc-200 dark:border-white/10 [:where(&amp;)]:p-4 [:where(&amp;)]:rounded-lg bg-zinc-900!" data-flux-card>
+    <div class="flex min-w-0 items-center gap-2">
+                    <span class="relative inline-flex shrink-0 size-5">
+            <img src="https://samedepo.com/build/assets/usdt-C72ZycfX.svg" alt="" class="block size-full" />
+                    <img src="https://samedepo.com/build/assets/trx-B2XxC5RG.svg" alt="" class="absolute -bottom-0.5 -right-0.5 size-[55%] rounded-full bg-white ring-1 ring-white dark:bg-zinc-900 dark:ring-zinc-900" />
+            </span>
+                    <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 truncate font-medium" data-flux-text >USDT (TRC20)</p>                </div>
+                <div class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2 -mx-1 rounded-md px-1 font-ledger" x-text="fmtUsd(networks[1].balance * networks[1].rate)" x-bind:class="{ 'animate-demo-flash': flashKey === 'usdt_trc20' }" data-flux-heading>$18,415.78</div>
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-400 [:where(&amp;)]:dark:text-white/50 mt-0.5 font-ledger" x-text="fmtCrypto(networks[1].balance, networks[1]) + ' USDT'" data-flux-text >18,420.55 USDT</p>
+</div>
+                    <div class="[:where(&amp;)]:bg-white dark:[:where(&amp;)]:bg-white/10 border border-zinc-200 dark:border-white/10 [:where(&amp;)]:p-4 [:where(&amp;)]:rounded-lg bg-zinc-900!" data-flux-card>
+    <div class="flex min-w-0 items-center gap-2">
+                    <span class="relative inline-flex shrink-0 size-5">
+            <img src="https://samedepo.com/build/assets/usdt-C72ZycfX.svg" alt="" class="block size-full" />
+                    <img src="https://samedepo.com/build/assets/eth-BufXdG9K.svg" alt="" class="absolute -bottom-0.5 -right-0.5 size-[55%] rounded-full bg-white ring-1 ring-white dark:bg-zinc-900 dark:ring-zinc-900" />
+            </span>
+                    <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 truncate font-medium" data-flux-text >USDT (ERC20)</p>                </div>
+                <div class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2 -mx-1 rounded-md px-1 font-ledger" x-text="fmtUsd(networks[2].balance * networks[2].rate)" x-bind:class="{ 'animate-demo-flash': flashKey === 'usdt_erc20' }" data-flux-heading>$7,933.04</div>
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-400 [:where(&amp;)]:dark:text-white/50 mt-0.5 font-ledger" x-text="fmtCrypto(networks[2].balance, networks[2]) + ' USDT'" data-flux-text >7,935.1 USDT</p>
+</div>
+                    <div class="[:where(&amp;)]:bg-white dark:[:where(&amp;)]:bg-white/10 border border-zinc-200 dark:border-white/10 [:where(&amp;)]:p-4 [:where(&amp;)]:rounded-lg bg-zinc-900!" data-flux-card>
+    <div class="flex min-w-0 items-center gap-2">
+                    <span class="relative inline-flex shrink-0 size-5">
+            <img src="https://samedepo.com/build/assets/ltc-DsuV0rQY.svg" alt="" class="block size-full" />
+            </span>
+                    <p class="[:where(&amp;)]:font-normal [:where(&amp;)]:text-sm [:where(&amp;)]:text-zinc-500 [:where(&amp;)]:dark:text-white/70 truncate font-medium" data-flux-text >Litecoin</p>                </div>
+                <div class="font-medium [:where(&amp;)]:text-zinc-800 [:where(&amp;)]:dark:text-white text-base [&amp;:has(+[data-flux-subheading])]:mb-2 [[data-flux-subheading]+&amp;]:mt-2 mt-2 -mx-1 rounded-md px-1 font-ledger" x-text="fmtUsd(networks[3].balance * networks[3].rate)" x-bind:class="{ 'animate-demo-flash': flashKey === 'litecoin' }" data-flux-heading>$2,435.70</div>
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-400 [:where(&amp;)]:dark:text-white/50 mt-0.5 font-ledger" x-text="fmtCrypto(networks[3].balance, networks[3]) + ' LTC'" data-flux-text >41.7 LTC</p>
+</div>
+            </div>
+
+    <div class="[:where(&amp;)]:bg-white dark:[:where(&amp;)]:bg-white/10 border border-zinc-200 dark:border-white/10 [:where(&amp;)]:p-4 [:where(&amp;)]:rounded-lg mt-4 bg-zinc-900!" data-flux-card>
+    <div class="flex flex-col ">
+    
+
+    <ui-table-scroll-area class="overflow-auto">
+        <table class="[:where(&amp;)]:min-w-full table-fixed border-separate border-spacing-0 isolate text-zinc-800 whitespace-nowrap [&amp;_dialog]:whitespace-normal [&amp;_[popover]]:whitespace-normal" data-flux-table>
+            <thead class="" data-flux-columns>
+    <tr >
+        <th class="py-3 px-3 first:ps-0 last:pe-0 text-start text-sm font-medium text-zinc-800 dark:text-white border-b border-zinc-800/10 dark:border-white/20    **:data-flux-table-sortable:last:me-0" data-flux-column>
+            <div class="flex in-[.group\/center-align]:justify-center in-[.group\/end-align]:justify-end">Time</div>
+    </th>
+                <th class="py-3 px-3 first:ps-0 last:pe-0 text-start text-sm font-medium text-zinc-800 dark:text-white border-b border-zinc-800/10 dark:border-white/20    **:data-flux-table-sortable:last:me-0" data-flux-column>
+            <div class="flex in-[.group\/center-align]:justify-center in-[.group\/end-align]:justify-end">Customer</div>
+    </th>
+                <th class="py-3 px-3 first:ps-0 last:pe-0 text-start text-sm font-medium text-zinc-800 dark:text-white border-b border-zinc-800/10 dark:border-white/20    **:data-flux-table-sortable:last:me-0" data-flux-column>
+            <div class="flex in-[.group\/center-align]:justify-center in-[.group\/end-align]:justify-end">Network</div>
+    </th>
+                <th class="py-3 px-3 first:ps-0 last:pe-0 text-start text-sm font-medium text-zinc-800 dark:text-white border-b border-zinc-800/10 dark:border-white/20 group/end-align   **:data-flux-table-sortable:last:me-0" data-flux-column>
+            <div class="flex in-[.group\/center-align]:justify-center in-[.group\/end-align]:justify-end">Amount</div>
+    </th>
+                <th class="py-3 px-3 first:ps-0 last:pe-0 text-start text-sm font-medium text-zinc-800 dark:text-white border-b border-zinc-800/10 dark:border-white/20 group/end-align   **:data-flux-table-sortable:last:me-0" data-flux-column>
+            <div class="flex in-[.group\/center-align]:justify-center in-[.group\/end-align]:justify-end">USD</div>
+    </th>
+                <th class="py-3 px-3 first:ps-0 last:pe-0 text-start text-sm font-medium text-zinc-800 dark:text-white border-b border-zinc-800/10 dark:border-white/20    **:data-flux-table-sortable:last:me-0" data-flux-column>
+            <div class="flex in-[.group\/center-align]:justify-center in-[.group\/end-align]:justify-end">Status</div>
+    </th>
+    </tr>
+</thead>
+            <tbody  data-flux-rows>
+    <template x-for="row in rows" :key="row.id">
+                    <tr  class="" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-1 opacity-0" x-bind:class="{ 'animate-demo-flash': row.id === flashId }" data-flux-row>
+    <td class="[:where(&amp;)]:py-3 [:where(&amp;)]:px-3 first:ps-0 last:pe-0 text-sm  text-zinc-500 dark:text-zinc-300  not-in-[tr:first-child]:border-t border-zinc-800/10 dark:border-white/20" x-text="rel(row.ts)" data-flux-cell>
+    
+</td>
+                        <td class="[:where(&amp;)]:py-3 [:where(&amp;)]:px-3 first:ps-0 last:pe-0 text-sm  text-zinc-500 dark:text-zinc-300  not-in-[tr:first-child]:border-t border-zinc-800/10 dark:border-white/20 font-ledger" x-text="row.customer" data-flux-cell>
+    
+</td>
+                        <td class="[:where(&amp;)]:py-3 [:where(&amp;)]:px-3 first:ps-0 last:pe-0 text-sm  text-zinc-500 dark:text-zinc-300  not-in-[tr:first-child]:border-t border-zinc-800/10 dark:border-white/20" data-flux-cell>
+    <span class="flex items-center gap-2">
+                                <span class="relative inline-flex shrink-0 size-4">
+                                    <img x-bind:src="row.network.icon_url" alt="" class="block size-full" />
+                                    <template x-if="row.network.badge_url">
+                                        <img x-bind:src="row.network.badge_url" alt="" class="absolute -bottom-0.5 -right-0.5 size-[55%] rounded-full bg-zinc-900 ring-1 ring-zinc-900" />
+                                    </template>
+                                </span>
+                                <span x-text="row.network.label"></span>
+                            </span>
+</td>
+                        <td class="[:where(&amp;)]:py-3 [:where(&amp;)]:px-3 first:ps-0 last:pe-0 text-sm text-end [&amp;&gt;*]:ms-auto text-zinc-500 dark:text-zinc-300  not-in-[tr:first-child]:border-t border-zinc-800/10 dark:border-white/20 font-ledger" x-text="fmtCrypto(row.amount, row.network) + ' ' + row.network.symbol" data-flux-cell>
+    
+</td>
+                        <td class="[:where(&amp;)]:py-3 [:where(&amp;)]:px-3 first:ps-0 last:pe-0 text-sm text-end [&amp;&gt;*]:ms-auto font-medium text-zinc-800 dark:text-white  not-in-[tr:first-child]:border-t border-zinc-800/10 dark:border-white/20 font-ledger" x-text="fmtUsd(row.usd)" data-flux-cell>
+    
+</td>
+                        <td class="[:where(&amp;)]:py-3 [:where(&amp;)]:px-3 first:ps-0 last:pe-0 text-sm  text-zinc-500 dark:text-zinc-300  not-in-[tr:first-child]:border-t border-zinc-800/10 dark:border-white/20 py-0" data-flux-cell>
+    <div data-flux-badge="data-flux-badge" class="inline-flex items-center font-medium whitespace-nowrap  [print-color-adjust:exact] text-xs py-1 **:data-flux-badge-icon:me-1 rounded-md px-2 text-green-800 [&amp;_button]:text-green-800! dark:text-green-200 dark:[&amp;_button]:text-green-200! bg-green-400/20 dark:bg-green-400/40 [&amp;:is(button)]:hover:bg-green-400/30 dark:[button]:hover:bg-green-400/50">
+        Credited
+    </div>
+</td>
+</tr>
+                </template>
+</tbody>
+        </table>
+    </ui-table-scroll-area>
+
+    
+
+    </div>
+</div>
+</div>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('landingDemo', (networks) => ({
+            networks,
+            rows: [],
+            nextId: 0,
+            timer: null,
+            now: Date.now(),
+            flashId: null,
+            flashKey: null,
+            onScreen: false,
+            reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+            usdFmt: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }),
+
+            init() {
+                [8, 21, 37, 58, 84].forEach((ago) => this.rows.push(this.makeRow(Date.now() - ago * 1000)));
+
+                setInterval(() => (this.now = Date.now()), 1000);
+
+                new IntersectionObserver((entries) => {
+                    this.onScreen = entries[0].isIntersecting;
+                    this.onScreen ? this.schedule() : this.pause();
+                }, { threshold: 0.1 }).observe(this.$el);
+
+                document.addEventListener('visibilitychange', () => {
+                    document.hidden ? this.pause() : this.schedule();
+                });
+            },
+
+            isStable(network) {
+                return ['USDT', 'USDC'].includes(network.symbol);
+            },
+
+            pickNetwork() {
+                const stables = this.networks.filter((n) => this.isStable(n));
+                const btc = this.networks.find((n) => n.key === 'bitcoin');
+                const others = this.networks.filter((n) => ! this.isStable(n) && n.key !== 'bitcoin');
+                const roll = Math.random();
+                if (roll < 0.55 && stables.length) return stables[Math.floor(Math.random() * stables.length)];
+                if (roll < 0.8 && btc) return btc;
+                const pool = others.length ? others : this.networks;
+                return pool[Math.floor(Math.random() * pool.length)];
+            },
+
+            randomAmount(network) {
+                const value = network.min + Math.random() * (network.max - network.min);
+                if (Math.random() < 0.3) {
+                    return this.isStable(network)
+                        ? Math.max(network.min, Math.round(value / 50) * 50)
+                        : +value.toFixed(3);
+                }
+                return +value.toFixed(this.isStable(network) ? 2 : 4 + Math.floor(Math.random() * 3));
+            },
+
+            customerRef() {
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                return 'CUST-' + Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            },
+
+            makeRow(ts) {
+                const network = this.pickNetwork();
+                const amount = this.randomAmount(network);
+                return { id: ++this.nextId, ts, customer: this.customerRef(), network, amount, usd: amount * network.rate };
+            },
+
+            schedule() {
+                if (this.timer || document.hidden || ! this.onScreen) return;
+                this.timer = setTimeout(() => {
+                    this.timer = null;
+                    this.tick();
+                }, 1000 + Math.random() * 8000);
+            },
+
+            pause() {
+                clearTimeout(this.timer);
+                this.timer = null;
+            },
+
+            tick() {
+                const row = this.makeRow(Date.now());
+                this.rows.unshift(row);
+                if (this.rows.length > 5) this.rows.pop();
+                row.network.balance += row.amount;
+
+                if (! this.reduced) {
+                    this.flashId = row.id;
+                    this.flashKey = row.network.key;
+                    setTimeout(() => {
+                        this.flashId = null;
+                        this.flashKey = null;
+                    }, 1200);
+                }
+
+                this.schedule();
+            },
+
+            rel(ts) {
+                const s = Math.max(0, Math.round((this.now - ts) / 1000));
+                if (s < 10) return 'just now';
+                if (s < 60) return s + 's ago';
+                if (s < 3600) return Math.floor(s / 60) + 'm ago';
+                return Math.floor(s / 3600) + 'h ago';
+            },
+
+            fmtUsd(value) {
+                return this.usdFmt.format(value);
+            },
+
+            fmtCrypto(value, network) {
+                const stable = this.isStable(network);
+                return new Intl.NumberFormat('en-US', {
+                    minimumFractionDigits: stable ? 2 : 4,
+                    maximumFractionDigits: stable ? 2 : Math.min(8, network.decimals),
+                }).format(value);
+            },
+        }));
+    });
+</script>
+        </div>
+    </section>
+</div>
+        </div>
+
+        <footer class="border-t border-zinc-700 mt-24">
+            <div class="mx-auto max-w-6xl px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p class="[:where(&amp;)]:font-normal text-xs [:where(&amp;)]:text-zinc-400 [:where(&amp;)]:dark:text-white/50" data-flux-text >&copy; 2026 samedepo. All rights reserved.</p>                <nav class="flex items-center gap-1 py-3  gap-1" data-flux-navbar>
+    <a href="https://samedepo.com/api-docs" class="px-3 h-8 flex items-center rounded-lg relative px-2.5! text-zinc-500 dark:text-white/80  data-current:after:absolute data-current:after:-bottom-3 data-current:after:inset-x-0 data-current:after:h-[2px] [--hover-fill:color-mix(in_oklab,_var(--color-accent-content),_transparent_90%)] hover:text-zinc-800 dark:hover:text-white data-current:text-(--color-accent-content) hover:data-current:text-(--color-accent-content) hover:bg-zinc-800/5 dark:hover:bg-white/10 hover:data-current:bg-(--hover-fill) data-current:after:bg-(--color-accent-content)" data-flux-navbar-items="data-flux-navbar-items" wire:navigate="">
+        <div class=" flex-1 text-sm font-medium leading-none whitespace-nowrap [[data-nav-footer]_&]:hidden [[data-nav-sidebar]_[data-nav-footer]_&]:block" data-content>API Docs</div>
+    </a>
+                    <a href="https://samedepo.com/privacy" class="px-3 h-8 flex items-center rounded-lg relative px-2.5! text-zinc-500 dark:text-white/80  data-current:after:absolute data-current:after:-bottom-3 data-current:after:inset-x-0 data-current:after:h-[2px] [--hover-fill:color-mix(in_oklab,_var(--color-accent-content),_transparent_90%)] hover:text-zinc-800 dark:hover:text-white data-current:text-(--color-accent-content) hover:data-current:text-(--color-accent-content) hover:bg-zinc-800/5 dark:hover:bg-white/10 hover:data-current:bg-(--hover-fill) data-current:after:bg-(--color-accent-content)" data-flux-navbar-items="data-flux-navbar-items" wire:navigate="">
+        <div class=" flex-1 text-sm font-medium leading-none whitespace-nowrap [[data-nav-footer]_&]:hidden [[data-nav-sidebar]_[data-nav-footer]_&]:block" data-content>Privacy</div>
+    </a>
+                    <a href="https://samedepo.com/terms" class="px-3 h-8 flex items-center rounded-lg relative px-2.5! text-zinc-500 dark:text-white/80  data-current:after:absolute data-current:after:-bottom-3 data-current:after:inset-x-0 data-current:after:h-[2px] [--hover-fill:color-mix(in_oklab,_var(--color-accent-content),_transparent_90%)] hover:text-zinc-800 dark:hover:text-white data-current:text-(--color-accent-content) hover:data-current:text-(--color-accent-content) hover:bg-zinc-800/5 dark:hover:bg-white/10 hover:data-current:bg-(--hover-fill) data-current:after:bg-(--color-accent-content)" data-flux-navbar-items="data-flux-navbar-items" wire:navigate="">
+        <div class=" flex-1 text-sm font-medium leading-none whitespace-nowrap [[data-nav-footer]_&]:hidden [[data-nav-sidebar]_[data-nav-footer]_&]:block" data-content>Terms</div>
+    </a>
+</nav>
+            </div>
+        </footer>
+
+        <script src="https://samedepo.com/flux/flux.min.js?id=1ea4120f" data-navigate-once></script>
+    <script src="https://samedepo.com/livewire-a6897e52/livewire.min.js?id=657d57c2"   data-csrf="FlpNzA07DMsWtrwiCx2gI4OfSzYjF1rbM6Scv6Ex" data-module-url="https://samedepo.com/livewire-a6897e52" data-update-uri="https://samedepo.com/livewire-a6897e52/update" data-navigate-once="true"></script>
+</body>
+</html>

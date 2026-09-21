@@ -148,7 +148,6 @@ class WithdrawalQuote
             'consolidation_pending' => $pending,
             'total_fee' => $totalFee,
             'receive' => $receive,
-            'platform_fee_note' => true,
         ];
     }
 
@@ -339,7 +338,6 @@ class WithdrawalQuote
             $items['sweeps'] > 0 ? $items['sweeps'].' sweep'.($items['sweeps'] > 1 ? 's' : '') : null,
         ]);
         $pending = $quote['consolidation_pending'];
-        $platformPercent = rtrim(rtrim((string) PlatformSettings::instance()->global_deposit_fee_percent, '0'), '.');
 
         return array_merge($quote, [
             'is_token' => Network::isToken($quote['network']),
@@ -354,7 +352,6 @@ class WithdrawalQuote
             'outstanding_label' => implode(' · ', $outstandingParts),
             'pending_label' => $pending === null ? null
                 : $pending['addresses'].' deposit address'.($pending['addresses'] > 1 ? 'es' : '').' still to sweep',
-            'platform_fee_percent' => $platformPercent,
         ]);
     }
 }
