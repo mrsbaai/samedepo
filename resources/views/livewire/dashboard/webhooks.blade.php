@@ -169,7 +169,7 @@
                     <flux:heading size="lg">Payload</flux:heading>
                     <flux:text size="sm" variant="subtle" class="mt-1 font-ledger">{{ $this->payloadDelivery->event }} · <x-date.human :at="$this->payloadDelivery->created_at" /></flux:text>
                 </div>
-                <pre class="font-ledger text-xs whitespace-pre-wrap break-all rounded-lg bg-zinc-900 p-3">{{ json_encode($this->payloadDelivery->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                <pre class="font-ledger text-xs whitespace-pre-wrap break-all rounded-lg bg-zinc-100 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-300 p-3">{{ json_encode($this->payloadDelivery->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
                 <div class="flex gap-2">
                     <flux:spacer />
                     <flux:modal.close>
