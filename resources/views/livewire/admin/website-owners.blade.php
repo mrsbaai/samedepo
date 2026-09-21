@@ -10,18 +10,19 @@
         <flux:skeleton class="h-9 w-64 mb-6" />
         <flux:table>
             <flux:table.columns>
-                <flux:table.column>Account</flux:table.column>
-                <flux:table.column class="max-md:hidden">Mode</flux:table.column>
-                <flux:table.column class="max-md:hidden">Fee Override</flux:table.column>
-                <flux:table.column></flux:table.column>
+                <flux:table.column>Created</flux:table.column>
+                <flux:table.column>Email</flux:table.column>
+                <flux:table.column>Customers</flux:table.column>
+                <flux:table.column>Total earned</flux:table.column>
+                <flux:table.column>Balance</flux:table.column>
+                <flux:table.column>Status</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach (range(1, 4) as $r)
                     <flux:table.row>
-                        <flux:table.cell><flux:skeleton class="h-4 w-40" /></flux:table.cell>
-                        <flux:table.cell class="max-md:hidden"><flux:skeleton class="h-4 w-24" /></flux:table.cell>
-                        <flux:table.cell class="max-md:hidden"><flux:skeleton class="h-4 w-16" /></flux:table.cell>
-                        <flux:table.cell><flux:skeleton class="h-4 w-8" /></flux:table.cell>
+                        @foreach (range(1, 6) as $c)
+                            <flux:table.cell><flux:skeleton class="h-4 w-24" /></flux:table.cell>
+                        @endforeach
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>
@@ -41,32 +42,59 @@
         @else
             <flux:table>
                 <flux:table.columns>
-                    <flux:table.column>Account</flux:table.column>
-                    <flux:table.column class="max-md:hidden">Mode</flux:table.column>
-                    <flux:table.column class="max-md:hidden">Fee Override</flux:table.column>
-                    <flux:table.column></flux:table.column>
+                    <flux:table.column
+                        sortable
+                        :sorted="$sort === 'created_at'"
+                        :direction="$direction"
+                        wire:click="sort('created_at')"
+                    >Created</flux:table.column>
+                    <flux:table.column
+                        sortable
+                        :sorted="$sort === 'email'"
+                        :direction="$direction"
+                        wire:click="sort('email')"
+                    >Email</flux:table.column>
+                    <flux:table.column
+                        sortable
+                        :sorted="$sort === 'customers_count'"
+                        :direction="$direction"
+                        wire:click="sort('customers_count')"
+                    >Customers</flux:table.column>
+                    <flux:table.column
+                        sortable
+                        align="end"
+                        :sorted="$sort === 'earned_usd'"
+                        :direction="$direction"
+                        wire:click="sort('earned_usd')"
+                    >Total earned</flux:table.column>
+                    <flux:table.column
+                        sortable
+                        align="end"
+                        :sorted="$sort === 'balance_usd'"
+                        :direction="$direction"
+                        wire:click="sort('balance_usd')"
+                    >Balance</flux:table.column>
+                    <flux:table.column
+                        sortable
+                        :sorted="$sort === 'status'"
+                        :direction="$direction"
+                        wire:click="sort('status')"
+                    >Status</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($owners as $owner)
                         <flux:table.row wire:key="owner-{{ $owner->id }}">
+                            <flux:table.cell class="whitespace-nowrap">{{ \App\Support\Dates::humanFlat($owner->created_at) }}</flux:table.cell>
                             <flux:table.cell>
-                                <div>
-                                    <flux:text class="font-medium">{{ $owner->email }}</flux:text>
-                                    <flux:text size="sm" variant="subtle">#{{ $owner->id }}</flux:text>
-                                </div>
+                                <flux:link href="{{ route('admin.owners.show', $owner) }}" variant="strong" wire:navigate>{{ $owner->email }}</flux:link>
                             </flux:table.cell>
-                            <flux:table.cell class="max-md:hidden py-0">
-                                @if ($owner->withdrawal_mode === 'instant')
-                                    <flux:badge size="sm" color="green">Instant</flux:badge>
-                                @else
-                                    <flux:badge size="sm" color="amber">Administrator Approval</flux:badge>
-                                @endif
-                            </flux:table.cell>
-                            <flux:table.cell class="max-md:hidden">
-                                {{ $owner->deposit_fee_override !== null ? $owner->deposit_fee_override . '%' : 'Platform default' }}
-                            </flux:table.cell>
+                            <flux:table.cell class="font-ledger">{{ $owner->customers_count }}</flux:table.cell>
+                            <flux:table.cell align="end" class="font-ledger">${{ number_format((float) $owner->earned_usd, 2) }}</flux:table.cell>
+                            <flux:table.cell align="end" variant="strong" class="font-ledger">${{ number_format((float) $owner->balance_usd, 2) }}</flux:table.cell>
                             <flux:table.cell class="py-0">
-                                <flux:button variant="ghost" size="sm" icon="chevron-right" href="{{ route('admin.owners.show', $owner) }}" wire:navigate />
+                                <flux:badge size="sm" :color="$owner->is_active ? 'green' : 'zinc'">
+                                    {{ $owner->is_active ? 'Active' : 'Inactive' }}
+                                </flux:badge>
                             </flux:table.cell>
                         </flux:table.row>
                     @endforeach

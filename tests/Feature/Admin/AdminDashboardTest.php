@@ -187,39 +187,7 @@ test('a ticket can be closed from the overview', function () {
     expect($ticket->fresh()->status)->toBe(SupportTicket::STATUS_CLOSED);
 });
 
-test('platform status aggregates are displayed', function () {
-    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
-    $owner = User::factory()->create(['role' => 'owner']);
-
-    UsdValuation::create(['network' => 'bitcoin', 'conversion_value' => 60000]);
-    UsdValuation::create(['network' => 'usdt_trc20', 'conversion_value' => 1]);
-
-    Deposit::factory()->create([
-        'user_id' => $owner->id,
-        'network' => 'bitcoin',
-        'gross_amount' => 0.5,
-        'status' => 'credited',
-        'credited_at' => now()->subHours(2),
-    ]);
-
-    Withdrawal::factory()->create([
-        'user_id' => $owner->id,
-        'network' => 'bitcoin',
-        'gross_amount' => 0.1,
-        'status' => 'pending',
-    ]);
-
-    $this->actingAs($admin)
-        ->get(route('admin.dashboard'))
-        ->assertOk()
-        ->assertSee('Platform status')
-        ->assertSee('Owners')
-        ->assertSee('Deposits (24h)')
-        ->assertSee('Pending withdrawals')
-        ->assertSee('$30,000.00'); // 0.5 BTC @ $60,000
-});
-
-test('latest payments are shown newest first on the admin overview', function () {
+test('platform status and latest payments blocks are removed', function () {
     $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
     $owner = User::factory()->create(['role' => 'owner', 'email' => 'payments@example.com']);
     $customer = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'customer-latest']);
@@ -238,11 +206,10 @@ test('latest payments are shown newest first on the admin overview', function ()
     $this->actingAs($admin)
         ->get(route('admin.dashboard'))
         ->assertOk()
-        ->assertSee('Latest payments')
-        ->assertSee('payments@example.com')
-        ->assertSee('customer-latest')
-        ->assertSee('25.50 USDT')
-        ->assertSee('Credited');
+        ->assertDontSee('Platform status')
+        ->assertDontSee('Latest payments')
+        ->assertDontSee('Deposits (24h)')
+        ->assertDontSee('New today');
 });
 
 test('security summary is hidden when there are no recent threats or blocks', function () {
@@ -312,7 +279,20 @@ test('security summary reflects an elevated status', function () {
         ->assertDontSee('Active attack');
 });
 
-test('treasury card renders between platform status and security summary', function () {
+test('sections render in order: pending withdrawals, treasury, platform income', function () {
+    [$admin] = adminDashboardProfitFixture();
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSeeInOrder([
+            'Pending withdrawals',
+            'Treasury',
+            'Platform income',
+        ], false);
+});
+
+test('treasury section renders KPIs and a per-network table', function () {
     [$admin] = adminDashboardProfitFixture();
 
     $this->actingAs($admin)
@@ -322,9 +302,10 @@ test('treasury card renders between platform status and security summary', funct
         ->assertSee('Withdrawable profit')
         ->assertSee('Total profit')
         ->assertSee('Unswept funds')
-        ->assertSee('Gas float')
         ->assertSee('Failed ops (24h)')
-        ->assertSee('$30.00');
+        ->assertSee('$30.00')
+        ->assertSee('USDT (TRC20)')
+        ->assertSee('Ready'); // per-network gas badge
 });
 
 test('treasury status is healthy with clean fixture', function () {

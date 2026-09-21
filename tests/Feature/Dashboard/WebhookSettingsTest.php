@@ -17,7 +17,7 @@ test('an owner can view the webhook settings page', function () {
         ->get(route('webhook-settings'))
         ->assertOk()
         ->assertSee('Webhook Settings', false)
-        ->assertSee('Save Webhook Endpoint', false)
+        ->assertSee('Save', false)
         ->assertSee('Test Endpoint', false);
 });
 
@@ -227,6 +227,20 @@ test('the signing secret is shown masked with a reveal control', function () {
         ->assertSee('Signing secret', false)
         ->assertSee('Rotate secret', false)
         ->assertSee('type="password"', false);
+});
+
+test('deliveries older than thirty days are prunable', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $endpoint = WebhookEndpoint::factory()->create(['user_id' => $owner->id]);
+
+    WebhookDelivery::factory()->create(['webhook_endpoint_id' => $endpoint->id, 'created_at' => now()->subDays(31)]);
+    WebhookDelivery::factory()->create(['webhook_endpoint_id' => $endpoint->id, 'created_at' => now()->subDay()]);
+
+    expect((new WebhookDelivery)->prunable()->count())->toBe(1);
+
+    $this->artisan('model:prune', ['--model' => [WebhookDelivery::class]]);
+
+    expect(WebhookDelivery::count())->toBe(1);
 });
 
 test('guests are redirected to signin', function () {

@@ -14,7 +14,6 @@ use App\Models\TreasuryPayout;
 use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
-use App\Models\User;
 use App\Models\Withdrawal;
 use App\Security\Models\SecurityBlock;
 use App\Security\Models\ThreatEvent;
@@ -36,15 +35,9 @@ class AdminDashboard extends Component
     {
         return view('livewire.dashboard.admin-dashboard', [
             'tickets' => $this->tickets(),
-            'platformStatus' => $this->platformStatus(),
+            'pendingWithdrawals' => $this->pendingWithdrawals(),
             'treasury' => $this->treasury(),
             'networkMeta' => DepositRow::networks(),
-            'latestPayments' => Deposit::query()
-                ->withoutGlobalScope('owner')
-                ->with(['user', 'customer' => fn ($query) => $query->withoutGlobalScope('owner')])
-                ->latest('detected_at')
-                ->limit(10)
-                ->get(),
             'securitySummary' => $this->securitySummary(),
         ]);
     }
@@ -213,11 +206,9 @@ class AdminDashboard extends Component
     }
 
     /** @return array<string, mixed> */
-    private function platformStatus(): array
+    private function pendingWithdrawals(): array
     {
         $conversions = $this->latestConversions();
-        $deposit24h = $this->depositStats(now()->subDay(), $conversions);
-        $deposit7d = $this->depositStats(now()->subDays(7), $conversions);
         $pendingWithdrawals = Withdrawal::query()
             ->withoutGlobalScope('owner')
             ->with('user')
@@ -227,15 +218,9 @@ class AdminDashboard extends Component
         $pendingUsd = $pendingWithdrawals->sum(fn (Withdrawal $w) => (float) $w->gross_amount * ($conversions[$w->network] ?? 0));
 
         return [
-            'ownerCount' => User::query()->where('role', 'owner')->count(),
-            'newOwnersToday' => User::query()->where('role', 'owner')->whereDate('created_at', today())->count(),
-            'deposits24h' => $deposit24h,
-            'deposits7d' => $deposit7d,
-            'pendingWithdrawals' => [
-                'count' => $pendingWithdrawals->count(),
-                'usdValue' => $pendingUsd,
-                'items' => $pendingWithdrawals->take(10),
-            ],
+            'count' => $pendingWithdrawals->count(),
+            'usdValue' => $pendingUsd,
+            'items' => $pendingWithdrawals->take(10),
         ];
     }
 
@@ -250,26 +235,6 @@ class AdminDashboard extends Component
                 $valuation->network => (float) $valuation->conversion_value,
             ])
             ->all();
-    }
-
-    /**
-     * @param  array<string, float>  $conversions
-     * @return array<string, mixed>
-     */
-    private function depositStats(\DateTimeInterface $since, array $conversions): array
-    {
-        $deposits = Deposit::query()
-            ->withoutGlobalScope('owner')
-            ->where('status', 'credited')
-            ->where('credited_at', '>=', $since)
-            ->get(['network', 'gross_amount']);
-
-        $usdValue = $deposits->sum(fn (Deposit $deposit) => (float) $deposit->gross_amount * ($conversions[$deposit->network] ?? 0));
-
-        return [
-            'count' => $deposits->count(),
-            'usdValue' => $usdValue,
-        ];
     }
 
     /** @return array<string, mixed> */

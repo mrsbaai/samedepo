@@ -99,6 +99,20 @@ test('the date picker is shown only for the custom range', function () {
         ->assertSee('mode="range"', false);
 });
 
+test('platform chips list only networks with platform-wide income or a balance', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    chartDeposit($owner, 'bitcoin', '60.00');
+    chartDeposit($owner, 'usdt_trc20', '40.00');
+
+    Livewire::actingAs($admin)
+        ->test(IncomeCharts::class, ['ownerId' => null, 'heading' => 'Platform income'])
+        ->assertSee('Platform income')
+        ->assertSee('value="bitcoin"', false)
+        ->assertSee('value="usdt_trc20"', false)
+        ->assertDontSee('value="litecoin"', false);
+});
+
 test('the donut component renders one arc per segment plus the track and total', function () {
     $html = Blade::render('<x-charts.donut :segments="$segments" :total="$total" />', [
         'segments' => [
@@ -114,4 +128,14 @@ test('the donut component renders one arc per segment plus the track and total',
         ->and($html)->toContain('40.0%')
         ->and($html)->toContain('text-amber-500')
         ->and($html)->toContain('bg-emerald-500');
+});
+
+test('the donut abbreviates a large centre total and keeps the exact value in the title', function () {
+    $html = Blade::render('<x-charts.donut :segments="$segments" :total="$total" />', [
+        'segments' => [],
+        'total' => '$6,280,410.59',
+    ]);
+
+    expect($html)->toContain('$6.28M')
+        ->and($html)->toContain('title="$6,280,410.59"');
 });

@@ -8,9 +8,11 @@ use App\Console\Commands\ProcessDeposits;
 use App\Console\Commands\ProcessWithdrawals;
 use App\Console\Commands\ReconcileWithdrawals;
 use App\Console\Commands\UpdateUsdValuations;
+use App\Models\WebhookDelivery;
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command(DeleteExpiredAccounts::class)->daily();
+Schedule::command('model:prune', ['--model' => [WebhookDelivery::class]])->daily();
 Schedule::command(CloseInactiveSupportTickets::class)->daily();
 Schedule::command(ProcessDeposits::class)->everyMinute()->withoutOverlapping();
 Schedule::command(ProcessWithdrawals::class)->everyMinute()->withoutOverlapping();

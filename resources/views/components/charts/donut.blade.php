@@ -6,6 +6,8 @@
 @php
     $radius = 15.9155;
     $cumulative = 0.0;
+    $numericTotal = (float) preg_replace('/[^0-9.\-]/', '', (string) $total);
+    $displayTotal = $numericTotal >= 100_000 ? '$'.\Illuminate\Support\Number::abbreviate($numericTotal, 0, 2) : $total;
 @endphp
 
 <div {{ $attributes->class('flex flex-wrap items-center gap-6') }}>
@@ -25,7 +27,7 @@
             @endforeach
         </svg>
         <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <flux:heading size="lg" class="font-ledger tabular-nums">{{ $total }}</flux:heading>
+            <flux:heading size="lg" class="font-ledger tabular-nums" title="{{ $total }}">{{ $displayTotal }}</flux:heading>
             <flux:text size="sm" variant="subtle">Income</flux:text>
         </div>
     </div>

@@ -50,8 +50,7 @@
                     <flux:table.column class="max-lg:hidden">Consolidation</flux:table.column>
                     <flux:table.column class="max-md:hidden">Sent</flux:table.column>
                     <flux:table.column>Status</flux:table.column>
-                    <flux:table.column class="max-md:hidden">Tx</flux:table.column>
-                    <flux:table.column></flux:table.column>
+                    <flux:table.column align="end">Tx / Action</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($this->withdrawals as $w)
@@ -90,15 +89,15 @@
                             <flux:table.cell class="py-0">
                                 <flux:badge size="sm" color="{{ $w['statusColor'] }}">{{ $w['statusLabel'] }}</flux:badge>
                             </flux:table.cell>
-                            <flux:table.cell class="max-md:hidden py-0">
-                                @if ($w['explorerUrl'])
-                                    <flux:link href="{{ $w['explorerUrl'] }}" target="_blank" class="font-ledger">{{ $w['txShort'] }}</flux:link>
-                                @endif
-                            </flux:table.cell>
-                            <flux:table.cell class="py-0">
-                                @if ($w['canCancel'])
-                                    <flux:button variant="ghost" size="sm" wire:click="confirmCancel({{ $w['id'] }})">Cancel</flux:button>
-                                @endif
+                            <flux:table.cell align="end" class="py-0">
+                                <span class="inline-flex items-center gap-3">
+                                    @if ($w['explorerUrl'])
+                                        <flux:link href="{{ $w['explorerUrl'] }}" target="_blank" class="font-ledger">{{ $w['txShort'] }}</flux:link>
+                                    @endif
+                                    @if ($w['canCancel'])
+                                        <flux:button variant="ghost" size="sm" wire:click="confirmCancel({{ $w['id'] }})">Cancel</flux:button>
+                                    @endif
+                                </span>
                             </flux:table.cell>
                         </flux:table.row>
                     @endforeach

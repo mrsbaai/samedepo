@@ -15,9 +15,22 @@ class WebsiteOwners extends Component
 {
     use WithPagination;
 
+    private const SORTABLE = [
+        'created_at',
+        'email',
+        'customers_count',
+        'earned_usd',
+        'balance_usd',
+        'status',
+    ];
+
     public string $uiState = 'normal';
 
     public string $search = '';
+
+    public string $sort = 'balance_usd';
+
+    public string $direction = 'desc';
 
     public function mount(): void
     {
@@ -30,7 +43,10 @@ class WebsiteOwners extends Component
         $query = User::query()
             ->where('role', 'owner')
             ->where('is_admin', false)
-            ->orderBy('id', 'desc');
+            ->select('users.*')
+            ->selectRaw("COALESCE((SELECT SUM(d.usd_value) FROM deposits d WHERE d.user_id = users.id AND d.status = 'credited'), 0) AS earned_usd")
+            ->selectRaw('COALESCE((SELECT SUM(b.amount * COALESCE((SELECT uv.conversion_value FROM usd_valuations uv WHERE uv.network = b.network ORDER BY uv.id DESC LIMIT 1), 0)) FROM balances b WHERE b.user_id = users.id), 0) AS balance_usd')
+            ->withCount(['customers' => fn ($query) => $query->withoutGlobalScope('owner')]);
 
         if (trim($this->search) !== '') {
             $term = trim($this->search);
@@ -42,7 +58,28 @@ class WebsiteOwners extends Component
             });
         }
 
-        return $query;
+        return $query->orderBy($this->sortColumn(), $this->direction);
+    }
+
+    private function sortColumn(): string
+    {
+        return $this->sort === 'status' ? 'is_active' : $this->sort;
+    }
+
+    public function sort(string $column): void
+    {
+        if (! in_array($column, self::SORTABLE, true)) {
+            return;
+        }
+
+        if ($this->sort === $column) {
+            $this->direction = $this->direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sort = $column;
+            $this->direction = $column === 'email' ? 'asc' : 'desc';
+        }
+
+        $this->resetPage();
     }
 
     public function updatedSearch(): void

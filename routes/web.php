@@ -21,6 +21,7 @@ use App\Livewire\Admin\PlatformSettings;
 use App\Livewire\Admin\SupportSettings;
 use App\Livewire\Admin\ThreatProtection;
 use App\Livewire\Admin\TicketManager;
+use App\Livewire\Admin\Transactions;
 use App\Livewire\Admin\TreasuryOverview;
 use App\Livewire\Admin\WebsiteOwnerDetail;
 use App\Livewire\Admin\WebsiteOwners;
@@ -195,6 +196,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function (): void {
     Route::get('/owners', WebsiteOwners::class)->name('admin.owners');
     Route::get('/owners/{owner}', WebsiteOwnerDetail::class)->name('admin.owners.show')->whereNumber('owner');
     Route::get('/owners/{owner}/customers/{reference}', AdminCustomerDetail::class)->name('admin.owners.customers.show')->whereNumber('owner');
+    Route::get('/transactions', Transactions::class)->name('admin.transactions');
     Route::get('/withdrawals', WithdrawalQueue::class)->name('admin.withdrawals');
     Route::get('/withdrawals/{withdrawal}', WithdrawalReview::class)->name('admin.withdrawals.show')->whereNumber('withdrawal');
     Route::get('/treasury', TreasuryOverview::class)->name('admin.treasury');

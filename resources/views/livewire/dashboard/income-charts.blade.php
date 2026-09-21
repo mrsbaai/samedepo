@@ -1,5 +1,5 @@
 <div class="mt-10">
-    <flux:heading size="lg">Income</flux:heading>
+    <flux:heading size="lg">{{ $heading }}</flux:heading>
 
     <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
         <flux:radio.group variant="segmented" size="sm" wire:model.live="range">

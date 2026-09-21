@@ -2,20 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\Livewire\Dashboard;
+namespace App\Livewire\Admin;
 
 use App\Support\Network;
 use App\Support\TransactionRows;
 use Flux\DateRange;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('components.dashboard.layout', ['title' => 'Transaction History'])]
-class TransactionHistory extends Component
+#[Layout('components.dashboard.layout', ['title' => 'Transactions'])]
+class Transactions extends Component
 {
     use WithPagination;
 
@@ -49,13 +48,9 @@ class TransactionHistory extends Component
             return null;
         }
 
-        return "Couldn't load transaction history. The ledger service returned an error.";
+        return "Couldn't load transactions. The ledger service returned an error.";
     }
 
-    /**
-     * Reverse-maps a display network slug (e.g. `litecoin`) back to its
-     * DB column value (e.g. `litecoin`).
-     */
     #[Computed]
     public function networkOptions(): array
     {
@@ -94,7 +89,7 @@ class TransactionHistory extends Component
             return [];
         }
 
-        return TransactionRows::for(Auth::id())->entries(
+        return TransactionRows::for(null)->entries(
             $this->typeFilter,
             $this->networkFilter,
             $this->statusFilter,
@@ -151,6 +146,6 @@ class TransactionHistory extends Component
 
     public function render(): mixed
     {
-        return view('livewire.dashboard.transaction-history');
+        return view('livewire.admin.transactions');
     }
 }

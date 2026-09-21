@@ -78,6 +78,7 @@
                 </flux:dropdown>
 
                 <flux:navbar.item href="{{ $adminHref('admin.owners', '/admin/owners') }}" :current="request()->is('admin/owners*')" wire:navigate>Owners</flux:navbar.item>
+                <flux:navbar.item href="{{ $adminHref('admin.transactions', '/admin/transactions') }}" :current="request()->is('admin/transactions*')" wire:navigate>Transactions</flux:navbar.item>
                 <flux:navbar.item href="{{ $adminHref('admin.withdrawals', '/admin/withdrawals') }}" :current="request()->is('admin/withdrawals*')" wire:navigate>Withdrawals</flux:navbar.item>
                 <flux:navbar.item href="{{ $adminHref('admin.treasury', '/admin/treasury') }}" :current="request()->is('admin/treasury')" wire:navigate>Treasury</flux:navbar.item>
 
@@ -178,6 +179,7 @@
                 </flux:navlist.group>
 
                 <flux:navlist.item icon="user-group" href="{{ $adminHref('admin.owners', '/admin/owners') }}" :current="request()->is('admin/owners*')" wire:navigate>Owners</flux:navlist.item>
+                <flux:navlist.item icon="arrows-right-left" href="{{ $adminHref('admin.transactions', '/admin/transactions') }}" :current="request()->is('admin/transactions*')" wire:navigate>Transactions</flux:navlist.item>
                 <flux:navlist.item icon="queue-list" href="{{ $adminHref('admin.withdrawals', '/admin/withdrawals') }}" :current="request()->is('admin/withdrawals*')" wire:navigate>Withdrawals</flux:navlist.item>
                 <flux:navlist.item icon="building-library" href="{{ $adminHref('admin.treasury', '/admin/treasury') }}" :current="request()->is('admin/treasury')" wire:navigate>Treasury</flux:navlist.item>
 

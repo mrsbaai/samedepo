@@ -50,14 +50,13 @@
             @endif
 
             <div>
-                <flux:heading size="sm" class="mb-3">Endpoint</flux:heading>
                 <flux:field>
                     <flux:label>Endpoint URL</flux:label>
                     <flux:description>Must use https://. Your endpoint should respond with any HTTP 2xx status code on a successful delivery.</flux:description>
                     <flux:input.group>
                         <flux:input.group.prefix>https://</flux:input.group.prefix>
                         <flux:input wire:model="webhookUrl" placeholder="example.com/webhooks/samedepo" />
-                        <flux:button variant="primary" wire:click="save">Save Webhook Endpoint</flux:button>
+                        <flux:button variant="primary" wire:click="save">Save</flux:button>
                     </flux:input.group>
                     <flux:error name="webhookUrl" />
                 </flux:field>

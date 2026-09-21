@@ -17,6 +17,8 @@ class IncomeCharts extends Component
 {
     public ?int $ownerId = null;
 
+    public string $heading = 'Income';
+
     public string $range = '7d';
 
     public DateRange $customRange;
@@ -24,9 +26,10 @@ class IncomeCharts extends Component
     /** @var array<int, string> */
     public array $networks = [];
 
-    public function mount(?int $ownerId = null): void
+    public function mount(?int $ownerId = null, ?string $heading = null): void
     {
         $this->ownerId = $ownerId;
+        $this->heading = $heading ?? 'Income';
         $this->networks = Network::enabledKeys();
         $this->customRange = new DateRange(now()->subDays(6)->startOfDay(), now());
     }
@@ -36,23 +39,21 @@ class IncomeCharts extends Component
     {
         $present = Network::presentAll(enabledOnly: true);
 
-        if ($this->ownerId === null) {
-            return $present;
-        }
-
         $income = Deposit::query()
             ->withoutGlobalScope('owner')
             ->where('status', 'credited')
-            ->where('user_id', $this->ownerId)
             ->whereIn('network', array_keys($present))
+            ->when($this->ownerId, fn ($query) => $query->where('user_id', $this->ownerId))
             ->selectRaw('network, SUM(usd_value) as total')
             ->groupBy('network')
             ->pluck('total', 'network');
 
         $balances = Balance::query()
             ->withoutGlobalScope('owner')
-            ->where('user_id', $this->ownerId)
-            ->pluck('amount', 'network');
+            ->when($this->ownerId, fn ($query) => $query->where('user_id', $this->ownerId))
+            ->selectRaw('network, SUM(amount) as total')
+            ->groupBy('network')
+            ->pluck('total', 'network');
 
         return array_filter(
             $present,
