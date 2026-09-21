@@ -9,9 +9,7 @@
                 <div class="flex items-center gap-3">
                     <code class="text-xs truncate flex-1 text-zinc-600 dark:text-zinc-400 font-ledger">{{ $address }}</code>
 
-                    <flux:tooltip content="Copy address">
-                        <flux:button variant="ghost" size="sm" icon="clipboard-document" onclick="navigator.clipboard.writeText('{{ $address }}')" />
-                    </flux:tooltip>
+                    <x-hash-actions :value="$address" label="address" />
                 </div>
 
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-2">

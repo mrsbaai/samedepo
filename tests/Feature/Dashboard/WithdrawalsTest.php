@@ -50,7 +50,7 @@ test('the withdrawals table lists every status with its amounts and copyable tx 
         ->assertSee('Denied', false)
         ->assertSee('100.00 USDT', false)
         ->assertSee('0.49985000 BTC', false)
-        ->assertSee("navigator.clipboard.writeText('a1b2c3d4e5f6a7b8c9d0')", false);
+        ->assertSee('a1b2c3d4e5f6a7b8c9d0', false);
 });
 
 test('a pending withdrawal can be cancelled and the balance is restored', function () {

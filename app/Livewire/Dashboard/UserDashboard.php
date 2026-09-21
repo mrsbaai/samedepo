@@ -7,7 +7,6 @@ namespace App\Livewire\Dashboard;
 use App\Models\Balance;
 use App\Models\UsdValuation;
 use App\Support\Network;
-use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -69,14 +68,6 @@ class UserDashboard extends Component
             'badge' => $balance['badge'],
             'zero' => (float) $balance['amount'] === 0.0,
         ])->all();
-    }
-
-    #[Computed]
-    public function lastUpdated(): string
-    {
-        $latest = UsdValuation::query()->max('updated_at');
-
-        return $latest ? Carbon::parse($latest)->toIso8601String() : now()->toIso8601String();
     }
 
     public function retry(): void

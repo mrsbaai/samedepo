@@ -1,13 +1,15 @@
 <div class="py-8">
     @if ($this->uiState === 'error')
-        <flux:callout variant="danger" icon="x-circle" heading="Couldn't load webhook settings">
-            <flux:callout.text>{{ $this->errorMessage }}</flux:callout.text>
-            <x-slot name="actions">
-                <flux:button wire:click="retry" icon="arrow-path" variant="ghost">Retry</flux:button>
-            </x-slot>
-        </flux:callout>
+        <div class="max-w-lg mx-auto">
+            <flux:callout variant="danger" icon="x-circle" heading="Couldn't load webhook settings">
+                <flux:callout.text>{{ $this->errorMessage }}</flux:callout.text>
+                <x-slot name="actions">
+                    <flux:button wire:click="retry" icon="arrow-path" variant="ghost">Retry</flux:button>
+                </x-slot>
+            </flux:callout>
+        </div>
     @elseif ($this->uiState === 'loading')
-        <div class="max-w-3xl">
+        <div class="max-w-lg mx-auto">
             <flux:skeleton class="h-8 w-48 mb-4" />
             <div class="space-y-3">
                 <flux:skeleton class="h-10 w-full" />
@@ -16,7 +18,7 @@
             </div>
         </div>
     @else
-        <div class="space-y-8 max-w-3xl">
+        <div class="max-w-lg mx-auto space-y-6">
             <div>
                 <flux:heading size="xl">Webhook Settings</flux:heading>
                 <flux:subheading class="mt-2">Configure the endpoint where deposit webhooks are delivered.</flux:subheading>
@@ -49,39 +51,42 @@
                 </flux:callout>
             @endif
 
-            <div>
-                <flux:field>
-                    <flux:label>Endpoint URL</flux:label>
-                    <flux:description>Must use https://. Your endpoint should respond with any HTTP 2xx status code on a successful delivery.</flux:description>
-                    <flux:input.group>
-                        <flux:input.group.prefix>https://</flux:input.group.prefix>
-                        <flux:input wire:model="webhookUrl" placeholder="example.com/webhooks/samedepo" />
-                        <flux:button variant="primary" wire:click="save">Save</flux:button>
-                    </flux:input.group>
-                    <flux:error name="webhookUrl" />
-                </flux:field>
-                <div class="mt-3">
-                    <flux:button wire:click="test" icon="paper-airplane" size="sm" variant="ghost">Test Endpoint</flux:button>
-                </div>
-            </div>
-
-            @if (! $showSetupNotice)
-                <div>
-                    <flux:heading size="sm" class="mb-3">Signing secret</flux:heading>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <flux:input
-                            type="password"
-                            :value="$this->endpoint?->getRawOriginal('secret')"
-                            readonly
-                            viewable
-                            copyable
-                            class="font-ledger max-w-md"
-                        />
-                        <flux:button wire:click="$set('showRegenerateModal', true)" icon="arrow-path" variant="ghost" size="sm">Rotate secret</flux:button>
+            <flux:card>
+                <div class="space-y-4">
+                    <div>
+                        <flux:text size="sm" class="font-medium mb-1">Endpoint URL</flux:text>
+                        <flux:input.group>
+                            <flux:input.group.prefix>https://</flux:input.group.prefix>
+                            <flux:input wire:model="webhookUrl" placeholder="example.com/webhooks/samedepo" />
+                            <flux:button variant="primary" wire:click="save">Save</flux:button>
+                        </flux:input.group>
+                        <flux:error name="webhookUrl" />
+                        <div class="mt-3 flex items-center justify-between">
+                            <flux:text size="sm" variant="subtle">Respond with any 2xx status.</flux:text>
+                            <flux:button wire:click="test" icon="paper-airplane" size="sm" variant="ghost">Test Endpoint</flux:button>
+                        </div>
                     </div>
-                    <flux:text size="sm" variant="subtle" class="mt-2">Verify the X-Samedepo-Signature header with this secret.</flux:text>
+
+                    @if (! $showSetupNotice)
+                        <flux:separator variant="subtle" />
+                        <div>
+                            <flux:text size="sm" class="font-medium mb-1">Signing secret</flux:text>
+                            <div class="flex items-center gap-2">
+                                <flux:input
+                                    type="password"
+                                    :value="$this->endpoint?->getRawOriginal('secret')"
+                                    readonly
+                                    viewable
+                                    copyable
+                                    class="font-ledger w-full"
+                                />
+                                <flux:button wire:click="$set('showRegenerateModal', true)" icon="arrow-path" variant="ghost" size="sm">Rotate secret</flux:button>
+                            </div>
+                            <flux:text size="sm" variant="subtle" class="mt-2">Verify the X-Samedepo-Signature header with this secret.</flux:text>
+                        </div>
+                    @endif
                 </div>
-            @endif
+            </flux:card>
 
             <div>
                 <flux:heading size="sm" class="mb-3">Recent deliveries</flux:heading>

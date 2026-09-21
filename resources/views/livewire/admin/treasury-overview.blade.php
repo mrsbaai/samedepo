@@ -207,7 +207,7 @@
                                                     <flux:text size="sm">TronSave float: <span class="font-mono font-medium">{{ $this->energyFloat['balance_trx'] }} TRX</span></flux:text>
                                                     @if ($this->energyFloat['deposit_address'])
                                                         <flux:text size="sm" class="font-mono">{{ $this->energyFloat['deposit_address'] }}</flux:text>
-                                                        <flux:button size="xs" variant="ghost" icon="clipboard-document" x-on:click="navigator.clipboard.writeText('{{ $this->energyFloat['deposit_address'] }}')">Copy</flux:button>
+                                                        <x-hash-actions :value="$this->energyFloat['deposit_address']" label="address" />
                                                     @endif
                                                 </div>
                                             @endif
@@ -238,7 +238,10 @@
                                         <flux:table.cell class="py-0"><flux:badge size="sm" color="{{ $sweep->fee_recovered_at ? 'green' : 'zinc' }}">{{ $sweep->fee_recovered_at ? 'Recovered' : 'Unbilled' }}</flux:badge></flux:table.cell>
                                         <flux:table.cell class="font-mono text-xs">
                                             @if ($sweep->tx_hash)
-                                                <a href="{{ $this->explorerUrl('tx', $sweep->network, $sweep->tx_hash) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline dark:text-blue-400">{{ Str::limit($sweep->tx_hash, 16) }}</a>
+                                                <span class="inline-flex items-center gap-1">
+                                                    <span class="font-ledger">{{ Str::limit($sweep->tx_hash, 16) }}</span>
+                                                    <x-hash-actions :value="$sweep->tx_hash" :url="$this->explorerUrl('tx', $sweep->network, $sweep->tx_hash)" />
+                                                </span>
                                             @else
                                                 —
                                             @endif
@@ -269,7 +272,10 @@
                                         <flux:table.cell class="py-0"><flux:badge size="sm" color="{{ $payout->status === 'confirmed' ? 'green' : ($payout->status === 'failed' ? 'red' : ($payout->status === 'sent' ? 'amber' : 'zinc')) }}">{{ ucfirst($payout->status) }}</flux:badge></flux:table.cell>
                                         <flux:table.cell class="font-mono text-xs">
                                             @if ($payout->tx_hash)
-                                                <a href="{{ $this->explorerUrl('tx', $payout->network, $payout->tx_hash) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline dark:text-blue-400">{{ Str::limit($payout->tx_hash, 16) }}</a>
+                                                <span class="inline-flex items-center gap-1">
+                                                    <span class="font-ledger">{{ Str::limit($payout->tx_hash, 16) }}</span>
+                                                    <x-hash-actions :value="$payout->tx_hash" :url="$this->explorerUrl('tx', $payout->network, $payout->tx_hash)" />
+                                                </span>
                                             @else
                                                 —
                                             @endif

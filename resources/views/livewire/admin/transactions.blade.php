@@ -162,8 +162,11 @@
                                 <flux:badge size="sm" color="{{ $statusColors[$tx['status']] ?? 'zinc' }}">{{ $tx['statusLabel'] }}</flux:badge>
                             </flux:table.cell>
                             <flux:table.cell align="end" class="py-0">
-                                @if ($tx['explorerUrl'])
-                                    <flux:link href="{{ $tx['explorerUrl'] }}" target="_blank" class="font-ledger">{{ $tx['txShort'] }}</flux:link>
+                                @if ($tx['txHash'])
+                                    <span class="inline-flex items-center gap-1">
+                                        <span class="font-ledger">{{ $tx['txShort'] }}</span>
+                                        <x-hash-actions :value="$tx['txHash']" :url="$tx['explorerUrl']" />
+                                    </span>
                                 @endif
                             </flux:table.cell>
                         </flux:table.row>

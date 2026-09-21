@@ -92,9 +92,7 @@
                             <flux:table.cell align="end" class="py-0">
                                 <span class="inline-flex items-center gap-1">
                                     @if ($w['txHash'])
-                                        <flux:tooltip content="Copy tx hash">
-                                            <flux:button variant="ghost" size="sm" icon="clipboard-document" class="font-ledger" onclick="navigator.clipboard.writeText('{{ $w['txHash'] }}')" />
-                                        </flux:tooltip>
+                                        <x-hash-actions :value="$w['txHash']" :url="$w['explorerUrl']" />
                                     @endif
                                     @if ($w['canCancel'])
                                         <flux:button variant="ghost" size="sm" wire:click="confirmCancel({{ $w['id'] }})">Cancel</flux:button>

@@ -131,32 +131,26 @@ test('customers can be sorted by total usd in both directions', function () {
 
     $component = Livewire::actingAs($owner)->test(Customers::class);
 
-    $component->call('sort', 'total_usd');
+    $component->call('sortBy', 'total_usd');
     expect($component->instance()->paginatedCustomers->pluck('customer_reference')->all())
         ->toBe(['CUST-BIG', 'CUST-SMALL', 'CUST-NONE']);
 
-    $component->call('sort', 'total_usd');
+    $component->call('sortBy', 'total_usd');
     expect($component->instance()->paginatedCustomers->pluck('customer_reference')->all())
         ->toBe(['CUST-NONE', 'CUST-SMALL', 'CUST-BIG']);
 });
 
-test('customers can be sorted by a single network usd column', function () {
+test('network and reference columns are not sortable', function () {
     $owner = User::factory()->create(['role' => 'owner']);
-    $trc = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'CUST-TRC']);
-    $btc = Customer::factory()->create(['user_id' => $owner->id, 'customer_reference' => 'CUST-BTC']);
-    creditDeposit($owner, $trc, 'usdt_trc20', '80.00', '80.00');
-    creditDeposit($owner, $btc, 'usdt_trc20', '5.00', '5.00');
-    creditDeposit($owner, $btc, 'bitcoin', '0.02', '900.00');
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    creditDeposit($owner, $customer, 'usdt_trc20', '80.00', '80.00');
 
-    $component = Livewire::actingAs($owner)->test(Customers::class);
-
-    $component->call('sort', 'usd_bitcoin');
-    expect($component->instance()->paginatedCustomers->pluck('customer_reference')->first())
-        ->toBe('CUST-BTC');
-
-    $component->call('sort', 'usd_usdt_trc20');
-    expect($component->instance()->paginatedCustomers->pluck('customer_reference')->first())
-        ->toBe('CUST-TRC');
+    Livewire::actingAs($owner)
+        ->test(Customers::class)
+        ->call('sortBy', 'usd_bitcoin')
+        ->assertSet('sort', 'created_at')
+        ->call('sortBy', 'customer_reference')
+        ->assertSet('sort', 'created_at');
 });
 
 test('customers can be sorted by credited deposit count', function () {
@@ -170,7 +164,7 @@ test('customers can be sorted by credited deposit count', function () {
 
     $component = Livewire::actingAs($owner)->test(Customers::class);
 
-    $component->call('sort', 'deposits_count');
+    $component->call('sortBy', 'deposits_count');
     expect($component->instance()->paginatedCustomers->pluck('customer_reference')->all())
         ->toBe(['CUST-MANY', 'CUST-ONE']);
 });
@@ -183,9 +177,9 @@ test('sorting toggles direction on a repeated column and resets on a new column'
         ->test(Customers::class)
         ->assertSet('sort', 'created_at')
         ->assertSet('direction', 'desc')
-        ->call('sort', 'created_at')
+        ->call('sortBy', 'created_at')
         ->assertSet('direction', 'asc')
-        ->call('sort', 'customer_reference')
-        ->assertSet('sort', 'customer_reference')
-        ->assertSet('direction', 'asc');
+        ->call('sortBy', 'total_usd')
+        ->assertSet('sort', 'total_usd')
+        ->assertSet('direction', 'desc');
 });

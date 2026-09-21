@@ -12,7 +12,7 @@
     ];
     $fallbackRates = ['BTC' => 63800, 'ETH' => 3150, 'LTC' => 82, 'BNB' => 560];
 
-    $presented = array_slice(\App\Support\Network::presentAll(enabledOnly: true), 0, 4, preserve_keys: true);
+    $presented = \App\Support\Network::presentAll(enabledOnly: true);
     $rates = \App\Models\UsdValuation::query()->whereIn('network', array_keys($presented))->pluck('conversion_value', 'network');
 
     $demoNetworks = [];
@@ -26,25 +26,27 @@
 @endphp
 
 <div class="landing-demo" x-data="landingDemo(@js($demoNetworks))">
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800/60 sm:grid-cols-2 xl:grid-cols-3">
         @foreach ($demoNetworks as $i => $network)
-            <flux:card size="sm" class="bg-zinc-900!">
-                <div class="flex min-w-0 items-center gap-2">
-                    <x-crypto-icon :icon="$network['icon']" :badge="$network['badge']" class="size-5" />
-                    <flux:text class="truncate font-medium">{{ $network['label'] }}</flux:text>
+            <div class="bg-zinc-900/80 p-5" x-bind:class="{ 'animate-demo-flash': flashKey === '{{ $network['key'] }}' }">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex min-w-0 items-center gap-2">
+                        <x-crypto-icon :icon="$network['icon']" :badge="$network['badge']" class="size-5" />
+                        <flux:text size="sm" class="truncate font-medium">{{ $network['label'] }}</flux:text>
+                    </div>
+                    <flux:button size="xs" variant="ghost" icon:trailing="arrow-up-right" href="{{ route('signup') }}" wire:navigate>Withdraw</flux:button>
                 </div>
-                <flux:heading size="lg" class="mt-2 -mx-1 rounded-md px-1 font-ledger"
+                <flux:heading size="xl" class="mt-3 font-ledger"
                     x-text="fmtUsd(networks[{{ $i }}].balance * networks[{{ $i }}].rate)"
-                    x-bind:class="{ 'animate-demo-flash': flashKey === '{{ $network['key'] }}' }"
                 >${{ number_format($network['balance'] * $network['rate'], 2) }}</flux:heading>
                 <flux:text size="sm" variant="subtle" class="mt-0.5 font-ledger"
                     x-text="fmtCrypto(networks[{{ $i }}].balance, networks[{{ $i }}]) + ' {{ $network['symbol'] }}'"
                 >{{ rtrim(rtrim(number_format($network['balance'], min(8, $network['decimals'])), '0'), '.') }} {{ $network['symbol'] }}</flux:text>
-            </flux:card>
+            </div>
         @endforeach
     </div>
 
-    <flux:card size="sm" class="mt-4 bg-zinc-900!">
+    <flux:card size="sm" class="mt-4 bg-zinc-900/80!">
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>Time</flux:table.column>
@@ -76,7 +78,10 @@
                         </flux:table.cell>
                         <flux:table.cell align="end" class="font-ledger" x-text="fmtCrypto(row.amount, row.network) + ' ' + row.network.symbol"></flux:table.cell>
                         <flux:table.cell align="end" variant="strong" class="font-ledger" x-text="fmtUsd(row.usd)"></flux:table.cell>
-                        <flux:table.cell class="py-0"><flux:badge size="sm" color="green">Credited</flux:badge></flux:table.cell>
+                        <flux:table.cell class="py-0">
+                            <template x-if="row.status === 'pending'"><flux:badge size="sm" color="amber">Pending</flux:badge></template>
+                            <template x-if="row.status === 'credited'"><flux:badge size="sm" color="green">Credited</flux:badge></template>
+                        </flux:table.cell>
                     </flux:table.row>
                 </template>
             </flux:table.rows>
@@ -99,7 +104,7 @@
             usdFmt: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }),
 
             init() {
-                [8, 21, 37, 58, 84].forEach((ago) => this.rows.push(this.makeRow(Date.now() - ago * 1000)));
+                [8, 21, 37, 58, 84].forEach((ago) => this.rows.push(this.makeRow(Date.now() - ago * 1000, 'credited')));
 
                 setInterval(() => (this.now = Date.now()), 1000);
 
@@ -143,10 +148,10 @@
                 return 'CUST-' + Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
             },
 
-            makeRow(ts) {
+            makeRow(ts, status = 'pending') {
                 const network = this.pickNetwork();
                 const amount = this.randomAmount(network);
-                return { id: ++this.nextId, ts, customer: this.customerRef(), network, amount, usd: amount * network.rate };
+                return { id: ++this.nextId, ts, customer: this.customerRef(), network, amount, usd: amount * network.rate, status };
             },
 
             schedule() {
@@ -154,7 +159,7 @@
                 this.timer = setTimeout(() => {
                     this.timer = null;
                     this.tick();
-                }, 1000 + Math.random() * 8000);
+                }, 2000 + Math.random() * 5000);
             },
 
             pause() {
@@ -166,16 +171,22 @@
                 const row = this.makeRow(Date.now());
                 this.rows.unshift(row);
                 if (this.rows.length > 5) this.rows.pop();
-                row.network.balance += row.amount;
 
-                if (! this.reduced) {
-                    this.flashId = row.id;
-                    this.flashKey = row.network.key;
-                    setTimeout(() => {
-                        this.flashId = null;
-                        this.flashKey = null;
-                    }, 1200);
-                }
+                setTimeout(() => {
+                    const credited = this.rows.find((r) => r.id === row.id);
+                    if (! credited) return;
+                    credited.status = 'credited';
+                    credited.network.balance += credited.amount;
+
+                    if (! this.reduced) {
+                        this.flashId = credited.id;
+                        this.flashKey = credited.network.key;
+                        setTimeout(() => {
+                            this.flashId = null;
+                            this.flashKey = null;
+                        }, 1200);
+                    }
+                }, 1000);
 
                 this.schedule();
             },

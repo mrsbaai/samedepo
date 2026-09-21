@@ -67,16 +67,10 @@ class Customers extends Component
      */
     private function sortableColumns(): array
     {
-        return [
-            'created_at',
-            'customer_reference',
-            'total_usd',
-            'deposits_count',
-            ...array_map(fn (string $key): string => "usd_{$key}", array_keys($this->networkColumns)),
-        ];
+        return ['created_at', 'total_usd', 'deposits_count'];
     }
 
-    public function sort(string $column): void
+    public function sortBy(string $column): void
     {
         if (! in_array($column, $this->sortableColumns(), true)) {
             return;
@@ -86,7 +80,7 @@ class Customers extends Component
             $this->direction = $this->direction === 'asc' ? 'desc' : 'asc';
         } else {
             $this->sort = $column;
-            $this->direction = $column === 'customer_reference' ? 'asc' : 'desc';
+            $this->direction = 'desc';
         }
 
         $this->resetPage();

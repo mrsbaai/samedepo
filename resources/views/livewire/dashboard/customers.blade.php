@@ -46,13 +46,13 @@
         @else
             <flux:table :paginate="$this->paginatedCustomers" pagination:scroll-to>
                 <flux:table.columns>
-                    <flux:table.column sortable :sorted="$sort === 'created_at'" :direction="$direction" wire:click="sort('created_at')" class="max-md:hidden">Registered</flux:table.column>
-                    <flux:table.column sortable :sorted="$sort === 'customer_reference'" :direction="$direction" wire:click="sort('customer_reference')">Reference</flux:table.column>
+                    <flux:table.column sortable :sorted="$sort === 'created_at'" :direction="$direction" wire:click="sortBy('created_at')" class="max-md:hidden">Registered</flux:table.column>
+                    <flux:table.column>Reference</flux:table.column>
                     @foreach ($this->networkColumns as $key => $meta)
-                        <flux:table.column sortable :sorted="$sort === 'usd_{{ $key }}'" :direction="$direction" wire:click="sort('usd_{{ $key }}')" class="max-lg:hidden">{{ $meta['label'] }}</flux:table.column>
+                        <flux:table.column class="max-lg:hidden">{{ $meta['label'] }}</flux:table.column>
                     @endforeach
-                    <flux:table.column sortable :sorted="$sort === 'total_usd'" :direction="$direction" wire:click="sort('total_usd')">Total USD</flux:table.column>
-                    <flux:table.column sortable :sorted="$sort === 'deposits_count'" :direction="$direction" wire:click="sort('deposits_count')" class="max-md:hidden">Deposits</flux:table.column>
+                    <flux:table.column sortable :sorted="$sort === 'total_usd'" :direction="$direction" wire:click="sortBy('total_usd')">Total USD</flux:table.column>
+                    <flux:table.column sortable :sorted="$sort === 'deposits_count'" :direction="$direction" wire:click="sortBy('deposits_count')" class="max-md:hidden">Deposits</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($this->paginatedCustomers as $customer)

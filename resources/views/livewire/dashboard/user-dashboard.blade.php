@@ -13,10 +13,7 @@
         </flux:callout>
     @elseif ($this->uiState === 'loading')
         <section>
-            <div class="flex items-baseline justify-between">
-                <flux:heading size="lg">Balances</flux:heading>
-                <flux:skeleton class="h-4 w-32" />
-            </div>
+            <flux:heading size="lg">Balances</flux:heading>
             <div class="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 xl:grid-cols-3">
                 @foreach (range(1, 3) as $i)
                     <div class="bg-zinc-900 p-5">
@@ -35,10 +32,7 @@
         @endphp
 
         <section>
-            <div class="flex items-baseline justify-between">
-                <flux:heading size="lg">Balances</flux:heading>
-                <flux:text size="sm" variant="subtle">Rates updated <x-date.human :at="$this->lastUpdated" /></flux:text>
-            </div>
+            <flux:heading size="lg">Balances</flux:heading>
 
             @if ($fundedStats === [])
                 <flux:callout icon="wallet" class="mt-4">

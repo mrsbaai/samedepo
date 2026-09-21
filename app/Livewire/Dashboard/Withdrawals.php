@@ -6,6 +6,7 @@ namespace App\Livewire\Dashboard;
 
 use App\Actions\CancelWithdrawal;
 use App\Models\Withdrawal;
+use App\Support\ExplorerUrl;
 use App\Support\Network;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
@@ -95,6 +96,7 @@ class Withdrawals extends Component
             'statusLabel' => ucfirst($w->status),
             'statusColor' => self::STATUS_COLORS[$w->status] ?? 'zinc',
             'txHash' => $w->tx_hash,
+            'explorerUrl' => ExplorerUrl::for('tx', $w->network, $w->tx_hash),
             'canCancel' => $w->status === 'pending',
         ];
     }

@@ -42,10 +42,11 @@
                 </flux:table.cell>
 
                 <flux:table.cell class="py-0 font-mono text-xs">
-                    @if ($d['explorerUrl'])
-                        <flux:link href="{{ $d['explorerUrl'] }}" target="_blank" rel="noopener">
-                            {{ substr($d['txHash'], 0, 6) }}…{{ substr($d['txHash'], -4) }}
-                        </flux:link>
+                    @if ($d['txHash'])
+                        <span class="inline-flex items-center gap-1">
+                            <span class="font-ledger">{{ substr($d['txHash'], 0, 6) }}…{{ substr($d['txHash'], -4) }}</span>
+                            <x-hash-actions :value="$d['txHash']" :url="$d['explorerUrl']" />
+                        </span>
                     @else
                         —
                     @endif

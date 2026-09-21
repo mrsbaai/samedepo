@@ -244,8 +244,11 @@
                                         <flux:badge size="sm" color="{{ $statusColors[$w['status']] ?? 'zinc' }}">{{ ucfirst($w['status']) }}</flux:badge>
                                     </flux:table.cell>
                                     <flux:table.cell class="py-0 font-mono text-xs">
-                                        @if ($w['explorerUrl'])
-                                            <flux:link href="{{ $w['explorerUrl'] }}" target="_blank" rel="noopener">{{ substr($w['txHash'], 0, 6) }}…{{ substr($w['txHash'], -4) }}</flux:link>
+                                        @if ($w['txHash'])
+                                            <span class="inline-flex items-center gap-1">
+                                                <span class="font-ledger">{{ substr($w['txHash'], 0, 6) }}…{{ substr($w['txHash'], -4) }}</span>
+                                                <x-hash-actions :value="$w['txHash']" :url="$w['explorerUrl']" />
+                                            </span>
                                         @else
                                             —
                                         @endif
