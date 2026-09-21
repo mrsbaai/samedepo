@@ -90,3 +90,7 @@ test('the landing page shows the FAQs section with managed questions', function 
         ->assertSee($faq->question)
         ->assertSee($faq->answer);
 });
+
+test('the public withdrawal fee calculator route has been removed', function () {
+    $this->get('/withdrawal-fee-calculator')->assertNotFound();
+});

@@ -57,7 +57,6 @@ test('withdraw page shows the exact buffered and converted fee breakdown', funct
         ->assertSee('Estimates — the final fee is locked when the withdrawal is sent.')
         ->assertSee("SameDepo's 2% fee was taken when each deposit was credited", false)
         ->assertSee('How this is calculated')
-        ->assertSee('How fees are calculated')
         ->assertDontSee('Consolidation already incurred')
         ->assertDontSee('Consolidation to fund this withdrawal');
 });

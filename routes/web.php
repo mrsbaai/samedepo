@@ -51,7 +51,6 @@ use App\Livewire\Dashboard\Withdraw;
 use App\Livewire\Dashboard\Withdrawals;
 use App\Livewire\Dashboard\WithdrawalSettings;
 use App\Livewire\Demo\EmailInbox;
-use App\Livewire\PublicPages\FeeCalculator;
 use App\Livewire\Support\SupportCenter;
 use App\Livewire\Support\TicketCreate;
 use App\Livewire\Support\TicketThread;
@@ -313,7 +312,6 @@ Route::get('/', function () {
 })->name('public.landing');
 
 Route::get('/api-docs', ApiDocsController::class)->name('public.api-docs');
-Route::get('/withdrawal-fee-calculator', FeeCalculator::class)->name('withdrawal-fees.calculator');
 
 Route::get('/qr/{address}', [QrController::class, 'show'])->name('qr');
 
