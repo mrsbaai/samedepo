@@ -63,7 +63,10 @@
                         <flux:error name="webhookUrl" />
                         <div class="mt-3 flex items-center justify-between">
                             <flux:text size="sm" variant="subtle">Respond with any 2xx status.</flux:text>
-                            <flux:button wire:click="test" icon="paper-airplane" size="sm" variant="ghost">Test Endpoint</flux:button>
+                            <div class="flex items-center gap-2">
+                                <flux:button wire:click="test" icon="paper-airplane" size="sm" variant="ghost">Test Endpoint</flux:button>
+                                <flux:button href="{{ route('webhooks') }}" wire:navigate icon="bolt" size="sm" variant="ghost">View deliveries</flux:button>
+                            </div>
                         </div>
                     </div>
 
@@ -87,40 +90,6 @@
                     @endif
                 </div>
             </flux:card>
-
-            <div>
-                <flux:heading size="sm" class="mb-3">Recent deliveries</flux:heading>
-                @if ($this->deliveries->isEmpty())
-                    <flux:text size="sm" variant="subtle">No deliveries recorded yet.</flux:text>
-                @else
-                    <flux:table>
-                        <flux:table.columns>
-                            <flux:table.column>Time</flux:table.column>
-                            <flux:table.column>Event</flux:table.column>
-                            <flux:table.column>Status</flux:table.column>
-                            <flux:table.column>Code</flux:table.column>
-                            <flux:table.column></flux:table.column>
-                        </flux:table.columns>
-                        <flux:table.rows>
-                            @foreach ($this->deliveries as $delivery)
-                                <flux:table.row wire:key="delivery-{{ $delivery->id }}">
-                                    <flux:table.cell class="whitespace-nowrap">{{ \App\Support\Dates::humanFlat($delivery->created_at) }}</flux:table.cell>
-                                    <flux:table.cell class="font-ledger">{{ $delivery->event }}</flux:table.cell>
-                                    <flux:table.cell class="py-0">
-                                        <flux:badge size="sm" color="{{ $delivery->status === 'delivered' ? 'green' : 'red' }}">{{ ucfirst($delivery->status) }}</flux:badge>
-                                    </flux:table.cell>
-                                    <flux:table.cell class="font-ledger">{{ $delivery->response_code ?? '—' }}</flux:table.cell>
-                                    <flux:table.cell class="py-0">
-                                        @if ($delivery->status === 'failed')
-                                            <flux:button variant="ghost" size="sm" icon="arrow-path" wire:click="redeliver({{ $delivery->id }})">Retry</flux:button>
-                                        @endif
-                                    </flux:table.cell>
-                                </flux:table.row>
-                            @endforeach
-                        </flux:table.rows>
-                    </flux:table>
-                @endif
-            </div>
         </div>
     @endif
 

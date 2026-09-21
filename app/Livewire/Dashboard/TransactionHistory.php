@@ -14,7 +14,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('components.dashboard.layout', ['title' => 'Transaction History'])]
+#[Layout('components.dashboard.layout', ['title' => 'Transactions'])]
 class TransactionHistory extends Component
 {
     use WithPagination;

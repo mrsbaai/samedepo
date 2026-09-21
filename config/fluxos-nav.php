@@ -28,16 +28,22 @@ return [
                 'label' => 'Dashboard',
             ],
             [
+                'icon' => 'clock',
+                'route' => 'transactions',
+                'path' => '/transactions',
+                'label' => 'Transactions',
+            ],
+            [
                 'icon' => 'users',
                 'route' => 'customers',
                 'path' => '/customers',
                 'label' => 'Customers',
             ],
             [
-                'icon' => 'clock',
-                'route' => 'transactions',
-                'path' => '/transactions',
-                'label' => 'Transaction History',
+                'icon' => 'bolt',
+                'route' => 'webhooks',
+                'path' => '/webhooks',
+                'label' => 'Webhooks',
             ],
             [
                 'icon' => 'arrow-up-tray',

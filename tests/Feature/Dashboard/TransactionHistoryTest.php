@@ -54,7 +54,7 @@ test('an owner can view both deposits and withdrawals on the transactions page',
     $this->actingAs($owner)
         ->get(route('transactions'))
         ->assertOk()
-        ->assertSee('Transaction History', false)
+        ->assertSee('Transactions', false)
         ->assertSee('Deposit', false)
         ->assertSee('Withdrawal', false)
         ->assertSee('0.12345678 BTC', false)

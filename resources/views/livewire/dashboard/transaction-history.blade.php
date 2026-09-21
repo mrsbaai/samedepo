@@ -1,6 +1,6 @@
 <div class="py-8">
     <div class="mb-6">
-        <flux:heading size="xl">Transaction History</flux:heading>
+        <flux:heading size="xl">Transactions</flux:heading>
         <flux:subheading class="mt-2">Full ledger of deposits, withdrawals and adjustments.</flux:subheading>
     </div>
 

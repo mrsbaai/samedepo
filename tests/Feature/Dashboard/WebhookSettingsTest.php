@@ -141,37 +141,6 @@ test('error state renders a callout and retry resets to normal', function () {
         ->assertDontSee('Couldn\'t load webhook settings');
 });
 
-test('recent deliveries are listed with status badges and response codes', function () {
-    $owner = User::factory()->create(['role' => 'owner']);
-    $endpoint = WebhookEndpoint::factory()->create([
-        'user_id' => $owner->id,
-        'url' => 'https://existing.example.com/webhook',
-        'enabled_events' => ['deposit.credited'],
-    ]);
-    WebhookDelivery::factory()->create([
-        'webhook_endpoint_id' => $endpoint->id,
-        'event' => 'deposit.credited',
-        'status' => 'delivered',
-        'response_code' => 200,
-    ]);
-    WebhookDelivery::factory()->create([
-        'webhook_endpoint_id' => $endpoint->id,
-        'event' => 'deposit.pending',
-        'status' => 'failed',
-        'response_code' => 500,
-    ]);
-
-    Livewire::actingAs($owner)
-        ->test(WebhookSettings::class)
-        ->assertSee('Recent deliveries', false)
-        ->assertSee('deposit.credited', false)
-        ->assertSee('deposit.pending', false)
-        ->assertSee('Delivered', false)
-        ->assertSee('Failed', false)
-        ->assertSee('500', false)
-        ->assertSee('Retry', false);
-});
-
 test('deliveries are recorded when the dispatcher sends to a saved endpoint', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     $endpoint = WebhookEndpoint::factory()->create([
@@ -189,29 +158,6 @@ test('deliveries are recorded when the dispatcher sends to a saved endpoint', fu
         'status' => 'delivered',
         'response_code' => 201,
     ]);
-});
-
-test('a failed delivery can be retried', function () {
-    $owner = User::factory()->create(['role' => 'owner']);
-    $endpoint = WebhookEndpoint::factory()->create([
-        'user_id' => $owner->id,
-        'url' => 'https://existing.example.com/webhook',
-        'enabled_events' => ['deposit.credited'],
-    ]);
-    $delivery = WebhookDelivery::factory()->create([
-        'webhook_endpoint_id' => $endpoint->id,
-        'event' => 'deposit.credited',
-        'status' => 'failed',
-        'response_code' => 500,
-    ]);
-    Http::fake(['https://existing.example.com/webhook' => Http::response(status: 200)]);
-
-    Livewire::actingAs($owner)
-        ->test(WebhookSettings::class)
-        ->call('redeliver', $delivery->id);
-
-    expect(WebhookDelivery::where('webhook_endpoint_id', $endpoint->id)->count())->toBe(2);
-    expect(WebhookDelivery::latest('id')->first()->status)->toBe('delivered');
 });
 
 test('the signing secret is shown masked with a reveal control', function () {

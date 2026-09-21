@@ -46,6 +46,7 @@ use App\Livewire\Dashboard\CustomerDetail;
 use App\Livewire\Dashboard\Customers;
 use App\Livewire\Dashboard\TransactionHistory;
 use App\Livewire\Dashboard\UserDashboard;
+use App\Livewire\Dashboard\Webhooks;
 use App\Livewire\Dashboard\WebhookSettings;
 use App\Livewire\Dashboard\Withdraw;
 use App\Livewire\Dashboard\Withdrawals;
@@ -156,6 +157,7 @@ Route::middleware(['auth', 'owner'])->group(function (): void {
     Route::get('/customers/{customer}', CustomerDetail::class)->name('customers.show');
     Route::get('/transactions', TransactionHistory::class)->name('transactions');
     Route::get('/api-keys', ApiKeys::class)->name('api-keys');
+    Route::get('/webhooks', Webhooks::class)->name('webhooks');
     Route::get('/webhook-settings', WebhookSettings::class)->name('webhook-settings');
     Route::get('/withdrawal-settings', WithdrawalSettings::class)->name('withdrawal-settings');
     Route::get('/withdrawals', Withdrawals::class)->name('withdrawals');
