@@ -1,8 +1,10 @@
 <?php
 
 use App\Services\Blockchain\Providers\EsploraProvider;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 
 test('it parses incoming outputs and derives confirmations from the chain tip', function () {
@@ -122,6 +124,103 @@ test('it throws the existing error after persistent failures', function () {
     expect(fn () => (new EsploraProvider('bitcoin'))->fetchTransactions(['bc1qtest']))
         ->toThrow(InvalidArgumentException::class, 'Esplora API returned an error');
     expect($calls)->toBe(3);
+});
+
+test('a persistently failing address is skipped and the rest are returned', function () {
+    Sleep::fake();
+    Log::spy();
+
+    Http::fake(function (Request $request) {
+        if (str_contains($request->url(), 'tip/height')) {
+            return Http::response('967179');
+        }
+
+        if (str_contains($request->url(), '/address/bad/txs')) {
+            return Http::response('Service Unavailable', 503);
+        }
+
+        preg_match('#/address/(.+)/txs#', $request->url(), $match);
+
+        return Http::response([[
+            'txid' => 'tx-'.$match[1],
+            'vout' => [['scriptpubkey_address' => $match[1], 'value' => 1000]],
+            'status' => ['confirmed' => true, 'block_height' => 967127],
+        ]]);
+    });
+
+    $transactions = (new EsploraProvider('bitcoin'))->fetchTransactions(['a1', 'bad', 'a3', 'a4']);
+
+    expect($transactions)->toHaveCount(3)
+        ->and(collect($transactions)->pluck('txHash')->all())->toBe(['tx-a1', 'tx-a3', 'tx-a4']);
+
+    Log::shouldHaveReceived('warning')
+        ->once()
+        ->withArgs(fn (string $message, array $context) => $message === 'Esplora address fetch skipped.'
+            && $context['network'] === 'bitcoin'
+            && $context['skipped'] === 1
+            && str_contains($context['first_error'], 'Esplora API returned an error'));
+});
+
+test('a dead host aborts the run after the first three failures', function () {
+    Sleep::fake();
+
+    $requested = [];
+    Http::fake(function (Request $request) use (&$requested) {
+        if (str_contains($request->url(), 'tip/height')) {
+            return Http::response('967179');
+        }
+
+        preg_match('#/address/(.+)/txs#', $request->url(), $match);
+        $requested[] = $match[1];
+
+        return Http::response('Service Unavailable', 503);
+    });
+
+    expect(fn () => (new EsploraProvider('bitcoin'))->fetchTransactions(['a1', 'a2', 'a3', 'a4']))
+        ->toThrow(InvalidArgumentException::class, 'Esplora API returned an error');
+
+    expect(array_values(array_unique($requested)))->toBe(['a1', 'a2', 'a3']);
+});
+
+test('a tip failure aborts the run before any address fetch', function () {
+    Sleep::fake();
+
+    Http::fake(fn (Request $request) => str_contains($request->url(), 'tip/height')
+        ? Http::response('Service Unavailable', 503)
+        : Http::response([]));
+
+    expect(fn () => (new EsploraProvider('bitcoin'))->fetchTransactions(['a1']))
+        ->toThrow(InvalidArgumentException::class, 'Esplora API returned an error');
+
+    Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/address/'));
+});
+
+test('a connection error on one address is skipped', function () {
+    Sleep::fake();
+    Log::spy();
+
+    Http::fake(function (Request $request) {
+        if (str_contains($request->url(), 'tip/height')) {
+            return Http::response('967179');
+        }
+
+        if (str_contains($request->url(), '/address/flaky/txs')) {
+            throw new ConnectionException('cURL error 28: Operation timed out');
+        }
+
+        return Http::response([[
+            'txid' => 'tx-ok',
+            'vout' => [['scriptpubkey_address' => 'ok', 'value' => 1000]],
+            'status' => ['confirmed' => true, 'block_height' => 967127],
+        ]]);
+    });
+
+    $transactions = (new EsploraProvider('bitcoin'))->fetchTransactions(['flaky', 'ok']);
+
+    expect($transactions)->toHaveCount(1)
+        ->and($transactions[0]->txHash)->toBe('tx-ok');
+
+    Log::shouldHaveReceived('warning')->once();
 });
 
 test('it skips malformed transactions', function () {

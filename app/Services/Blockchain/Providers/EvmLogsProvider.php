@@ -9,12 +9,17 @@ use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
 use App\Support\Network;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use InvalidArgumentException;
 use Throwable;
 
 class EvmLogsProvider implements BlockchainProvider
 {
     private const RECIPIENT_BATCH_SIZE = 100;
+
+    private const MAX_RPC_ATTEMPTS = 4;
+
+    private int $rpcCalls = 0;
 
     private const TRANSFER_EVENT_SIGNATURE = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
@@ -32,6 +37,8 @@ class EvmLogsProvider implements BlockchainProvider
 
     public function fetchTransactions(array $addresses): array
     {
+        $this->rpcCalls = 0;
+
         if ($addresses === [] || ($this->rpcUrl === null && ($this->projectId === null || $this->projectId === ''))) {
             return [];
         }
@@ -146,19 +153,50 @@ class EvmLogsProvider implements BlockchainProvider
             $http = $http->withBasicAuth($this->projectId, $this->projectSecret);
         }
 
-        $response = $http->post($url, $payload);
-
-        if (! $response->successful()) {
-            throw new InvalidArgumentException('EVM RPC returned an error: '.$response->body());
+        // Free RPC tiers reject bursts, so consecutive calls in one scan are paced.
+        if ($this->rpcCalls++ > 0) {
+            Sleep::for(250)->milliseconds();
         }
 
-        $data = $response->json();
+        for ($attempt = 1; ; $attempt++) {
+            $response = $http->post($url, $payload);
+            $rateLimited = $response->status() === 429 || $this->looksRateLimited($response->body());
 
-        if (isset($data['error'])) {
-            throw new InvalidArgumentException('EVM RPC returned an error: '.($data['error']['message'] ?? json_encode($data['error'])));
+            if (! $response->successful()) {
+                if ($rateLimited && $attempt < self::MAX_RPC_ATTEMPTS) {
+                    Sleep::for(2 ** ($attempt - 1))->seconds();
+
+                    continue;
+                }
+
+                throw new InvalidArgumentException('EVM RPC returned an error: '.$response->body());
+            }
+
+            $data = $response->json();
+
+            if (isset($data['error'])) {
+                $message = (string) ($data['error']['message'] ?? json_encode($data['error']));
+
+                if ($rateLimited && $attempt < self::MAX_RPC_ATTEMPTS) {
+                    Sleep::for(2 ** ($attempt - 1))->seconds();
+
+                    continue;
+                }
+
+                throw new InvalidArgumentException('EVM RPC returned an error: '.$message);
+            }
+
+            return $data;
         }
+    }
 
-        return $data;
+    private function looksRateLimited(string $body): bool
+    {
+        $body = strtolower($body);
+
+        return str_contains($body, 'rate limit')
+            || str_contains($body, 'rate-limited')
+            || str_contains($body, 'too many requests');
     }
 
     private function hexToDec(string $hex): string

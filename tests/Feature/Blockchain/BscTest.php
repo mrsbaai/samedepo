@@ -24,6 +24,7 @@ use App\Services\Blockchain\WithdrawalProcessor;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use Livewire\Livewire;
 
 class BscTestBroadcaster implements BlockchainBroadcaster
@@ -366,6 +367,185 @@ test('evm logs provider rethrows a first chunk failure without touching scan sta
 
     expect(fn () => $provider->fetchTransactions([$address]))->toThrow(InvalidArgumentException::class)
         ->and(BlockchainScanState::where('network', 'usdt_bep20')->value('last_scanned_block'))->toBe(688);
+});
+
+test('evm logs provider retries a rate-limited rpc error and returns transactions', function () {
+    Sleep::fake();
+    // last 688 with overlap 14 → from 675; tip 774 → a single chunk.
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 688]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+    $topic = '0x'.str_pad('1', 64, '0', STR_PAD_LEFT);
+    $getLogs = 0;
+
+    Http::fake(function (Request $request) use (&$getLogs, $topic) {
+        if ($request->data()['method'] === 'eth_blockNumber') {
+            return Http::response(['jsonrpc' => '2.0', 'result' => dechex(774), 'id' => 2]);
+        }
+
+        $getLogs++;
+
+        return $getLogs === 1
+            ? Http::response(['jsonrpc' => '2.0', 'error' => ['code' => 429, 'message' => 'Your request has been rate-limited due to unusually high traffic on the public API'], 'id' => 1])
+            : Http::response(['jsonrpc' => '2.0', 'result' => [[
+                'blockNumber' => '0x2be',
+                'transactionHash' => '0xretry',
+                'data' => '0x4563918244f40000',
+                'topics' => ['', '', $topic],
+            ]], 'id' => 1]);
+    });
+
+    $transactions = (new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+    ))->fetchTransactions([$address]);
+
+    expect($transactions)->toHaveCount(1)
+        ->and($transactions[0]->txHash)->toBe('0xretry')
+        ->and($getLogs)->toBe(2);
+
+    Sleep::assertSequence([
+        Sleep::for(250)->milliseconds(), // pacing before the second rpc call
+        Sleep::for(1)->seconds(),        // first rate-limit backoff
+    ]);
+});
+
+test('evm logs provider retries an http 429 response', function () {
+    Sleep::fake();
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 688]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+    $getLogs = 0;
+
+    Http::fake(function (Request $request) use (&$getLogs) {
+        if ($request->data()['method'] === 'eth_blockNumber') {
+            return Http::response(['jsonrpc' => '2.0', 'result' => dechex(774), 'id' => 2]);
+        }
+
+        $getLogs++;
+
+        return $getLogs === 1
+            ? Http::response('Too Many Requests', 429)
+            : Http::response(['jsonrpc' => '2.0', 'result' => [], 'id' => 1]);
+    });
+
+    $transactions = (new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+    ))->fetchTransactions([$address]);
+
+    expect($transactions)->toBe([])
+        ->and($getLogs)->toBe(2)
+        ->and(BlockchainScanState::where('network', 'usdt_bep20')->value('last_scanned_block'))->toBe(774);
+
+    Sleep::assertSequence([
+        Sleep::for(250)->milliseconds(),
+        Sleep::for(1)->seconds(),
+    ]);
+});
+
+test('evm logs provider gives up after four rate-limited attempts', function () {
+    Sleep::fake();
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 688]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+    $getLogs = 0;
+
+    Http::fake(function (Request $request) use (&$getLogs) {
+        if ($request->data()['method'] === 'eth_blockNumber') {
+            return Http::response(['jsonrpc' => '2.0', 'result' => dechex(774), 'id' => 2]);
+        }
+
+        $getLogs++;
+
+        return Http::response(['jsonrpc' => '2.0', 'error' => ['code' => 429, 'message' => 'Your request has been rate-limited'], 'id' => 1]);
+    });
+
+    $provider = new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+    );
+
+    expect(fn () => $provider->fetchTransactions([$address]))
+        ->toThrow(InvalidArgumentException::class, 'rate-limited')
+        ->and($getLogs)->toBe(4)
+        ->and(BlockchainScanState::where('network', 'usdt_bep20')->value('last_scanned_block'))->toBe(688);
+
+    Sleep::assertSequence([
+        Sleep::for(250)->milliseconds(),
+        Sleep::for(1)->seconds(),
+        Sleep::for(2)->seconds(),
+        Sleep::for(4)->seconds(),
+    ]);
+});
+
+test('evm logs provider does not retry non rate-limit rpc errors', function () {
+    Sleep::fake();
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 688]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+    $getLogs = 0;
+
+    Http::fake(function (Request $request) use (&$getLogs) {
+        if ($request->data()['method'] === 'eth_blockNumber') {
+            return Http::response(['jsonrpc' => '2.0', 'result' => dechex(774), 'id' => 2]);
+        }
+
+        $getLogs++;
+
+        return Http::response(['jsonrpc' => '2.0', 'error' => ['code' => 35, 'message' => 'range too large'], 'id' => 1]);
+    });
+
+    $provider = new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+    );
+
+    expect(fn () => $provider->fetchTransactions([$address]))
+        ->toThrow(InvalidArgumentException::class, 'range too large')
+        ->and($getLogs)->toBe(1);
+
+    // Only the pacing sleep ran; no retry backoff.
+    Sleep::assertSequence([Sleep::for(250)->milliseconds()]);
+});
+
+test('evm logs provider paces consecutive rpc calls within a scan', function () {
+    Sleep::fake();
+    // last 688 with overlap 14 → from 675; tip 974 → 3 chunks.
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 688]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+
+    Http::fake(fn (Request $request) => $request->data()['method'] === 'eth_blockNumber'
+        ? Http::response(['jsonrpc' => '2.0', 'result' => dechex(974), 'id' => 2])
+        : Http::response(['jsonrpc' => '2.0', 'result' => [], 'id' => 1]));
+
+    (new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+    ))->fetchTransactions([$address]);
+
+    // blockNumber, then three getLogs calls — each after a 250ms pace.
+    Sleep::assertSequence([
+        Sleep::for(250)->milliseconds(),
+        Sleep::for(250)->milliseconds(),
+        Sleep::for(250)->milliseconds(),
+    ]);
 });
 
 test('bnb top-up is sized to the buffered need minus the recipient balance', function () {

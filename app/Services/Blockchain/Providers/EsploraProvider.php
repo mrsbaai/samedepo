@@ -8,7 +8,9 @@ use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Throwable;
 
 class EsploraProvider implements BlockchainProvider
 {
@@ -26,9 +28,27 @@ class EsploraProvider implements BlockchainProvider
         $tipHeight = (int) $this->get('/blocks/tip/height')->body();
         $transactions = [];
         $lastAddress = array_key_last($addresses);
+        $attempted = 0;
+        $skipped = 0;
+        $firstError = null;
 
         foreach ($addresses as $key => $address) {
-            $txs = $this->get("/address/{$address}/txs")->json();
+            $attempted++;
+            $txs = null;
+
+            try {
+                $txs = $this->get("/address/{$address}/txs")->json();
+            } catch (Throwable $exception) {
+                // Esplora has no cursor, so a skipped address is re-read on the
+                // next scan. Only surface an error when the host looks dead
+                // (first three all failed) or every fetch failed.
+                $skipped++;
+                $firstError ??= $exception;
+
+                if ($skipped === $attempted && ($skipped === 3 || $attempted === count($addresses))) {
+                    throw $exception;
+                }
+            }
 
             if (is_array($txs)) {
                 foreach ($txs as $tx) {
@@ -75,6 +95,14 @@ class EsploraProvider implements BlockchainProvider
             if ($key !== $lastAddress) {
                 usleep(100_000);
             }
+        }
+
+        if ($skipped > 0) {
+            Log::warning('Esplora address fetch skipped.', [
+                'network' => $this->network,
+                'skipped' => $skipped,
+                'first_error' => $firstError?->getMessage(),
+            ]);
         }
 
         return $transactions;
