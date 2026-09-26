@@ -155,6 +155,11 @@ final class Network
         return self::get($key)['provider'];
     }
 
+    public static function fallbackProvider(string $key): array
+    {
+        return self::get($key)['fallback_provider'] ?? [];
+    }
+
     public static function explorerTx(string $key): string
     {
         return self::get($key)['explorer_tx'];

@@ -18,12 +18,16 @@ use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
 use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\PriceFeed\CoinGeckoProvider;
 use App\Services\Blockchain\PriceFeed\PriceFeedProvider;
+use App\Services\Blockchain\Providers\BlockCypherProvider;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\Providers\EsploraProvider;
 use App\Services\Blockchain\Providers\EtherscanNativeProvider;
 use App\Services\Blockchain\Providers\EvmLogsProvider;
+use App\Services\Blockchain\Providers\FallbackBlockchainProvider;
+use App\Services\Blockchain\Providers\NodeRealNativeProvider;
 use App\Services\Blockchain\Providers\NullBlockchainProvider;
 use App\Services\Blockchain\Providers\TronGridProvider;
+use App\Services\Blockchain\Providers\TronscanProvider;
 use App\Support\Network;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Auth\SessionGuard;
@@ -68,7 +72,23 @@ class AppServiceProvider extends ServiceProvider
 
     private function makeBlockchainProvider(string $network): BlockchainProvider
     {
-        $options = Network::provider($network);
+        $provider = $this->makeProviderFromOptions($network, Network::provider($network));
+
+        $fallback = Network::fallbackProvider($network);
+        $fallbackUrl = $fallback['base_url'] ?? $fallback['rpc'] ?? null;
+
+        if (isset($fallback['driver']) && is_string($fallbackUrl) && $fallbackUrl !== '') {
+            return new FallbackBlockchainProvider(
+                $provider,
+                $this->makeProviderFromOptions($network, $fallback),
+            );
+        }
+
+        return $provider;
+    }
+
+    private function makeProviderFromOptions(string $network, array $options): BlockchainProvider
+    {
         $driver = $options['driver'] ?? null;
 
         return match ($driver) {
@@ -80,6 +100,17 @@ class AppServiceProvider extends ServiceProvider
                 network: $network,
                 usdtContract: $options['contract'] ?? (string) Network::contract($network),
                 apiKey: $options['api_key'] ?? null,
+            ),
+            'tronscan' => new TronscanProvider(
+                network: $network,
+                contract: $options['contract'] ?? (string) Network::contract($network),
+                baseUrl: $options['base_url'] ?? 'https://apilist.tronscanapi.com',
+                apiKey: $options['api_key'] ?? null,
+            ),
+            'blockcypher' => new BlockCypherProvider(
+                network: $network,
+                baseUrl: (string) ($options['base_url'] ?? 'https://api.blockcypher.com/v1/ltc/main'),
+                token: $options['token'] ?? null,
             ),
             'evm_logs' => new EvmLogsProvider(
                 network: $network,
@@ -95,6 +126,12 @@ class AppServiceProvider extends ServiceProvider
                 network: $network,
                 apiKey: (string) ($options['api_key'] ?? ''),
                 chainId: (int) ($options['chain_id'] ?? 1),
+                baseUrl: $options['base_url'] ?? 'https://api.etherscan.io/v2/api',
+                requiresApiKey: (bool) ($options['requires_api_key'] ?? true),
+            ),
+            'nodereal_native' => new NodeRealNativeProvider(
+                network: $network,
+                rpcUrl: $options['rpc'] ?? null,
             ),
             default => new NullBlockchainProvider($network),
         };

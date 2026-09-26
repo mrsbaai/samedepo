@@ -15,7 +15,7 @@ function infuraTopic(string $address): string
     return '0x'.str_pad(substr(strtolower($address), 2), 64, '0', STR_PAD_LEFT);
 }
 
-test('it scans one ten thousand block chunk and resumes the next chunk on the next invocation', function () {
+test('it scans ten thousand block chunks up to the tip and resumes after it on the next invocation', function () {
     BlockchainScanState::query()->create([
         'network' => 'usdt_erc20',
         'last_scanned_block' => 4999,
@@ -48,21 +48,28 @@ test('it scans one ten thousand block chunk and resumes the next chunk on the ne
     );
     $transactions = $provider->fetchTransactions($addresses);
 
-    expect($requests)->toHaveCount(2)
+    // Chunks [4989, 14988], [14989, 24988], [24989, 24999] × two recipient
+    // batches (100 + 1) = six log requests.
+    expect($requests)->toHaveCount(6)
         ->and($requests[0]['params'][0]['fromBlock'])->toBe('0x137d')
         ->and($requests[0]['params'][0]['toBlock'])->toBe('0x3a8c')
         ->and($requests[0]['params'][0]['topics'][2])->toHaveCount(100)
         ->and($requests[1]['params'][0]['topics'][2])->toHaveCount(1)
+        ->and($requests[2]['params'][0]['fromBlock'])->toBe('0x3a8d')
+        ->and($requests[2]['params'][0]['toBlock'])->toBe('0x619c')
+        ->and($requests[4]['params'][0]['fromBlock'])->toBe('0x619d')
+        ->and($requests[4]['params'][0]['toBlock'])->toBe('0x61a7')
         ->and($transactions)->toHaveCount(1)
         ->and($transactions[0]->toAddress)->toBe($addresses[0])
-        ->and(BlockchainScanState::query()->where('network', 'usdt_erc20')->value('last_scanned_block'))->toBe(14988);
+        ->and(BlockchainScanState::query()->where('network', 'usdt_erc20')->value('last_scanned_block'))->toBe(24999);
 
     $provider->fetchTransactions($addresses);
 
-    expect($requests)->toHaveCount(4)
-        ->and($requests[2]['params'][0]['fromBlock'])->toBe('0x3a82')
-        ->and($requests[2]['params'][0]['toBlock'])->toBe('0x6191')
-        ->and(BlockchainScanState::query()->where('network', 'usdt_erc20')->value('last_scanned_block'))->toBe(24977);
+    // Next run overlaps the confirmation window: [24989, 24999].
+    expect($requests)->toHaveCount(8)
+        ->and($requests[6]['params'][0]['fromBlock'])->toBe('0x619d')
+        ->and($requests[6]['params'][0]['toBlock'])->toBe('0x61a7')
+        ->and(BlockchainScanState::query()->where('network', 'usdt_erc20')->value('last_scanned_block'))->toBe(24999);
 });
 
 test('it defaults a new scan state to the latest ten thousand blocks', function () {
@@ -130,28 +137,36 @@ test('overlapped infura ranges never exceed ten thousand blocks', function () {
         'network' => 'usdt_erc20',
         'last_scanned_block' => 20000,
     ]);
-    $range = null;
+    $ranges = [];
 
-    Http::fake(function (Request $request) use (&$range) {
+    Http::fake(function (Request $request) use (&$ranges) {
         $payload = $request->data();
 
         if ($payload['method'] === 'eth_blockNumber') {
             return Http::response(['result' => '0x'.dechex(40000)]);
         }
 
-        $range = $payload['params'][0];
+        $ranges[] = $payload['params'][0];
 
         return Http::response(['result' => []]);
     });
 
     (new InfuraProvider('usdt_erc20', '0xcontract', 'project'))->fetchTransactions([infuraAddress(1)]);
 
-    $from = hexdec($range['fromBlock']);
-    $to = hexdec($range['toBlock']);
+    // 20001 − 11 → [19990, 29989], [29990, 39989], [39990, 40000]: every chunk
+    // stays ≤ 10000 blocks and contiguous up to the tip.
+    expect($ranges)->toHaveCount(3)
+        ->and(hexdec($ranges[0]['fromBlock']))->toBe(19990)
+        ->and(hexdec($ranges[2]['toBlock']))->toBe(40000)
+        ->and(BlockchainScanState::query()->value('last_scanned_block'))->toBe(40000);
 
-    expect($from)->toBe(19990)
-        ->and($to - $from + 1)->toBe(10000)
-        ->and(BlockchainScanState::query()->value('last_scanned_block'))->toBe(29989);
+    foreach ($ranges as $index => $range) {
+        expect(hexdec($range['toBlock']) - hexdec($range['fromBlock']) + 1)->toBeLessThanOrEqual(10000);
+
+        if ($index > 0) {
+            expect(hexdec($range['fromBlock']))->toBe(hexdec($ranges[$index - 1]['toBlock']) + 1);
+        }
+    }
 });
 
 test('it does not advance scan state when any log request fails', function () {

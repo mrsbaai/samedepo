@@ -3,8 +3,7 @@
 namespace App\Services\Blockchain\Providers;
 
 use App\Models\BlockchainScanState;
-use App\Models\GasTopup;
-use App\Models\TreasuryWallet;
+use App\Services\Blockchain\DepositExclusions;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
 use App\Support\Network;
@@ -40,6 +39,7 @@ class EtherscanNativeProvider implements BlockchainProvider
         private readonly int $chainId = 1,
         private readonly string $baseUrl = 'https://api.etherscan.io/v2/api',
         ?callable $sleeper = null,
+        private readonly bool $requiresApiKey = true,
     ) {
         $this->sleeper = $sleeper === null
             ? fn (int $microseconds) => usleep($microseconds)
@@ -59,7 +59,7 @@ class EtherscanNativeProvider implements BlockchainProvider
      */
     public function fetchTransactions(array $addresses): array
     {
-        if ($addresses === [] || $this->apiKey === '') {
+        if ($addresses === [] || ($this->requiresApiKey && $this->apiKey === '')) {
             return [];
         }
 
@@ -67,8 +67,8 @@ class EtherscanNativeProvider implements BlockchainProvider
         $state = BlockchainScanState::where('network', $this->network)->first();
         $lastBlock = $state !== null ? (int) $state->last_scanned_block : 0;
         $startBlock = max(0, $lastBlock - $confirmationsRequired + 1);
-        $treasuryAddresses = $this->treasuryAddresses();
-        $topupHashes = $this->topupHashes();
+        $treasuryAddresses = DepositExclusions::treasuryAddresses();
+        $topupHashes = DepositExclusions::topupHashes();
         $seenHashes = [];
         $transactions = [];
         $maxBlock = $lastBlock;
@@ -134,7 +134,7 @@ class EtherscanNativeProvider implements BlockchainProvider
     {
         $this->throttle();
 
-        $response = Http::get($this->baseUrl, [
+        $query = [
             'chainid' => $this->chainId,
             'module' => 'account',
             'action' => 'txlist',
@@ -142,8 +142,13 @@ class EtherscanNativeProvider implements BlockchainProvider
             'startblock' => $startBlock,
             'endblock' => self::END_BLOCK,
             'sort' => 'asc',
-            'apikey' => $this->apiKey,
-        ]);
+        ];
+
+        if ($this->requiresApiKey) {
+            $query['apikey'] = $this->apiKey;
+        }
+
+        $response = Http::get($this->baseUrl, $query);
 
         if (! $response->successful()) {
             throw new InvalidArgumentException(
@@ -196,29 +201,6 @@ class EtherscanNativeProvider implements BlockchainProvider
         }
 
         return isset($topupHashes[strtolower($tx['hash'])]);
-    }
-
-    /**
-     * @return array<string, bool>
-     */
-    private function treasuryAddresses(): array
-    {
-        return TreasuryWallet::query()
-            ->pluck('address')
-            ->mapWithKeys(fn (?string $address) => $address !== null ? [strtolower($address) => true] : [])
-            ->all();
-    }
-
-    /**
-     * @return array<string, bool>
-     */
-    private function topupHashes(): array
-    {
-        return GasTopup::query()
-            ->whereNotNull('tx_hash')
-            ->pluck('tx_hash')
-            ->mapWithKeys(fn (string $hash) => [strtolower($hash) => true])
-            ->all();
     }
 
     private function throttle(): void

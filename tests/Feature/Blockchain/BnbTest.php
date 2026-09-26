@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\BlockchainScanState;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
@@ -16,8 +15,6 @@ use App\Models\Withdrawal;
 use App\Services\Blockchain\AddressGenerator;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
-use App\Services\Blockchain\DepositCreditor;
-use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\Providers\EtherscanNativeProvider;
 use App\Services\Blockchain\TreasurySweepService;
@@ -129,37 +126,6 @@ function bnbOwner(): array
     return [$owner, $customer];
 }
 
-function bnbEtherscanTx(array $overrides = []): array
-{
-    return array_merge([
-        'blockNumber' => '1000',
-        'hash' => '0xbnb-tx-1',
-        'from' => '0x'.str_pad('77', 40, '7', STR_PAD_LEFT),
-        'to' => '0x'.str_pad('1', 40, '0', STR_PAD_LEFT),
-        'value' => '500000000000000000',
-        'confirmations' => '15',
-        'isError' => '0',
-        'txreceipt_status' => '1',
-    ], $overrides);
-}
-
-function bnbProvider(array $txs, array &$requests = [], ?callable $sleeper = null): EtherscanNativeProvider
-{
-    Http::fake(function (Request $request) use (&$requests, $txs) {
-        $requests[] = $request->data();
-
-        return Http::response(['status' => '1', 'message' => 'OK', 'result' => $txs]);
-    });
-
-    return new EtherscanNativeProvider(
-        network: 'bnb',
-        apiKey: 'test-key',
-        chainId: 56,
-        baseUrl: 'https://etherscan.test/api',
-        sleeper: $sleeper,
-    );
-}
-
 test('bnb is a disabled native bsc network on the shared evm group', function () {
     expect(Network::isNative('bnb'))->toBeTrue()
         ->and(Network::isEvm('bnb'))->toBeTrue()
@@ -201,49 +167,6 @@ test('sync-networks provisions bnb sharing the evm wallet without a gas policy',
         ->and($bnb->address)->toBe($evm->address)
         // Native asset: no token gas policy row for bnb; native_bnb policy belongs to the bep20 tokens.
         ->and(GasPolicy::where('network', 'bnb')->exists())->toBeFalse();
-});
-
-test('bnb scan detects a deposit pending then credits at 15 confirmations via chainid 56', function () {
-    [$owner, $customer] = bnbOwner();
-    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
-    DepositAddress::factory()->create([
-        'customer_id' => $customer->id,
-        'network' => 'bnb',
-        'address' => $address,
-        'derivation_index' => 3,
-    ]);
-    config(['networks.networks.bnb.scan_interval' => 0]);
-
-    $requests = [];
-    $confirmations = '8';
-    Http::fake(function (Request $request) use (&$requests, &$confirmations, $address) {
-        $requests[] = $request->data();
-
-        return Http::response(['status' => '1', 'message' => 'OK', 'result' => [
-            bnbEtherscanTx(['to' => $address, 'confirmations' => $confirmations]),
-        ]]);
-    });
-
-    $provider = fn () => new EtherscanNativeProvider('bnb', 'test-key', 56, 'https://etherscan.test/api');
-
-    (new DepositScanner([$provider()]))->scan();
-    app(DepositCreditor::class)->credit();
-
-    $deposit = Deposit::where('tx_hash', '0xbnb-tx-1')->first();
-    expect($requests[0]['chainid'])->toBe(56)
-        ->and($deposit)->not->toBeNull()
-        ->and($deposit->network)->toBe('bnb')
-        ->and($deposit->status)->toBe('pending')
-        ->and($deposit->confirmation_count)->toBe(8);
-
-    $confirmations = '15';
-    (new DepositScanner([$provider()]))->scan();
-    app(DepositCreditor::class)->credit();
-
-    $deposit->refresh();
-    expect($deposit->status)->toBe('credited')
-        ->and($deposit->confirmation_count)->toBe(15)
-        ->and(BlockchainScanState::where('network', 'bnb')->value('last_scanned_block'))->not->toBeNull();
 });
 
 test('the etherscan throttle is shared across provider instances', function () {

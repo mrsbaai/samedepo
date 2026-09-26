@@ -20,6 +20,7 @@ use App\Services\Blockchain\DepositScanner;
 use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\Providers\EtherscanNativeProvider;
 use App\Services\Blockchain\Providers\EvmLogsProvider;
+use App\Services\Blockchain\Providers\FallbackBlockchainProvider;
 use App\Services\Blockchain\TreasurySweepService;
 use App\Services\Blockchain\WithdrawalProcessor;
 use App\Support\Network;
@@ -443,12 +444,54 @@ test('etherscan rate limit raises a provider error and cools the scanner down', 
         ->and($state->cooldown_until)->not->toBeNull();
 });
 
-test('service provider builds the etherscan native provider for ethereum and evm logs for usdc erc20', function () {
+test('service provider wraps etherscan and evm logs primaries with their fallbacks', function () {
     $sp = new AppServiceProvider(app());
     $method = new ReflectionMethod($sp, 'makeBlockchainProvider');
 
-    expect($method->invoke($sp, 'ethereum'))->toBeInstanceOf(EtherscanNativeProvider::class)
-        ->and($method->invoke($sp, 'usdc_erc20'))->toBeInstanceOf(EvmLogsProvider::class);
+    $ethereum = $method->invoke($sp, 'ethereum');
+    expect($ethereum)->toBeInstanceOf(FallbackBlockchainProvider::class)
+        ->and($ethereum->primary())->toBeInstanceOf(EtherscanNativeProvider::class)
+        ->and($ethereum->fallback())->toBeInstanceOf(EtherscanNativeProvider::class);
+
+    $usdc = $method->invoke($sp, 'usdc_erc20');
+    expect($usdc)->toBeInstanceOf(FallbackBlockchainProvider::class)
+        ->and($usdc->primary())->toBeInstanceOf(EvmLogsProvider::class)
+        ->and($usdc->fallback())->toBeInstanceOf(EvmLogsProvider::class);
+});
+
+test('keyless etherscan mode omits the api key and still scans', function () {
+    $requests = [];
+
+    Http::fake(function (Request $request) use (&$requests) {
+        $requests[] = $request->data();
+
+        // Blockscout-shaped response: same schema, no apikey required.
+        return Http::response(['status' => '1', 'message' => 'OK', 'result' => [
+            etherscanTx(['hash' => '0xblockscout-tx']),
+        ]]);
+    });
+
+    $provider = new EtherscanNativeProvider(
+        network: 'ethereum',
+        apiKey: '',
+        chainId: 1,
+        baseUrl: 'https://eth.blockscout.com/api',
+        requiresApiKey: false,
+    );
+
+    $transactions = $provider->fetchTransactions(['0x'.str_pad('1', 40, '0', STR_PAD_LEFT)]);
+
+    expect($transactions)->toHaveCount(1)
+        ->and($transactions[0]->txHash)->toBe('0xblockscout-tx')
+        ->and($requests)->toHaveCount(1)
+        ->and($requests[0])->not->toHaveKey('apikey');
+});
+
+test('keyed etherscan mode still requires an api key', function () {
+    $provider = new EtherscanNativeProvider('ethereum', '', 1, 'https://etherscan.test/api');
+
+    expect($provider->fetchTransactions(['0x'.str_pad('1', 40, '0', STR_PAD_LEFT)]))->toBe([]);
+    Http::assertNothingSent();
 });
 
 test('sync-networks shares the evm address for ethereum and usdc erc20 without a new gas policy', function () {
