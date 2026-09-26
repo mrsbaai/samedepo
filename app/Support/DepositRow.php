@@ -51,11 +51,20 @@ final class DepositRow
         'detected' => 'zinc',
         'pending' => 'amber',
         'credited' => 'green',
-        'ignored' => 'zinc',
+        'below_minimum' => 'amber',
+        'forfeited' => 'zinc',
         'approved' => 'green',
         'denied' => 'zinc',
         'cancelled' => 'zinc',
         'sent' => 'green',
+    ];
+
+    /**
+     * Human labels for statuses that don't read well through ucfirst().
+     */
+    public const STATUS_LABELS = [
+        'below_minimum' => 'Below minimum',
+        'forfeited' => 'Expired',
     ];
 
     public static function present(Deposit $deposit): array
@@ -69,7 +78,7 @@ final class DepositRow
         $confirmationsRequired = Network::confirmations($deposit->network);
         $statusLabel = $deposit->status === 'pending'
             ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
-            : ucfirst($deposit->status);
+            : (self::STATUS_LABELS[$deposit->status] ?? ucfirst($deposit->status));
 
         return [
             'id' => $deposit->id,
@@ -88,6 +97,8 @@ final class DepositRow
             'txHash' => $deposit->tx_hash,
             'explorerUrl' => ExplorerUrl::for('tx', $deposit->network, $deposit->tx_hash),
             'at' => $deposit->detected_at ?? $deposit->created_at,
+            'short' => $deposit->status === 'below_minimum' ? ShortPayment::summary($deposit) : null,
+            'forfeitedMinimum' => $deposit->status === 'forfeited' ? ShortPayment::minimumFor($deposit) : null,
         ];
     }
 }

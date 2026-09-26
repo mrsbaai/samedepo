@@ -14,7 +14,9 @@ test('it logs processing lifecycle and runs every processing service', function 
     Log::shouldReceive('info')->once()->with('Deposit processing started.')->ordered();
     Log::shouldReceive('info')->once()->with('Deposit processing completed.')->ordered();
     mock(DepositScanner::class)->shouldReceive('scan')->once();
-    mock(DepositCreditor::class)->shouldReceive('credit')->once();
+    $creditor = mock(DepositCreditor::class);
+    $creditor->shouldReceive('credit')->once()->ordered();
+    $creditor->shouldReceive('expire')->once()->ordered();
     mock(TreasurySweepService::class)->shouldReceive('sweep')->once();
 
     artisan('app:process-deposits')->assertSuccessful();

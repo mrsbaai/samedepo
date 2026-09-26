@@ -24,6 +24,8 @@ class Webhooks extends Component
     public const EVENT_OPTIONS = [
         'deposit.pending' => 'Deposit pending',
         'deposit.credited' => 'Deposit credited',
+        'deposit.below_minimum' => 'Deposit below minimum',
+        'deposit.forfeited' => 'Deposit expired',
     ];
 
     public const STATUS_OPTIONS = [

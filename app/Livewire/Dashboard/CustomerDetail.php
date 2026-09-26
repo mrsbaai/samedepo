@@ -81,7 +81,7 @@ class CustomerDetail extends Component
     {
         return Deposit::query()
             ->where('customer_id', $this->customer->id)
-            ->whereIn('status', ['detected', 'pending', 'credited'])
+            ->whereIn('status', ['detected', 'pending', 'credited', 'below_minimum', 'forfeited'])
             ->orderByDesc('detected_at')
             ->paginate(10)
             ->through(fn (Deposit $deposit) => DepositRow::present($deposit));

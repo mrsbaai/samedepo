@@ -78,7 +78,46 @@ test('admin users cannot access the customer detail page', function () {
         ->assertForbidden();
 });
 
-test('owner sees detected and pending deposits but not ignored deposits', function () {
+test('short payments are listed with badges and instructions', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
+
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '6.00000000',
+        'minimum_amount' => '10.00000000',
+        'status' => 'below_minimum',
+        'expires_at' => now()->addDays(5),
+        'detected_at' => now(),
+    ]);
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '2.00000000',
+        'minimum_amount' => '10.00000000',
+        'status' => 'forfeited',
+        'forfeited_at' => now()->subDay(),
+        'detected_at' => now()->subDays(8),
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('customers.show', $customer))
+        ->assertOk()
+        ->assertSee('Below minimum')
+        ->assertSee('What to tell your customer')
+        ->assertSee('4.00 USDT')
+        ->assertSee('Expired')
+        ->assertSee('What happened')
+        ->assertSee('Below the 10.00 USDT minimum');
+});
+
+test('owner sees detected pending and below-minimum deposits', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
@@ -123,7 +162,7 @@ test('owner sees detected and pending deposits but not ignored deposits', functi
         'fee_amount' => null,
         'credited_amount' => null,
         'confirmation_count' => 0,
-        'status' => 'ignored',
+        'status' => 'below_minimum',
         'detected_at' => now()->subHour(),
         'credited_at' => null,
     ]);
@@ -133,7 +172,8 @@ test('owner sees detected and pending deposits but not ignored deposits', functi
         ->assertOk()
         ->assertSee('tx-detected', false)
         ->assertSee('tx-pending', false)
-        ->assertDontSee('tx-ignored', false);
+        ->assertSee('tx-ignored', false)
+        ->assertSee('Below minimum');
 });
 
 test('owner sees credited deposits with fee and credited amounts', function () {

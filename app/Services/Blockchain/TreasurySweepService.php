@@ -7,6 +7,7 @@ namespace App\Services\Blockchain;
 use App\Models\Balance;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
+use App\Models\EnergyRental;
 use App\Models\GasExpense;
 use App\Models\GasTopup;
 use App\Models\LedgerEntry;
@@ -36,6 +37,7 @@ class TreasurySweepService
     public function sweep(): void
     {
         $this->billConsolidationCosts();
+        $this->sweepForfeited();
 
         $settings = PlatformSettings::instance();
         $valuations = UsdValuation::query()->pluck('conversion_value', 'network');
@@ -117,6 +119,7 @@ class TreasurySweepService
         $groups = TreasurySweep::query()
             ->where('treasury_sweeps.status', 'confirmed')
             ->whereNull('treasury_sweeps.fee_recovered_at')
+            ->where('treasury_sweeps.platform_paid', false)
             ->leftJoin('deposits', 'deposits.id', '=', 'treasury_sweeps.deposit_id')
             ->leftJoin('deposit_addresses', 'deposit_addresses.id', '=', 'treasury_sweeps.deposit_address_id')
             ->leftJoin('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
@@ -237,6 +240,91 @@ class TreasurySweepService
         return $thresholdTriggered || $ageTriggered || $withdrawalTriggered;
     }
 
+    /**
+     * Platform-paid sweep of forfeited funds: every address holding unswept
+     * forfeited deposits gets one sweep, billed to the platform (spec F).
+     * Credited deposits on the same address ride along; shouldSweep
+     * thresholds do not apply. Native networks enforce a 1.5× fee floor so
+     * the platform never pays more gas than the funds are worth.
+     */
+    private function sweepForfeited(): void
+    {
+        $addressIds = Deposit::query()
+            ->withoutGlobalScope('owner')
+            ->where('status', 'forfeited')
+            ->whereNull('swept_at')
+            ->distinct()
+            ->pluck('deposit_address_id');
+
+        foreach ($addressIds as $addressId) {
+            DB::transaction(function () use ($addressId): void {
+                $network = DepositAddress::query()->whereKey($addressId)->value('network');
+
+                $wallet = TreasuryWallet::query()
+                    ->where('network', $network)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($wallet === null) {
+                    return;
+                }
+
+                $sweep = TreasurySweep::query()
+                    ->where('deposit_address_id', $addressId)
+                    ->whereIn('status', ['pending', 'broadcast'])
+                    ->first();
+
+                if ($sweep !== null) {
+                    $this->processSweep($sweep, $wallet);
+
+                    return;
+                }
+
+                $deposits = Deposit::query()
+                    ->withoutGlobalScope('owner')
+                    ->where('deposit_address_id', $addressId)
+                    ->whereIn('status', ['forfeited', 'credited'])
+                    ->whereNull('swept_at')
+                    ->get();
+
+                if ($deposits->isEmpty()) {
+                    return;
+                }
+
+                $amount = '0.00000000';
+                foreach ($deposits as $deposit) {
+                    $amount = bcadd($amount, (string) $deposit->gross_amount, 8);
+                }
+
+                if (Network::isNative($network)) {
+                    $fee = $this->broadcaster->estimateFee($network, tokenTransfer: false);
+
+                    if ($fee === null || bccomp($amount, bcmul($fee, '1.5', 8), 8) <= 0) {
+                        return;
+                    }
+                }
+
+                $previous = TreasurySweep::query()
+                    ->where('deposit_address_id', $addressId)
+                    ->where('status', 'failed')
+                    ->latest('id')
+                    ->first();
+
+                $sweep = TreasurySweep::create([
+                    'deposit_address_id' => $addressId,
+                    'deposit_ids' => $deposits->pluck('id')->all(),
+                    'network' => $network,
+                    'amount' => $amount,
+                    'platform_paid' => true,
+                    'attempts' => $previous?->attempts ?? 0,
+                    'last_attempted_at' => $previous?->updated_at,
+                ]);
+
+                $this->processSweep($sweep, $wallet, false);
+            });
+        }
+    }
+
     private function processSweep(TreasurySweep $sweep, TreasuryWallet $wallet, bool $allowPiggyback = true): void
     {
         $address = $sweep->depositAddress ?? $sweep->deposit?->depositAddress;
@@ -270,7 +358,7 @@ class TreasurySweepService
                 return;
             }
 
-            if ($allowPiggyback && Network::family($sweep->network) === 'evm') {
+            if ($allowPiggyback && ! $sweep->platform_paid && Network::family($sweep->network) === 'evm') {
                 $piggybackSiblings = $this->findPiggybackSiblings($sweep, $address);
             }
 
@@ -417,12 +505,31 @@ class TreasurySweepService
             $wallet->available_funds = bcadd((string) $wallet->available_funds, $received, 8);
             $wallet->save();
 
-            $sweep->update([
+            $update = [
                 'status' => 'confirmed',
                 'confirmed_at' => now(),
-            ]);
+            ];
 
-            $deposits = Deposit::query()->withoutGlobalScope('owner')->where('status', 'credited')->whereNull('swept_at');
+            // Platform-paid costs are never billed to an owner: mark the
+            // sweep, its gas top-ups, and its energy rentals recovered now.
+            if ($sweep->platform_paid) {
+                $update['fee_recovered_at'] = now();
+
+                GasTopup::query()
+                    ->where('treasury_sweep_id', $sweep->id)
+                    ->whereNull('fee_recovered_at')
+                    ->update(['fee_recovered_at' => now()]);
+
+                EnergyRental::query()
+                    ->where('purposable_type', $sweep->getMorphClass())
+                    ->where('purposable_id', $sweep->id)
+                    ->whereNull('fee_recovered_at')
+                    ->update(['fee_recovered_at' => now()]);
+            }
+
+            $sweep->update($update);
+
+            $deposits = Deposit::query()->withoutGlobalScope('owner')->whereIn('status', ['credited', 'forfeited'])->whereNull('swept_at');
             if (! empty($sweep->deposit_ids)) {
                 $deposits->whereIn('id', $sweep->deposit_ids);
             } elseif ($sweep->deposit_address_id !== null) {

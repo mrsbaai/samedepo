@@ -307,3 +307,65 @@ test('it skips a network when no provider is configured', function () {
 
     expect(Deposit::query()->count())->toBe(0);
 });
+
+test('it snapshots the network minimum on newly detected deposits', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'usdt_trc20',
+        'address' => 'TTestAddress1234567890',
+    ]);
+
+    $scanner = createScanner('usdt_trc20', [
+        new BlockchainTransaction(
+            network: 'usdt_trc20',
+            txHash: 'tx-minimum-snapshot',
+            toAddress: 'TTestAddress1234567890',
+            amount: '5.00000000',
+            confirmations: 1,
+        ),
+    ]);
+
+    $scanner->scan();
+
+    $deposit = Deposit::query()->where('tx_hash', 'tx-minimum-snapshot')->first();
+    expect($deposit->minimum_amount)->toBe('10.00000000');
+});
+
+test('it updates confirmations without resetting below_minimum or forfeited deposits', function (string $status) {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'usdt_trc20',
+        'address' => 'TTestAddress1234567890',
+    ]);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'tx_hash' => 'tx-status-kept',
+        'gross_amount' => '5.00000000',
+        'status' => $status,
+        'confirmation_count' => 5,
+        'expires_at' => now()->addDays(5),
+    ]);
+
+    $scanner = createScanner('usdt_trc20', [
+        new BlockchainTransaction(
+            network: 'usdt_trc20',
+            txHash: 'tx-status-kept',
+            toAddress: 'TTestAddress1234567890',
+            amount: '5.00000000',
+            confirmations: 15,
+        ),
+    ]);
+
+    $scanner->scan();
+
+    $deposit->refresh();
+    expect($deposit->status)->toBe($status)
+        ->and($deposit->confirmation_count)->toBe(15);
+})->with(['below_minimum', 'forfeited']);

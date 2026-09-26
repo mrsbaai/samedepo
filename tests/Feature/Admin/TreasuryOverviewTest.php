@@ -5,6 +5,7 @@ use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Models\GasPolicy;
+use App\Models\TreasurySweep;
 use App\Models\TreasuryWallet;
 use App\Models\UsdValuation;
 use App\Models\User;
@@ -43,6 +44,66 @@ test('treasury overview renders tiny bitcoin amounts without bcmath errors', fun
         ->get(route('admin.treasury'))
         ->assertOk()
         ->assertSee('0.00000505 BTC');
+});
+
+test('treasury overview shows expired short payment totals per network', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $customerB = Customer::factory()->create(['user_id' => $owner->id]);
+    $addressA = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    $addressB = DepositAddress::factory()->create(['customer_id' => $customerB->id, 'network' => 'bitcoin']);
+    TreasuryWallet::factory()->create(['network' => 'bitcoin', 'available_funds' => 0]);
+    UsdValuation::factory()->create(['network' => 'bitcoin', 'conversion_value' => '100.000000']);
+
+    Deposit::factory()->create([
+        'deposit_address_id' => $addressA->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '0.00100000',
+        'status' => 'forfeited',
+        'forfeited_at' => now(),
+        'swept_at' => null,
+    ]);
+    Deposit::factory()->create([
+        'deposit_address_id' => $addressB->id,
+        'customer_id' => $customerB->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '0.00200000',
+        'status' => 'forfeited',
+        'forfeited_at' => now(),
+        'swept_at' => null,
+    ]);
+    Deposit::factory()->create([
+        'deposit_address_id' => $addressA->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '0.00500000',
+        'status' => 'forfeited',
+        'forfeited_at' => now()->subDays(3),
+        'swept_at' => now()->subDay(),
+    ]);
+
+    // An in-flight sweep on address B excludes it from the "not swept" count.
+    TreasurySweep::create([
+        'network' => 'bitcoin',
+        'deposit_address_id' => $addressB->id,
+        'amount' => '0.00200000',
+        'status' => 'pending',
+        'platform_paid' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.treasury'))
+        ->assertOk()
+        ->assertSee('Expired short payments')
+        ->assertSee('0.00300000 BTC')
+        ->assertSee('0.00500000 BTC')
+        ->assertSee('1 address')
+        ->assertSee('too small to sweep');
 });
 
 test('treasury overview sums tiny unswept deposits without bcmath errors', function () {

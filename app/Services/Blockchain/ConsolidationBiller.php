@@ -63,6 +63,7 @@ class ConsolidationBiller
 
         $now = now();
         TreasurySweep::query()->where('network', $network)->where('status', 'confirmed')->whereNull('fee_recovered_at')
+            ->where('platform_paid', false)
             ->where(function ($query) use ($userId): void {
                 $query->whereExists(function ($sub) use ($userId): void {
                     $sub->selectRaw('1')->from('deposits')

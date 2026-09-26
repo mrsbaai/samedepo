@@ -14,13 +14,15 @@ final class TransactionRows
 {
     /**
      * Status filter options surfaced across both deposit and withdrawal
-     * rows. Unlike the operational Deposits view (which hides `ignored`
-     * deposits), this is the full ledger, so every real status is visible.
+     * rows. This is the full ledger, so every real status is visible —
+     * including short payments (`below_minimum` → `forfeited`).
      */
     public const STATUS_OPTIONS = [
         'detected' => 'Detected',
         'pending' => 'Pending',
         'credited' => 'Credited',
+        'below_minimum' => 'Below minimum',
+        'forfeited' => 'Expired',
         'approved' => 'Approved',
         'denied' => 'Denied',
         'cancelled' => 'Cancelled',
@@ -63,7 +65,6 @@ final class TransactionRows
                 ->withoutGlobalScope('owner')
                 ->when($this->ownerId !== null, fn ($query) => $query->where('user_id', $this->ownerId))
                 ->with(['customer' => fn ($query) => $query->withoutGlobalScope('owner'), 'user'])
-                ->where('status', '!=', 'ignored')
                 ->when($dbNetwork !== null, fn ($query) => $query->where('network', $dbNetwork))
                 ->when($statusFilter !== 'all', fn ($query) => $query->where('status', $statusFilter))
                 ->when($like !== null, fn ($query) => $query->where(function ($q) use ($like) {
@@ -200,10 +201,13 @@ final class TransactionRows
         $confirmationsRequired = Network::exists($deposit->network) ? Network::confirmations($deposit->network) : 0;
         $statusLabel = $deposit->status === 'pending'
             ? "Pending · {$deposit->confirmation_count}/{$confirmationsRequired} confirmations"
-            : ucfirst($deposit->status);
+            : (DepositRow::STATUS_LABELS[$deposit->status] ?? ucfirst($deposit->status));
+
+        $isShort = in_array($deposit->status, ['below_minimum', 'forfeited'], true);
 
         return [
             'id' => 'deposit-'.$deposit->id,
+            'depositId' => $deposit->id,
             'type' => 'deposit',
             'timestamp' => ($deposit->detected_at ?? $deposit->created_at)->toIso8601String(),
             'networkSlug' => $meta['slug'],
@@ -223,7 +227,9 @@ final class TransactionRows
             'customer' => $deposit->customer,
             'ownerId' => $deposit->user_id,
             'ownerEmail' => $deposit->user?->email,
-            'usd' => $this->usdDisplay(
+            'short' => $deposit->status === 'below_minimum' ? ShortPayment::summary($deposit) : null,
+            'forfeitedMinimum' => $deposit->status === 'forfeited' ? ShortPayment::minimumFor($deposit) : null,
+            'usd' => $isShort ? null : $this->usdDisplay(
                 $deposit->usd_value === null ? null : (string) $deposit->usd_value,
                 $deposit->network,
                 $deposit->credited_amount === null ? (string) $deposit->gross_amount : (string) $deposit->credited_amount,

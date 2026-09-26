@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Admin\Concerns\CreditsShortPayments;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\UsdValuation;
@@ -19,6 +20,7 @@ use Livewire\WithPagination;
 #[Layout('components.dashboard.layout', ['title' => 'Admin Customer Detail'])]
 class CustomerDetail extends Component
 {
+    use CreditsShortPayments;
     use WithPagination;
 
     public string $uiState = 'normal';

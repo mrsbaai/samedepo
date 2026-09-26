@@ -15,6 +15,7 @@ class GasTopup extends Model
 
     protected $fillable = [
         'treasury_wallet_id',
+        'treasury_sweep_id',
         'network',
         'kind',
         'recipient_address',
@@ -46,6 +47,11 @@ class GasTopup extends Model
     public function treasuryWallet(): BelongsTo
     {
         return $this->belongsTo(TreasuryWallet::class);
+    }
+
+    public function treasurySweep(): BelongsTo
+    {
+        return $this->belongsTo(TreasurySweep::class);
     }
 
     public function gasExpenses(): HasMany

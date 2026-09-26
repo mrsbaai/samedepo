@@ -30,7 +30,7 @@
 
         <flux:heading size="lg" class="mt-8 mb-3">Deposits</flux:heading>
 
-        <x-customer.deposits-table :deposits="$this->deposits" />
+        <x-customer.deposits-table :deposits="$this->deposits" :instructions="true" />
 
         <div class="mt-8">
             <flux:button variant="ghost" icon="arrow-left" href="{{ route('customers') }}" wire:navigate>Back to Customers</flux:button>

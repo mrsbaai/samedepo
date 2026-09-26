@@ -313,3 +313,74 @@ test('admins cannot access the transaction history page', function () {
         ->get(route('transactions'))
         ->assertForbidden();
 });
+
+test('a below minimum deposit shows its badge and top-up instructions', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '6.00000000',
+        'minimum_amount' => '10.00000000',
+        'status' => 'below_minimum',
+        'expires_at' => now()->addDays(5),
+        'detected_at' => now(),
+        'tx_hash' => 'short-tx-hash',
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('transactions'))
+        ->assertOk()
+        ->assertSee('Below minimum')
+        ->assertSee('What to tell your customer')
+        ->assertSee('6.00 USDT')
+        ->assertSee('4.00 USDT')
+        ->assertSee(now()->addDays(5)->format('j M Y, H:i'));
+
+    $component = Livewire::actingAs($owner)->test(TransactionHistory::class);
+    $short = collect($component->instance()->paginatedEntries->items())->firstWhere('status', 'below_minimum');
+
+    expect($short['usd'])->toBeNull()
+        ->and($short['net'])->toBeNull()
+        ->and($short['short']['minimum'])->toBe('10.00')
+        ->and($short['short']['received_total'])->toBe('6.00')
+        ->and($short['short']['amount_needed'])->toBe('4.00');
+
+    $component->set('statusFilter', 'below_minimum')
+        ->assertSee('short-tx-hash', false);
+});
+
+test('a forfeited deposit shows the expired badge and explanation', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    makeLedgerDeposit($owner, [
+        'network' => 'usdt_trc20',
+        'status' => 'forfeited',
+        'minimum_amount' => '10.00000000',
+        'forfeited_at' => now(),
+        'tx_hash' => 'forfeited-tx-hash',
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('transactions'))
+        ->assertOk()
+        ->assertSee('Expired')
+        ->assertSee('What happened')
+        ->assertSee('Below the 10.00 USDT minimum and not topped up within 7 days');
+});
+
+test('another owner\'s short payments are not visible', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $other = User::factory()->create(['role' => 'owner']);
+
+    makeLedgerDeposit($owner, ['tx_hash' => 'my-credited-hash']);
+    makeLedgerDeposit($other, ['status' => 'below_minimum', 'tx_hash' => 'their-short-hash']);
+
+    Livewire::actingAs($owner)
+        ->test(TransactionHistory::class)
+        ->assertSee('my-credited-hash', false)
+        ->assertDontSee('their-short-hash', false);
+});

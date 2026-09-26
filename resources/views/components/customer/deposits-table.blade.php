@@ -1,4 +1,4 @@
-@props(['deposits'])
+@props(['deposits', 'instructions' => false, 'creditAction' => false])
 
 <flux:table :paginate="$deposits" pagination:scroll-to>
     <flux:table.columns>
@@ -9,6 +9,9 @@
         <flux:table.column align="end" class="max-lg:hidden">Credited</flux:table.column>
         <flux:table.column>Status</flux:table.column>
         <flux:table.column>Tx</flux:table.column>
+        @if ($creditAction)
+            <flux:table.column align="end"></flux:table.column>
+        @endif
     </flux:table.columns>
 
     <flux:table.rows>
@@ -39,6 +42,9 @@
                     <flux:badge size="sm" color="{{ \App\Support\DepositRow::STATUS_COLORS[$d['status']] ?? 'zinc' }}">
                         {{ $d['statusLabel'] }}
                     </flux:badge>
+                    @if ($instructions && in_array($d['status'], ['below_minimum', 'forfeited'], true))
+                        <x-short-payment-note :row="$d" />
+                    @endif
                 </flux:table.cell>
 
                 <flux:table.cell class="py-0 font-mono text-xs">
@@ -51,10 +57,18 @@
                         —
                     @endif
                 </flux:table.cell>
+
+                @if ($creditAction)
+                    <flux:table.cell align="end" class="py-0">
+                        @if (in_array($d['status'], ['below_minimum', 'forfeited'], true))
+                            <flux:button size="xs" variant="ghost" wire:click="confirmCreditAnyway({{ $d['id'] }})">Credit anyway</flux:button>
+                        @endif
+                    </flux:table.cell>
+                @endif
             </flux:table.row>
         @empty
             <flux:table.row>
-                <flux:table.cell colspan="7">
+                <flux:table.cell colspan="{{ $creditAction ? 8 : 7 }}">
                     <flux:text size="sm">No deposits yet.</flux:text>
                 </flux:table.cell>
             </flux:table.row>

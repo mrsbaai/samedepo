@@ -170,7 +170,7 @@
     ]
   }
 }</code></pre>
-                                            <flux:text class="mt-2 text-sm"><code>status</code> is <code>created</code> on the first request (HTTP 201) and <code>existing</code> on later requests (HTTP 200). All addresses include a <code>qr</code> URL for the deposit address and a <code>minimum_deposit</code> in the network's native currency — deposits below this amount are not credited.</flux:text>
+                                            <flux:text class="mt-2 text-sm"><code>status</code> is <code>created</code> on the first request (HTTP 201) and <code>existing</code> on later requests (HTTP 200). All addresses include a <code>qr</code> URL for the deposit address and a <code>minimum_deposit</code> in the network's native currency. Payments below the minimum are held; payments to the same address on the same network add up and are all credited (normal fee, no extra charge) once the total reaches the minimum. If the minimum isn't reached within 7 days of the first short payment, those payments expire and are not credited.</flux:text>
                                             <flux:text class="mt-2 text-sm">Every EVM asset shares one <code>0x</code> deposit address per customer — a single address accepts all enabled ERC-20 and BEP-20 networks.</flux:text>
                                             </div>
                                         @endif
@@ -202,6 +202,9 @@
                                 <flux:heading size="md" class="mb-3">Event types and lifecycle</flux:heading>
                                 <flux:text class="mb-3">
                                     <code>deposit.pending</code> is sent the first time we see an inbound payment, regardless of confirmation count. <code>deposit.credited</code> is sent once the required network confirmations have been reached and the deposit has been credited.
+                                </flux:text>
+                                <flux:text class="mb-3">
+                                    <code>deposit.below_minimum</code> is sent when a confirmed payment falls below the network minimum and is held as a short payment. <code>deposit.forfeited</code> is sent when a short payment is not topped up to the minimum within 7 days of the first short payment and expires.
                                 </flux:text>
                                 <flux:text class="mb-3">
                                     <code>network</code> is one of the enabled network keys (@foreach (array_keys($networks) as $key)<code>{{ $key }}</code>@if (!$loop->last), @endif@endforeach). Required confirmations are configured per network.
@@ -254,6 +257,8 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPO_SIGNATURE'] ?? '')) {
     "<span class="text-(--color-accent)">tx_hash</span>": "abc123...",
     "<span class="text-(--color-accent)">gross_amount</span>": "0.10000000",
     "<span class="text-(--color-accent)">gross_amount_usd</span>": "3000.00",
+    "<span class="text-(--color-accent)">minimum_deposit</span>": "0.00100000",
+    "<span class="text-(--color-accent)">meets_minimum</span>": true,
     "<span class="text-(--color-accent)">status</span>": "pending",
     "<span class="text-(--color-accent)">confirmation_count</span>": 2,
     "<span class="text-(--color-accent)">confirmations_required</span>": 3,
@@ -281,6 +286,55 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_SAMEDEPO_SIGNATURE'] ?? '')) {
     "<span class="text-(--color-accent)">gross_amount_usd</span>": "3000.00",
     "<span class="text-(--color-accent)">status</span>": "credited",
     "<span class="text-(--color-accent)">credited_at</span>": "2026-08-27T12:00:00+07:00"
+  }
+}</code></pre>
+                            </div>
+
+                            <div>
+                                <flux:heading size="md" class="mb-3">Example: deposit.below_minimum</flux:heading>
+                                <flux:text class="mb-3">
+                                    <code>minimum_deposit</code> is the effective minimum for the deposit address. <code>received_total</code> is the sum of open short payments on the same address, and <code>amount_needed</code> is the remaining amount required to reach the minimum. Payments to the same address on the same network add up and are all credited together once the total reaches the minimum; <code>expires_at</code> is the deadline.
+                                </flux:text>
+                                <pre class="max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-zinc-950 p-3 sm:p-4 text-xs font-mono text-zinc-300"><code>{
+  "<span class="text-(--color-accent)">event</span>": "deposit.below_minimum",
+  "<span class="text-(--color-accent)">id</span>": "6a3f...",
+  "<span class="text-(--color-accent)">created_at</span>": "2026-08-27T12:00:00+07:00",
+  "<span class="text-(--color-accent)">data</span>": {
+    "<span class="text-(--color-accent)">id</span>": 1,
+    "<span class="text-(--color-accent)">customer_id</span>": 1,
+    "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
+    "<span class="text-(--color-accent)">network</span>": "bitcoin",
+    "<span class="text-(--color-accent)">tx_hash</span>": "abc123...",
+    "<span class="text-(--color-accent)">gross_amount</span>": "0.00040000",
+    "<span class="text-(--color-accent)">gross_amount_usd</span>": "12.00",
+    "<span class="text-(--color-accent)">status</span>": "below_minimum",
+    "<span class="text-(--color-accent)">minimum_deposit</span>": "0.00100000",
+    "<span class="text-(--color-accent)">received_total</span>": "0.00040000",
+    "<span class="text-(--color-accent)">amount_needed</span>": "0.00060000",
+    "<span class="text-(--color-accent)">expires_at</span>": "2026-09-03T12:00:00+07:00"
+  }
+}</code></pre>
+                            </div>
+
+                            <div>
+                                <flux:heading size="md" class="mb-3">Example: deposit.forfeited</flux:heading>
+                                <flux:text class="mb-3">
+                                    <code>forfeited_at</code> is when the short payment expired. Expired payments are not credited and cannot be topped up; a new payment to the address starts a fresh window.
+                                </flux:text>
+                                <pre class="max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-zinc-950 p-3 sm:p-4 text-xs font-mono text-zinc-300"><code>{
+  "<span class="text-(--color-accent)">event</span>": "deposit.forfeited",
+  "<span class="text-(--color-accent)">id</span>": "6a3f...",
+  "<span class="text-(--color-accent)">created_at</span>": "2026-09-03T12:00:00+07:00",
+  "<span class="text-(--color-accent)">data</span>": {
+    "<span class="text-(--color-accent)">id</span>": 1,
+    "<span class="text-(--color-accent)">customer_id</span>": 1,
+    "<span class="text-(--color-accent)">customer_reference</span>": "customer-123",
+    "<span class="text-(--color-accent)">network</span>": "bitcoin",
+    "<span class="text-(--color-accent)">tx_hash</span>": "abc123...",
+    "<span class="text-(--color-accent)">gross_amount</span>": "0.00040000",
+    "<span class="text-(--color-accent)">gross_amount_usd</span>": "12.00",
+    "<span class="text-(--color-accent)">status</span>": "forfeited",
+    "<span class="text-(--color-accent)">forfeited_at</span>": "2026-09-03T12:00:00+07:00"
   }
 }</code></pre>
                             </div>

@@ -119,7 +119,7 @@ function seedOwnerO(): User
         'fee_amount' => null,
         'credited_amount' => null,
         'confirmation_count' => 0,
-        'status' => 'ignored',
+        'status' => 'below_minimum',
         'detected_at' => now()->subDay(),
         'credited_at' => null,
     ]);

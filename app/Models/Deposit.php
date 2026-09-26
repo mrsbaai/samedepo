@@ -22,6 +22,7 @@ class Deposit extends Model
         'network',
         'tx_hash',
         'gross_amount',
+        'minimum_amount',
         'fee_amount',
         'credited_amount',
         'usd_value',
@@ -30,18 +31,26 @@ class Deposit extends Model
         'detected_at',
         'credited_at',
         'swept_at',
+        'expires_at',
+        'forfeited_at',
+        'manually_credited_by',
+        'manually_credited_at',
     ];
 
     protected function casts(): array
     {
         return [
             'gross_amount' => 'decimal:8',
+            'minimum_amount' => 'decimal:8',
             'fee_amount' => 'decimal:8',
             'credited_amount' => 'decimal:8',
             'usd_value' => 'decimal:2',
             'detected_at' => 'datetime',
             'credited_at' => 'datetime',
             'swept_at' => 'datetime',
+            'expires_at' => 'datetime',
+            'forfeited_at' => 'datetime',
+            'manually_credited_at' => 'datetime',
         ];
     }
 
@@ -58,6 +67,11 @@ class Deposit extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function manuallyCreditedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'manually_credited_by');
     }
 
     public function ledgerEntries(): HasMany

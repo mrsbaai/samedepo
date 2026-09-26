@@ -83,7 +83,8 @@
                     'detected' => 'zinc',
                     'pending' => 'amber',
                     'credited' => 'green',
-                    'ignored' => 'zinc',
+                    'below_minimum' => 'amber',
+                    'forfeited' => 'zinc',
                     'approved' => 'green',
                     'denied' => 'zinc',
                     'cancelled' => 'zinc',
@@ -144,6 +145,9 @@
                             </flux:table.cell>
                             <flux:table.cell class="max-md:hidden py-0">
                                 <flux:badge size="sm" color="{{ $statusColors[$tx['status']] ?? 'zinc' }}">{{ $tx['statusLabel'] }}@if (str_contains($tx['statusLabel'], 'Consolidation')) <flux:tooltip toggleable content="Consolidation is the network cost of sweeping funds from your customers' deposit addresses into one address before your withdrawal is sent."><button type="button" class="inline-flex text-zinc-400"><flux:icon.information-circle variant="mini" class="size-4" /></button></flux:tooltip>@endif</flux:badge>
+                                @if (in_array($tx['status'], ['below_minimum', 'forfeited'], true))
+                                    <x-short-payment-note :row="$tx" />
+                                @endif
                             </flux:table.cell>
                             <flux:table.cell class="py-0">
                                 @if ($tx['txHash'])

@@ -91,7 +91,7 @@ class WebhookSettings extends Component
 
         $endpoint = WebhookEndpoint::query()->first();
 
-        $enabledEvents = ['deposit.pending', 'deposit.credited'];
+        $enabledEvents = ['deposit.pending', 'deposit.credited', 'deposit.below_minimum', 'deposit.forfeited'];
 
         if ($endpoint === null) {
             $secret = bin2hex(random_bytes(32));
@@ -129,7 +129,7 @@ class WebhookSettings extends Component
         $secret = bin2hex(random_bytes(32));
         $endpoint->update([
             'secret' => $secret,
-            'enabled_events' => ['deposit.pending', 'deposit.credited'],
+            'enabled_events' => ['deposit.pending', 'deposit.credited', 'deposit.below_minimum', 'deposit.forfeited'],
         ]);
 
         $this->revealedSecret = $secret;

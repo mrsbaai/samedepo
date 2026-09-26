@@ -92,3 +92,22 @@ test('the webhooks tab documents the correct php signature header key', function
         ->toMatch('/HTTP_X_SAMEDEP[A-Z]_SIGNATURE/')
         ->not->toMatch('/HTTP_X_SAMEDEP[a-z]_SIGNATURE/');
 });
+
+test('the webhooks tab documents the short payment events and payloads', function () {
+    $this->get(route('public.api-docs', ['tab' => 'webhooks']))
+        ->assertOk()
+        ->assertSee('deposit.below_minimum', false)
+        ->assertSee('deposit.forfeited', false)
+        ->assertSee('minimum_deposit', false)
+        ->assertSee('received_total', false)
+        ->assertSee('amount_needed', false)
+        ->assertSee('expires_at', false)
+        ->assertSee('forfeited_at', false)
+        ->assertSee('meets_minimum', false);
+});
+
+test('the api docs explain the short payment rules', function () {
+    $this->get(route('public.api-docs'))
+        ->assertOk()
+        ->assertSee('payments to the same address on the same network add up and are all credited', false);
+});

@@ -83,7 +83,8 @@
                     'detected' => 'zinc',
                     'pending' => 'amber',
                     'credited' => 'green',
-                    'ignored' => 'zinc',
+                    'below_minimum' => 'amber',
+                    'forfeited' => 'zinc',
                     'approved' => 'green',
                     'denied' => 'zinc',
                     'cancelled' => 'zinc',
@@ -160,6 +161,11 @@
                             </flux:table.cell>
                             <flux:table.cell class="max-md:hidden py-0">
                                 <flux:badge size="sm" color="{{ $statusColors[$tx['status']] ?? 'zinc' }}">{{ $tx['statusLabel'] }}</flux:badge>
+                                @if ($tx['type'] === 'deposit' && in_array($tx['status'], ['below_minimum', 'forfeited'], true))
+                                    <div class="mt-1">
+                                        <flux:button size="xs" variant="ghost" wire:click="confirmCreditAnyway({{ $tx['depositId'] }})">Credit anyway</flux:button>
+                                    </div>
+                                @endif
                             </flux:table.cell>
                             <flux:table.cell align="end" class="py-0">
                                 @if ($tx['txHash'])
@@ -175,4 +181,6 @@
             </flux:table>
         @endif
     @endif
+
+    <x-admin.credit-anyway-modal />
 </div>

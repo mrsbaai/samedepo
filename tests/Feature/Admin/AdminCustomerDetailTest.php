@@ -1,10 +1,12 @@
 <?php
 
+use App\Livewire\Admin\CustomerDetail;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
 use App\Models\User;
 use Carbon\Carbon;
+use Livewire\Livewire;
 
 beforeEach(function () {
     Carbon::setTestNow('2026-09-15 12:00:00');
@@ -24,7 +26,7 @@ function adminCustomerFixture(): array
         ['status' => 'detected', 'gross' => '1.00000000', 'offset' => 4],
         ['status' => 'pending', 'gross' => '2.00000000', 'offset' => 3],
         ['status' => 'credited', 'gross' => '3.00000000', 'offset' => 2, 'fee' => '0.06000000', 'credited' => '2.94000000'],
-        ['status' => 'ignored', 'gross' => '0.50000000', 'offset' => 1],
+        ['status' => 'below_minimum', 'gross' => '0.50000000', 'offset' => 1],
     ];
 
     foreach ($deposits as $data) {
@@ -65,7 +67,7 @@ test('admin sees customer reference addresses and all deposit statuses', functio
         ->assertSee('Detected', false)
         ->assertSee('Pending', false)
         ->assertSee('Credited', false)
-        ->assertSee('Ignored', false);
+        ->assertSee('Below minimum', false);
 });
 
 test('deposits paginate at fifteen per page', function () {
@@ -166,4 +168,26 @@ test('admin sees pending deposit confirmation progress in the customer deposit t
         ->assertOk()
         ->assertSee('tx-progress', false)
         ->assertSee('Pending · 2/3 confirmations', false);
+});
+
+test('admin can credit a short payment from the customer detail page', function () {
+    $f = adminCustomerFixture();
+    $short = Deposit::query()->where('status', 'below_minimum')->firstOrFail();
+
+    $this->actingAs($f['admin'])
+        ->get(route('admin.owners.customers.show', [$f['owner'], $f['customer']->customer_reference]))
+        ->assertOk()
+        ->assertSee('Credit anyway');
+
+    Livewire::actingAs($f['admin'])
+        ->test(CustomerDetail::class, ['owner' => $f['owner']->id, 'reference' => $f['customer']->customer_reference])
+        ->call('confirmCreditAnyway', $short->id)
+        ->assertSet('showCreditModal', true)
+        ->call('creditAnyway')
+        ->assertSet('creditError', null);
+
+    $short->refresh();
+    expect($short->status)->toBe('credited')
+        ->and((int) $short->manually_credited_by)->toBe($f['admin']->id)
+        ->and($short->credited_amount)->toBe('0.49000000');
 });

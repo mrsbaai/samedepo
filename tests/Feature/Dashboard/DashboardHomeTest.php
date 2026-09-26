@@ -80,11 +80,12 @@ test('latest deposits shows the ten newest deposits', function () {
         ->assertDontSee('txhash-01', false);
 });
 
-test('latest deposits shows pending status and hides ignored and other owners deposits', function () {
+test('latest deposits shows pending and short-payment statuses and hides other owners deposits', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     $other = User::factory()->create(['role' => 'owner']);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     $address = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'bitcoin']);
+    $usdtAddress = DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'usdt_trc20']);
     $otherCustomer = Customer::factory()->create(['user_id' => $other->id]);
     $otherAddress = DepositAddress::factory()->create(['customer_id' => $otherCustomer->id, 'network' => 'bitcoin']);
 
@@ -98,12 +99,15 @@ test('latest deposits shows pending status and hides ignored and other owners de
         'tx_hash' => 'pending-tx-hash',
     ]);
     Deposit::factory()->create([
-        'deposit_address_id' => $address->id,
+        'deposit_address_id' => $usdtAddress->id,
         'customer_id' => $customer->id,
         'user_id' => $owner->id,
-        'network' => 'bitcoin',
-        'status' => 'ignored',
-        'tx_hash' => 'ignored-tx-hash',
+        'network' => 'usdt_trc20',
+        'status' => 'below_minimum',
+        'gross_amount' => '6.00000000',
+        'minimum_amount' => '10.00000000',
+        'expires_at' => now()->addDays(5),
+        'tx_hash' => 'short-tx-hash',
     ]);
     Deposit::factory()->create([
         'deposit_address_id' => $otherAddress->id,
@@ -118,7 +122,10 @@ test('latest deposits shows pending status and hides ignored and other owners de
         ->test(UserDashboard::class)
         ->assertSee('pending-tx-hash', false)
         ->assertSee('Pending · 1/3 confirmations', false)
-        ->assertDontSee('ignored-tx-hash', false)
+        ->assertSee('short-tx-hash', false)
+        ->assertSee('Below minimum')
+        ->assertSee('What to tell your customer')
+        ->assertSee('4.00 USDT')
         ->assertDontSee('other-owner-hash', false);
 });
 

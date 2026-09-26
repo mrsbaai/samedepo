@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Admin\Concerns\CreditsShortPayments;
 use App\Support\Network;
 use App\Support\TransactionRows;
 use Flux\DateRange;
@@ -16,6 +17,7 @@ use Livewire\WithPagination;
 #[Layout('components.dashboard.layout', ['title' => 'Transactions'])]
 class Transactions extends Component
 {
+    use CreditsShortPayments;
     use WithPagination;
 
     public string $uiState = 'normal';

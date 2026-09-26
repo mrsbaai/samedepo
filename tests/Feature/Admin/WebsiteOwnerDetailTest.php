@@ -94,7 +94,7 @@ function ownerFinanceFixture(): array
         'tx_hash' => 'tx-ignored',
         'gross_amount' => '0.50000000',
         'confirmation_count' => 0,
-        'status' => 'ignored',
+        'status' => 'below_minimum',
         'detected_at' => now()->subHour(),
         'credited_at' => now()->subHour(),
     ]);

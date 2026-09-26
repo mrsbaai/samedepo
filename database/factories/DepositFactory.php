@@ -29,7 +29,7 @@ class DepositFactory extends Factory
             'fee_amount' => null,
             'credited_amount' => null,
             'confirmation_count' => 0,
-            'status' => fake()->randomElement(['detected', 'pending', 'credited', 'ignored']),
+            'status' => fake()->randomElement(['detected', 'pending', 'credited', 'below_minimum', 'forfeited']),
             'detected_at' => now(),
             'credited_at' => null,
         ];

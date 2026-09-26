@@ -4,6 +4,7 @@ use App\Livewire\Admin\Transactions;
 use App\Models\Customer;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
+use App\Models\LedgerEntry;
 use App\Models\User;
 use App\Models\Withdrawal;
 use Livewire\Livewire;
@@ -122,4 +123,70 @@ test('deposit reference links to the admin customer detail', function () {
         ->assertOk()
         ->assertSee(route('admin.owners.customers.show', [$owner->id, $reference]), false)
         ->assertSee(route('admin.owners.show', $owner->id), false);
+});
+
+test('an admin can credit a below minimum deposit anyway', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $deposit = adminLedgerDeposit($owner, [
+        'network' => 'usdt_trc20',
+        'status' => 'below_minimum',
+        'gross_amount' => '6.00000000',
+        'expires_at' => now()->addDays(5),
+        'tx_hash' => 'short-credit-hash',
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test(Transactions::class)
+        ->assertSee('Credit anyway')
+        ->call('confirmCreditAnyway', $deposit->id)
+        ->assertSet('showCreditModal', true)
+        ->call('creditAnyway')
+        ->assertSet('showCreditModal', false)
+        ->assertSet('creditError', null);
+
+    $deposit->refresh();
+    expect($deposit->status)->toBe('credited')
+        ->and((int) $deposit->manually_credited_by)->toBe($admin->id)
+        ->and($deposit->manually_credited_at)->not->toBeNull()
+        ->and($deposit->fee_amount)->toBe('0.12000000')
+        ->and($deposit->credited_amount)->toBe('5.88000000');
+
+    expect(LedgerEntry::query()->withoutGlobalScope('owner')->where('deposit_id', $deposit->id)->where('reason', 'deposit_credit')->value('amount'))
+        ->toBe('5.88000000');
+});
+
+test('credit anyway failure shows the message and changes nothing', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $deposit = adminLedgerDeposit($owner, [
+        'status' => 'credited',
+        'gross_amount' => '6.00000000',
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test(Transactions::class)
+        ->call('confirmCreditAnyway', $deposit->id)
+        ->call('creditAnyway')
+        ->assertSet('showCreditModal', false)
+        ->assertSet('creditError', 'Only below-minimum or forfeited deposits can be credited manually.');
+
+    expect($deposit->fresh()->manually_credited_by)->toBeNull()
+        ->and(LedgerEntry::query()->where('deposit_id', $deposit->id)->count())->toBe(0);
+});
+
+test('a non-admin cannot invoke credit anyway', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $deposit = adminLedgerDeposit($owner, [
+        'network' => 'usdt_trc20',
+        'status' => 'below_minimum',
+        'gross_amount' => '6.00000000',
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test(Transactions::class)
+        ->call('confirmCreditAnyway', $deposit->id)
+        ->assertForbidden();
+
+    expect($deposit->fresh()->status)->toBe('below_minimum');
 });

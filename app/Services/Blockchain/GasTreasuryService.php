@@ -147,7 +147,7 @@ class GasTreasuryService
             return false;
         }
 
-        return $this->sendTopup($network, $wallet, $recipientAddress, $recipientIndex, $topupAmount, $topupFee);
+        return $this->sendTopup($network, $wallet, $recipientAddress, $recipientIndex, $topupAmount, $topupFee, $sweep);
     }
 
     public function ensureGasForWithdrawal(Withdrawal $withdrawal, ?string $estimatedFeeNative = null, ?array $transferResources = null): bool
@@ -273,7 +273,7 @@ class GasTreasuryService
                     return null; // treasury is always activated — defensive
                 }
 
-                $this->sendTopup($network, $wallet, $receiverAddress, $receiverIndex, '0.10000000', '1.10000000');
+                $this->sendTopup($network, $wallet, $receiverAddress, $receiverIndex, '0.10000000', '1.10000000', $this->sweepLink($purposable));
                 Log::info('energy.activation_topup', [
                     'network' => $network,
                     'receiver' => $receiverAddress,
@@ -299,7 +299,7 @@ class GasTreasuryService
                     return true;
                 }
 
-                $this->sendTopup($network, $wallet, $receiverAddress, $receiverIndex, '0.40000000', '0.30000000');
+                $this->sendTopup($network, $wallet, $receiverAddress, $receiverIndex, '0.40000000', '0.30000000', $this->sweepLink($purposable));
 
                 return false;
             }
@@ -537,7 +537,7 @@ class GasTreasuryService
             ->whereNotExists(fn ($query) => $query->selectRaw('1')->from('deposits')
                 ->join('deposit_addresses as siblings', 'deposits.deposit_address_id', '=', 'siblings.id')
                 ->whereColumn('siblings.address', 'deposit_addresses.address')
-                ->where('deposits.status', 'credited')
+                ->whereIn('deposits.status', ['credited', 'forfeited'])
                 ->whereNull('deposits.swept_at'))
             ->chunkById(100, function ($addresses) use ($network, $wallet, $minimum) {
                 foreach ($addresses as $address) {
@@ -722,9 +722,14 @@ class GasTreasuryService
         return $balance;
     }
 
-    private function sendTopup(string $network, TreasuryWallet $wallet, string $recipientAddress, int $recipientIndex, string $amount, string $fee): bool
+    private function sweepLink(?Model $purposable): ?TreasurySweep
     {
-        [$topup, $created] = $this->findOrCreateOpenTopup($network, $recipientAddress, $recipientIndex, (int) $wallet->id, $amount);
+        return $purposable instanceof TreasurySweep ? $purposable : null;
+    }
+
+    private function sendTopup(string $network, TreasuryWallet $wallet, string $recipientAddress, int $recipientIndex, string $amount, string $fee, ?TreasurySweep $sweep = null): bool
+    {
+        [$topup, $created] = $this->findOrCreateOpenTopup($network, $recipientAddress, $recipientIndex, (int) $wallet->id, $amount, 'topup', null, null, $sweep?->id);
 
         if ($topup === null) {
             return false;
@@ -774,7 +779,7 @@ class GasTreasuryService
         return false;
     }
 
-    private function findOrCreateOpenTopup(string $network, string $recipientAddress, int $recipientIndex, int $walletId, string $amount, string $kind = 'topup', ?string $sourceAddress = null, ?int $sourceIndex = null): array
+    private function findOrCreateOpenTopup(string $network, string $recipientAddress, int $recipientIndex, int $walletId, string $amount, string $kind = 'topup', ?string $sourceAddress = null, ?int $sourceIndex = null, ?int $sweepId = null): array
     {
         $now = now();
         $attributes = [
@@ -785,6 +790,7 @@ class GasTreasuryService
             'source_address' => $sourceAddress,
             'source_index' => $sourceIndex,
             'treasury_wallet_id' => $walletId,
+            'treasury_sweep_id' => $sweepId,
             'amount' => $amount,
             'status' => 'broadcast',
             'is_open' => 'open',
@@ -800,6 +806,11 @@ class GasTreasuryService
             ->where('recipient_address', $recipientAddress)
             ->where('is_open', 'open')
             ->first();
+
+        // insertOrIgnore raced — attach the sweep link to the existing row.
+        if ($topup !== null && $sweepId !== null && $topup->treasury_sweep_id === null) {
+            $topup->update(['treasury_sweep_id' => $sweepId]);
+        }
 
         return [$topup, $created];
     }

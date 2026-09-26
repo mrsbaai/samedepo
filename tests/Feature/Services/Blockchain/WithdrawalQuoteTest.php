@@ -170,8 +170,9 @@ function quoteConfirmedSweep(User $owner, string $network, string $topupAmount, 
         'user_id' => $owner->id,
         'network' => $network,
         'gross_amount' => '10.00000000',
-        'status' => 'swept',
+        'status' => 'credited',
         'credited_at' => now(),
+        'swept_at' => now(),
     ]);
     TreasurySweep::create([
         'deposit_id' => $deposit->id,

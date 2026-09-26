@@ -59,6 +59,23 @@ test('it calculates withdrawable treasury profit from existing balances', functi
         ->and($profit['withdrawable_usd'])->toBe('30.00000000');
 });
 
+test('it counts unswept forfeited deposits as treasury assets', function () {
+    seedProfitExample();
+    Deposit::factory()->create([
+        'network' => 'usdt_trc20',
+        'gross_amount' => '7.00000000',
+        'status' => 'forfeited',
+        'forfeited_at' => now(),
+        'swept_at' => null,
+    ]);
+
+    $profit = (new TreasuryProfitCalculator)->forNetwork('usdt_trc20');
+
+    expect($profit['unswept'])->toBe('27.00000000')
+        ->and($profit['assets'])->toBe('127.00000000')
+        ->and($profit['equity'])->toBe('37.00000000');
+});
+
 test('it reports a deficit without allowing negative withdrawals', function () {
     seedProfitExample('130.00000000');
 

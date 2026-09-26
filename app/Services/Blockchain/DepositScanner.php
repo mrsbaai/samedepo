@@ -8,6 +8,7 @@ use App\Events\DepositPending;
 use App\Models\BlockchainScanState;
 use App\Models\Deposit;
 use App\Models\DepositAddress;
+use App\Models\PlatformSettings;
 use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Support\Network;
 use Illuminate\Support\Collection;
@@ -127,6 +128,7 @@ class DepositScanner
                         'user_id' => $addressRecord->customer->user_id,
                         'network' => $network,
                         'gross_amount' => $transaction->amount,
+                        'minimum_amount' => PlatformSettings::networkSetting($network)->min_deposit,
                         'confirmation_count' => $transaction->confirmations,
                         'status' => 'pending',
                         'detected_at' => now(),
@@ -134,10 +136,13 @@ class DepositScanner
                 );
 
                 if ($deposit->status !== 'credited') {
-                    $deposit->update([
-                        'confirmation_count' => $transaction->confirmations,
-                        'status' => $deposit->status === 'ignored' ? 'ignored' : 'pending',
-                    ]);
+                    $updates = ['confirmation_count' => $transaction->confirmations];
+
+                    if (! in_array($deposit->status, ['below_minimum', 'forfeited'], true)) {
+                        $updates['status'] = 'pending';
+                    }
+
+                    $deposit->update($updates);
                 }
 
                 if ($deposit->wasRecentlyCreated) {

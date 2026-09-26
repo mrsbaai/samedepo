@@ -17,7 +17,7 @@ final class TreasuryProfitCalculator
     public function forNetwork(string $network): array
     {
         $available = $this->sum(TreasuryWallet::query()->where('network', $network)->value('available_funds'));
-        $unswept = $this->sum(Deposit::query()->withoutGlobalScope('owner')->where('network', $network)->where('status', 'credited')->whereNull('swept_at')->sum('gross_amount'));
+        $unswept = $this->sum(Deposit::query()->withoutGlobalScope('owner')->where('network', $network)->whereIn('status', ['credited', 'forfeited'])->whereNull('swept_at')->sum('gross_amount'));
         $ownerBalances = $this->sum(Balance::query()->withoutGlobalScope('owner')->where('network', $network)->sum('amount'));
         $reservedWithdrawals = $this->sum(Withdrawal::query()->withoutGlobalScope('owner')->where('network', $network)->whereIn('status', ['pending', 'approved'])->sum('gross_amount'));
         $paidOut = $this->sum(TreasuryPayout::query()->where('network', $network)->whereIn('status', ['sent', 'confirmed'])->sum('amount'));

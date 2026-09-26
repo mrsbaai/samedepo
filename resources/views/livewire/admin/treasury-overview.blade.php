@@ -161,6 +161,54 @@
                     </flux:table>
                 </section>
 
+                <section>
+                    <flux:heading size="lg" class="mb-3">Expired short payments</flux:heading>
+                    @php($shortRows = $this->shortPayments->filter(fn (array $s) => $s['total'] > 0))
+                    @if ($shortRows->isEmpty())
+                        <flux:text size="sm" variant="subtle">No expired short payments.</flux:text>
+                    @else
+                        <flux:table container:class="overflow-x-auto">
+                            <flux:table.columns>
+                                <flux:table.column>Network</flux:table.column>
+                                <flux:table.column>Unswept</flux:table.column>
+                                <flux:table.column>Swept to treasury</flux:table.column>
+                                <flux:table.column>Not swept</flux:table.column>
+                            </flux:table.columns>
+                            <flux:table.rows>
+                                @foreach ($this->wallets as $wallet)
+                                    @continue(! $shortRows->has($wallet->network))
+                                    @php($meta = $this->networkMeta($wallet->network))
+                                    @php($short = $shortRows[$wallet->network])
+                                    <flux:table.row :key="'short-'.$wallet->id">
+                                        <flux:table.cell>
+                                            <span class="flex items-center gap-2">
+                                                <x-crypto-icon :icon="$meta['icon']" :badge="$meta['badge']" class="size-4" />
+                                                {{ $meta['label'] }}
+                                            </span>
+                                        </flux:table.cell>
+                                        <flux:table.cell>
+                                            <div class="font-mono tabular-nums">{{ $this->formattedAmount((float) $short['unswept'], $meta['decimals']) }} {{ $meta['symbol'] }}</div>
+                                            <div class="text-xs text-zinc-500">${{ $short['unswept_usd'] }} USD</div>
+                                        </flux:table.cell>
+                                        <flux:table.cell>
+                                            <div class="font-mono tabular-nums">{{ $this->formattedAmount((float) $short['swept'], $meta['decimals']) }} {{ $meta['symbol'] }}</div>
+                                            <div class="text-xs text-zinc-500">${{ $short['swept_usd'] }} USD</div>
+                                        </flux:table.cell>
+                                        <flux:table.cell>
+                                            {{ $short['not_swept_addresses'] }} address{{ $short['not_swept_addresses'] === 1 ? '' : 'es' }}
+                                            @if (\App\Support\Network::isNative($wallet->network))
+                                                <flux:tooltip toggleable content="On native networks these addresses are below the 1.5× fee floor — too small to sweep economically.">
+                                                    <button type="button" class="inline-flex text-zinc-400"><flux:icon.information-circle variant="mini" class="size-4" /></button>
+                                                </flux:tooltip>
+                                            @endif
+                                        </flux:table.cell>
+                                    </flux:table.row>
+                                @endforeach
+                            </flux:table.rows>
+                        </flux:table>
+                    @endif
+                </section>
+
                 <flux:tab.group>
                     <flux:tabs scrollable scrollable:fade>
                         <flux:tab name="gas_controls">Gas controls</flux:tab>

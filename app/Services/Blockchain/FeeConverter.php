@@ -91,7 +91,12 @@ class FeeConverter
                     ->on('deposit_addresses.network', '=', 'gas_topups.network');
             })
             ->join('customers', 'customers.id', '=', 'deposit_addresses.customer_id')
-            ->where('customers.user_id', $userId);
+            ->where('customers.user_id', $userId)
+            // Top-ups the platform paid for a forfeited sweep are never billable.
+            ->leftJoin('treasury_sweeps', 'treasury_sweeps.id', '=', 'gas_topups.treasury_sweep_id')
+            ->where(fn (Builder $query) => $query
+                ->whereNull('gas_topups.treasury_sweep_id')
+                ->orWhere('treasury_sweeps.platform_paid', false));
     }
 
     /**
@@ -107,6 +112,7 @@ class FeeConverter
             ->join('treasury_sweeps', 'treasury_sweeps.id', '=', 'energy_rentals.purposable_id')
             ->where('treasury_sweeps.network', $network)
             ->where('treasury_sweeps.status', 'confirmed')
+            ->where('treasury_sweeps.platform_paid', false)
             ->where(function ($query) use ($userId): void {
                 $query->whereExists(function ($sub) use ($userId): void {
                     $sub->selectRaw('1')
@@ -133,6 +139,7 @@ class FeeConverter
             ->join('treasury_sweeps', 'treasury_sweeps.id', '=', 'gas_expenses.expensable_id')
             ->where('treasury_sweeps.network', $network)
             ->where('treasury_sweeps.status', 'confirmed')
+            ->where('treasury_sweeps.platform_paid', false)
             ->where(function ($query) use ($userId): void {
                 $query->whereExists(function ($sub) use ($userId): void {
                     $sub->selectRaw('1')->from('deposits')

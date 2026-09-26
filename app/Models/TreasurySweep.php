@@ -27,6 +27,7 @@ class TreasurySweep extends Model
         'fee_recovered_at',
         'recovered_withdrawal_id',
         'piggybacked_on_sweep_id',
+        'platform_paid',
     ];
 
     protected function casts(): array
@@ -34,6 +35,7 @@ class TreasurySweep extends Model
         return [
             'amount' => 'decimal:8',
             'deposit_ids' => 'array',
+            'platform_paid' => 'boolean',
             'attempts' => 'integer',
             'last_attempted_at' => 'datetime',
             'confirmed_at' => 'datetime',

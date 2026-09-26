@@ -222,6 +222,26 @@ test('it skips addresses with unswept deposits', function () {
     expect(GasTopup::query()->where('kind', 'recovery')->count())->toBe(0);
 });
 
+test('it skips addresses with unswept forfeited deposits', function () {
+    [$service, $broadcaster, $wallet, $address] = recoveryFixture();
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $address->customer_id,
+        'user_id' => $address->customer->user_id,
+        'network' => 'usdt_trc20',
+        'status' => 'forfeited',
+        'forfeited_at' => now(),
+    ]);
+    // The deposit factory always spawns its own deposit address; drop the
+    // orphan so only the fixture address is a recovery candidate.
+    DepositAddress::query()->whereKeyNot($address->id)->delete();
+
+    $service->recoverStrandedGas();
+
+    expect($broadcaster->broadcastTopUpCalls)->toBeEmpty();
+    expect(GasTopup::query()->where('kind', 'recovery')->count())->toBe(0);
+});
+
 test('it does not stack recoveries while a row is open', function () {
     [$service, $broadcaster, $wallet] = recoveryFixture();
     $open = GasTopup::create([

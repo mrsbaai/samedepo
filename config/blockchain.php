@@ -11,6 +11,9 @@ return [
     // Confirmation thresholds and scan intervals live in the network
     // registry (config/networks.php) — read them via App\Support\Network.
 
+    // Days a below-minimum deposit can be topped up before it is forfeited.
+    'short_payment_expiry_days' => env('SHORT_PAYMENT_EXPIRY_DAYS', 7),
+
     'provider_backoff' => [
         'base_minutes' => 2,
         'max_minutes' => 60,

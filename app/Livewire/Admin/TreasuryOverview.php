@@ -172,6 +172,37 @@ class TreasuryOverview extends Component
     }
 
     #[Computed]
+    public function shortPayments(): Collection
+    {
+        return $this->wallets->mapWithKeys(function (TreasuryWallet $wallet): array {
+            $forfeited = fn () => Deposit::query()->withoutGlobalScope('owner')
+                ->where('network', $wallet->network)
+                ->where('status', 'forfeited');
+
+            $unswept = $this->decimal($forfeited()->whereNull('swept_at')->sum('gross_amount'));
+            $swept = $this->decimal($forfeited()->whereNotNull('swept_at')->sum('gross_amount'));
+            $total = $forfeited()->count();
+
+            $notSweptAddresses = $forfeited()->whereNull('swept_at')
+                ->whereNotExists(fn ($query) => $query->selectRaw('1')
+                    ->from('treasury_sweeps')
+                    ->whereColumn('treasury_sweeps.deposit_address_id', 'deposits.deposit_address_id')
+                    ->whereIn('treasury_sweeps.status', ['pending', 'broadcast']))
+                ->distinct()
+                ->count('deposit_address_id');
+
+            return [$wallet->network => [
+                'unswept' => $unswept,
+                'unswept_usd' => $this->usdValue($unswept, $wallet->network),
+                'swept' => $swept,
+                'swept_usd' => $this->usdValue($swept, $wallet->network),
+                'not_swept_addresses' => $notSweptAddresses,
+                'total' => $total,
+            ]];
+        });
+    }
+
+    #[Computed]
     public function topups(): Collection
     {
         return GasTopup::query()->whereIn('status', ['pending', 'broadcast', 'failed'])->latest()->limit(10)->get();
@@ -302,6 +333,7 @@ class TreasuryOverview extends Component
             $this->networkMetrics,
             $this->recentSweeps,
             $this->recentPayouts,
+            $this->shortPayments,
             $this->topups,
             $this->expenses,
         );

@@ -46,8 +46,10 @@
 
             <div>
                 <flux:heading size="lg" class="mb-3">Deposits</flux:heading>
-                <x-customer.deposits-table :deposits="$this->deposits" />
+                <x-customer.deposits-table :deposits="$this->deposits" :credit-action="true" />
             </div>
         </div>
     @endif
+
+    <x-admin.credit-anyway-modal />
 </div>

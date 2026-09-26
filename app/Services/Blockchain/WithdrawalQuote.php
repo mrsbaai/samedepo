@@ -172,6 +172,12 @@ class WithdrawalQuote
             ->where('network', $network)
             ->whereHas('customer', fn ($query) => $query->where('user_id', $userId))
             ->whereHas('deposits', fn ($query) => $query->where('status', 'credited')->whereNull('swept_at'))
+            // An in-flight platform-paid sweep already covers this address's
+            // deposits — its cost is never billed to the owner.
+            ->whereNotExists(fn ($query) => $query->selectRaw('1')->from('treasury_sweeps')
+                ->whereColumn('treasury_sweeps.deposit_address_id', 'deposit_addresses.id')
+                ->where('treasury_sweeps.platform_paid', true)
+                ->whereIn('treasury_sweeps.status', ['pending', 'broadcast']))
             ->get();
 
         $native = '0.00000000';

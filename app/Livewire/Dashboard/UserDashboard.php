@@ -77,7 +77,6 @@ class UserDashboard extends Component
     {
         return Deposit::query()
             ->with('customer')
-            ->where('status', '!=', 'ignored')
             ->latest('id')
             ->limit(10)
             ->get()
