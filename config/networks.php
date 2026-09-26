@@ -206,6 +206,7 @@ return [
             'provider' => [
                 'driver' => 'evm_logs',
                 'rpc' => env('BSC_RPC_URL'),
+                'max_block_range' => (int) env('BSC_RPC_MAX_BLOCK_RANGE', 100),
             ],
             'coingecko_id' => 'tether',
             'explorer_tx' => 'https://bscscan.com/tx/{hash}',
@@ -233,6 +234,7 @@ return [
             'provider' => [
                 'driver' => 'evm_logs',
                 'rpc' => env('BSC_RPC_URL'),
+                'max_block_range' => (int) env('BSC_RPC_MAX_BLOCK_RANGE', 100),
             ],
             'coingecko_id' => 'usd-coin',
             'explorer_tx' => 'https://bscscan.com/tx/{hash}',

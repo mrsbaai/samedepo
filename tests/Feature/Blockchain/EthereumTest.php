@@ -372,7 +372,7 @@ test('usdc erc20 is swept alongside usdt erc20 with one shared top-up', function
         ->and($broadcaster->topupCalls)->toHaveCount(1);
 });
 
-test('etherscan polling throttles to five requests per second', function () {
+test('etherscan polling throttles to three requests per second', function () {
     $sleeps = [];
     $addresses = [
         '0x'.str_pad('1', 40, '0', STR_PAD_LEFT),
@@ -390,9 +390,32 @@ test('etherscan polling throttles to five requests per second', function () {
     expect($sleeps)->toHaveCount(2)
         // Computed wait = interval - real elapsed, so any positive sleep within
         // the interval proves the throttle engaged without timing fragility.
-        ->and($sleeps[0])->toBeGreaterThan(0)->toBeLessThanOrEqual(200_000)
-        ->and($sleeps[1])->toBeGreaterThan(0)->toBeLessThanOrEqual(200_000)
+        ->and($sleeps[0])->toBeGreaterThan(0)->toBeLessThanOrEqual(400_000)
+        ->and($sleeps[1])->toBeGreaterThan(0)->toBeLessThanOrEqual(400_000)
         ->and($requests)->toHaveCount(3);
+});
+
+test('an etherscan rate limit is retried once after a one second pause', function () {
+    $sleeps = [];
+    $calls = 0;
+
+    Http::fake(function (Request $request) use (&$calls) {
+        $calls++;
+
+        return $calls === 1
+            ? Http::response(['status' => '0', 'message' => 'NOTOK', 'result' => 'Max calls per sec rate limit reached'])
+            : Http::response(['status' => '1', 'message' => 'OK', 'result' => [etherscanTx()]]);
+    });
+
+    $provider = new EtherscanNativeProvider('ethereum', 'test-key', 1, 'https://etherscan.test/api', function (int $us) use (&$sleeps): void {
+        $sleeps[] = $us;
+    });
+
+    $transactions = $provider->fetchTransactions(['0x'.str_pad('1', 40, '0', STR_PAD_LEFT)]);
+
+    expect($transactions)->toHaveCount(1)
+        ->and($calls)->toBe(2)
+        ->and($sleeps)->toContain(1_000_000);
 });
 
 test('etherscan rate limit raises a provider error and cools the scanner down', function () {
@@ -406,12 +429,14 @@ test('etherscan rate limit raises a provider error and cools the scanner down', 
     $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
 
     expect(fn () => $provider->fetchTransactions([$address]))->toThrow(InvalidArgumentException::class);
+    // Rate-limited twice → the retry is exhausted and the error surfaces.
+    Http::assertSentCount(2);
 
     $customer = Customer::factory()->create();
     DepositAddress::factory()->create(['customer_id' => $customer->id, 'network' => 'ethereum', 'address' => $address]);
     config(['networks.networks.ethereum.scan_interval' => 0]);
 
-    (new DepositScanner([new EtherscanNativeProvider('ethereum', 'test-key', 1, 'https://etherscan.test/api')]))->scan();
+    (new DepositScanner([new EtherscanNativeProvider('ethereum', 'test-key', 1, 'https://etherscan.test/api', fn (int $us) => null)]))->scan();
 
     $state = BlockchainScanState::where('network', 'ethereum')->first();
     expect($state->consecutive_failures)->toBe(1)

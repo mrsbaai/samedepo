@@ -1,7 +1,9 @@
 <?php
 
 use App\Services\Blockchain\Providers\EsploraProvider;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 
 test('it parses incoming outputs and derives confirmations from the chain tip', function () {
     Http::fake([
@@ -71,6 +73,55 @@ test('it uses the configured base url and makes no calls for an empty address li
 
     expect($provider->fetchTransactions(['addr']))->toBe([]);
     Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://blockstream.info/api/address/addr/txs'));
+});
+
+test('it retries a transient 503 and returns transactions', function () {
+    Sleep::fake();
+
+    $calls = 0;
+    Http::fake(function (Request $request) use (&$calls) {
+        if (str_contains($request->url(), 'blocks/tip/height')) {
+            return Http::response('967179');
+        }
+
+        $calls++;
+
+        if ($calls === 1) {
+            return Http::response('Service Unavailable', 503);
+        }
+
+        return Http::response([[
+            'txid' => 'confirmed-1',
+            'vout' => [['scriptpubkey_address' => 'bc1qtest', 'value' => 25288]],
+            'status' => ['confirmed' => true, 'block_height' => 967127],
+        ]]);
+    });
+
+    $transactions = (new EsploraProvider('bitcoin'))->fetchTransactions(['bc1qtest']);
+
+    expect($transactions)->toHaveCount(1)
+        ->and($transactions[0]->txHash)->toBe('confirmed-1')
+        ->and($transactions[0]->confirmations)->toBe(53)
+        ->and($calls)->toBe(2);
+});
+
+test('it throws the existing error after persistent failures', function () {
+    Sleep::fake();
+
+    $calls = 0;
+    Http::fake(function (Request $request) use (&$calls) {
+        if (str_contains($request->url(), 'blocks/tip/height')) {
+            return Http::response('967179');
+        }
+
+        $calls++;
+
+        return Http::response('Service Unavailable', 503);
+    });
+
+    expect(fn () => (new EsploraProvider('bitcoin'))->fetchTransactions(['bc1qtest']))
+        ->toThrow(InvalidArgumentException::class, 'Esplora API returned an error');
+    expect($calls)->toBe(3);
 });
 
 test('it skips malformed transactions', function () {

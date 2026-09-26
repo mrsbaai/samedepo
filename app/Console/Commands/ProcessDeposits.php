@@ -19,7 +19,7 @@ class ProcessDeposits extends Command
 
     public function handle(DepositScanner $scanner, DepositCreditor $creditor, GasTreasuryService $gasTreasury, TreasurySweepService $sweeper): int
     {
-        Log::info('Deposit processing started.');
+        Log::debug('Deposit processing started.');
 
         $scanner->scan();
         $creditor->credit();
@@ -29,7 +29,7 @@ class ProcessDeposits extends Command
         $gasTreasury->recoverStrandedGas();
         $sweeper->sweep();
 
-        Log::info('Deposit processing completed.');
+        Log::debug('Deposit processing completed.');
 
         return self::SUCCESS;
     }

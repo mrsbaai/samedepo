@@ -89,6 +89,7 @@ class AppServiceProvider extends ServiceProvider
                 projectSecret: $options['project_secret'] ?? null,
                 infuraNetwork: $options['infura_network'] ?? 'mainnet',
                 tokenDecimals: Network::tokenDecimals($network) ?? 6,
+                blockRange: (int) ($options['max_block_range'] ?? 10000),
             ),
             'etherscan_native' => new EtherscanNativeProvider(
                 network: $network,

@@ -15,9 +15,14 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 
 class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTransferFee, ReportsLastError
 {
+    private const RETRYABLE_PATHS = ['/balance', '/receipt', '/fee', '/tron-resource'];
+
+    private const RETRYABLE_STATUSES = [502, 503, 504];
+
     private ?string $lastError = null;
 
     public function __construct(
@@ -267,23 +272,44 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
     {
         $this->lastError = null;
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
-        $timestamp = (string) now()->getTimestamp();
-        $signature = hash_hmac('sha256', "{$timestamp}.{$body}", $this->apiKey);
 
-        try {
-            $response = Http::withHeaders([
-                'X-Signer-Timestamp' => $timestamp,
-                'X-Signer-Signature' => $signature,
-                'Content-Type' => 'application/json',
-            ])->timeout(30)->post("{$this->url}{$path}", $payload);
-        } catch (ConnectionException $exception) {
-            $this->lastError = 'connection_failed: '.$exception->getMessage();
-            Log::error('signer.request_failed', ['path' => $path, 'payload' => $payload, 'error' => $this->lastError]);
+        // Read-only calls may be retried on transient failures; anything that
+        // can broadcast (/withdraw, /sweep, /topup) must never be retried.
+        $attempts = in_array($path, self::RETRYABLE_PATHS, true) ? 3 : 1;
 
-            return null;
-        }
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            $timestamp = (string) now()->getTimestamp();
+            $signature = hash_hmac('sha256', "{$timestamp}.{$body}", $this->apiKey);
 
-        if (! $response->successful()) {
+            try {
+                $response = Http::withHeaders([
+                    'X-Signer-Timestamp' => $timestamp,
+                    'X-Signer-Signature' => $signature,
+                    'Content-Type' => 'application/json',
+                ])->timeout(30)->post("{$this->url}{$path}", $payload);
+            } catch (ConnectionException $exception) {
+                if ($attempt < $attempts) {
+                    Sleep::for(1)->seconds();
+
+                    continue;
+                }
+
+                $this->lastError = 'connection_failed: '.$exception->getMessage();
+                Log::error('signer.request_failed', ['path' => $path, 'payload' => $payload, 'error' => $this->lastError]);
+
+                return null;
+            }
+
+            if ($response->successful()) {
+                return $response;
+            }
+
+            if ($attempt < $attempts && in_array($response->status(), self::RETRYABLE_STATUSES, true)) {
+                Sleep::for(1)->seconds();
+
+                continue;
+            }
+
             $this->lastError = $this->describeFailure($response);
             Log::error('signer.request_failed', [
                 'path' => $path,
@@ -291,9 +317,11 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
                 'payload' => $payload,
                 'body' => mb_substr($response->body(), 0, 1000),
             ]);
+
+            return $response;
         }
 
-        return $response;
+        return null;
     }
 
     private function describeFailure(Response $response): string

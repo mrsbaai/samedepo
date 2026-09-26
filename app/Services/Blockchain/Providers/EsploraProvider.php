@@ -87,7 +87,8 @@ class EsploraProvider implements BlockchainProvider
 
     private function get(string $path): Response
     {
-        $response = Http::get(rtrim($this->baseUrl, '/').$path);
+        $response = Http::timeout(10)->retry(3, 1000, throw: false)
+            ->get(rtrim($this->baseUrl, '/').$path);
 
         if (! $response->successful()) {
             throw new InvalidArgumentException('Esplora API returned an error: '.$response->body());

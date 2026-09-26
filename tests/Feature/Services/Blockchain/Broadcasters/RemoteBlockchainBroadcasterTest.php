@@ -10,6 +10,7 @@ use App\Services\Blockchain\Broadcasters\RemoteBlockchainBroadcaster;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 
 function remoteWithdrawal(string $network): Withdrawal
 {
@@ -122,6 +123,62 @@ test('it handles signer connection failures without throwing', function () {
 
     expect($broadcaster->broadcastTopUp('usdt_erc20', 0, 2, '0.0003', '0.00001'))->toBeNull()
         ->and($broadcaster->lastError())->toStartWith('connection_failed: ');
+});
+
+test('a transient 503 on a read path is retried and nothing is logged', function () {
+    Sleep::fake();
+    Log::spy();
+
+    $calls = 0;
+    Http::fake(function () use (&$calls) {
+        $calls++;
+
+        return $calls === 1
+            ? Http::response('Service Unavailable', 503)
+            : Http::response(['data' => ['status' => 'confirmed', 'confirmations' => 20]]);
+    });
+
+    $receipt = (new RemoteBlockchainBroadcaster('https://signer.test', 'secret'))
+        ->getTransactionReceipt('usdt_trc20', '0xtx');
+
+    expect($receipt)->not->toBeNull()
+        ->and($receipt['status'])->toBe('confirmed')
+        ->and($calls)->toBe(2);
+    Log::shouldNotHaveReceived('error');
+});
+
+test('a broadcast path is never retried', function () {
+    Sleep::fake();
+    Log::spy();
+    $withdrawal = remoteWithdrawal('usdt_trc20');
+
+    Http::fake(['https://signer.test/withdraw' => Http::response('Service Unavailable', 503)]);
+
+    $hash = (new RemoteBlockchainBroadcaster('https://signer.test', 'secret'))->broadcastWithdrawal($withdrawal);
+
+    expect($hash)->toBeNull();
+    Http::assertSentCount(1);
+    Log::shouldHaveReceived('error')->once()->withArgs(fn ($message) => $message === 'signer.request_failed');
+});
+
+test('a connection failure on a read path is retried', function () {
+    Sleep::fake();
+
+    $calls = 0;
+    Http::fake(function () use (&$calls) {
+        $calls++;
+
+        if ($calls === 1) {
+            throw new ConnectionException('cURL error 7');
+        }
+
+        return Http::response(['data' => ['balance' => '1.50000000']]);
+    });
+
+    $balance = (new RemoteBlockchainBroadcaster('https://signer.test', 'secret'))->getNativeBalance('usdt_trc20', 2);
+
+    expect($balance)->toBe('1.50000000')
+        ->and($calls)->toBe(2);
 });
 
 test('broadcast withdrawal adds fee to amount for bitcoin', function () {

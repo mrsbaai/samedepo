@@ -26,9 +26,9 @@ class EtherscanNativeProvider implements BlockchainProvider
 {
     private const END_BLOCK = '99999999';
 
-    // Etherscan free tier allows 5 requests per second — per API key, so the
+    // Etherscan free tier allows 3 requests per second — per API key, so the
     // throttle is shared across every chain instance using that key.
-    private const MIN_REQUEST_INTERVAL_US = 200_000;
+    private const MIN_REQUEST_INTERVAL_US = 400_000;
 
     private static float $lastRequestAt = 0.0;
 
@@ -104,6 +104,34 @@ class EtherscanNativeProvider implements BlockchainProvider
      */
     private function txlist(string $address, int $startBlock): array
     {
+        $data = $this->requestTxlist($address, $startBlock);
+
+        // A rate-limited NOTOK gets exactly one retry after a 1 s pause.
+        if (is_string($data['result'] ?? null) && str_contains(strtolower($data['result']), 'rate limit')) {
+            ($this->sleeper)(1_000_000);
+            $data = $this->requestTxlist($address, $startBlock);
+        }
+
+        if (is_string($data['result'] ?? null)) {
+            // NOTOK payloads (e.g. "Max rate limit reached") must surface as
+            // errors so the scanner backs off instead of reading them as empty.
+            if (($data['message'] ?? '') === 'No transactions found') {
+                return [];
+            }
+
+            throw new InvalidArgumentException(
+                "Etherscan error for network {$this->network}: {$data['result']}"
+            );
+        }
+
+        return $data['result'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function requestTxlist(string $address, int $startBlock): array
+    {
         $this->throttle();
 
         $response = Http::get($this->baseUrl, [
@@ -131,19 +159,7 @@ class EtherscanNativeProvider implements BlockchainProvider
             );
         }
 
-        if (is_string($data['result'])) {
-            // NOTOK payloads (e.g. "Max rate limit reached") must surface as
-            // errors so the scanner backs off instead of reading them as empty.
-            if (($data['message'] ?? '') === 'No transactions found') {
-                return [];
-            }
-
-            throw new InvalidArgumentException(
-                "Etherscan error for network {$this->network}: {$data['result']}"
-            );
-        }
-
-        return $data['result'];
+        return $data;
     }
 
     /**

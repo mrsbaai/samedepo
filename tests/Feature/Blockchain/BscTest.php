@@ -235,6 +235,139 @@ test('bsc scan detects a deposit pending then credits at 15 confirmations', func
         ->and(BlockchainScanState::where('network', 'usdt_bep20')->value('last_scanned_block'))->toBe(0x400);
 });
 
+test('evm logs provider scans contiguous chunks within the configured range and ends at the tip', function () {
+    // last 688 with overlap 14 → from 675; tip 1024 → 4 chunks of ≤100 blocks.
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 688]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+    $ranges = [];
+
+    Http::fake(function (Request $request) use (&$ranges) {
+        if ($request->data()['method'] === 'eth_blockNumber') {
+            return Http::response(['jsonrpc' => '2.0', 'result' => dechex(1024), 'id' => 2]);
+        }
+
+        $ranges[] = $request->data()['params'][0];
+
+        return Http::response(['jsonrpc' => '2.0', 'result' => [], 'id' => 1]);
+    });
+
+    (new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+    ))->fetchTransactions([$address]);
+
+    expect($ranges)->toHaveCount(4);
+
+    $previousTo = null;
+    foreach ($ranges as $params) {
+        $from = hexdec($params['fromBlock']);
+        $to = hexdec($params['toBlock']);
+        expect($to - $from + 1)->toBeLessThanOrEqual(100);
+        if ($previousTo !== null) {
+            expect($from)->toBe($previousTo + 1);
+        }
+        $previousTo = $to;
+    }
+
+    expect($previousTo)->toBe(1024)
+        ->and(BlockchainScanState::where('network', 'usdt_bep20')->value('last_scanned_block'))->toBe(1024);
+});
+
+test('evm logs provider stops after maxChunksPerScan calls when far behind', function () {
+    // last 100 with overlap 14 → from 87; tip far ahead → capped at 3 chunks.
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 100]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+    $getLogs = 0;
+
+    Http::fake(function (Request $request) use (&$getLogs) {
+        if ($request->data()['method'] === 'eth_blockNumber') {
+            return Http::response(['jsonrpc' => '2.0', 'result' => dechex(2000), 'id' => 2]);
+        }
+
+        $getLogs++;
+
+        return Http::response(['jsonrpc' => '2.0', 'result' => [], 'id' => 1]);
+    });
+
+    (new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+        maxChunksPerScan: 3,
+    ))->fetchTransactions([$address]);
+
+    expect($getLogs)->toBe(3)
+        ->and(BlockchainScanState::where('network', 'usdt_bep20')->value('last_scanned_block'))->toBe(386);
+});
+
+test('evm logs provider returns completed chunks and saved progress when a later chunk fails', function () {
+    // last 688 with overlap 14 → from 675; chunk 1 [675,774] succeeds, chunk 2 fails.
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 688]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+    $topic = '0x'.str_pad('1', 64, '0', STR_PAD_LEFT);
+    $getLogs = 0;
+
+    Http::fake(function (Request $request) use (&$getLogs, $topic) {
+        if ($request->data()['method'] === 'eth_blockNumber') {
+            return Http::response(['jsonrpc' => '2.0', 'result' => dechex(1024), 'id' => 2]);
+        }
+
+        $getLogs++;
+
+        if ($getLogs === 2) {
+            return Http::response(['jsonrpc' => '2.0', 'error' => ['code' => 35, 'message' => 'range too large'], 'id' => 1]);
+        }
+
+        return Http::response(['jsonrpc' => '2.0', 'result' => [[
+            'blockNumber' => '0x2a3', // 675
+            'transactionHash' => '0xchunk1',
+            'data' => '0x4563918244f40000',
+            'topics' => ['', '', $topic],
+        ]], 'id' => 1]);
+    });
+
+    $transactions = (new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+    ))->fetchTransactions([$address]);
+
+    expect($transactions)->toHaveCount(1)
+        ->and($transactions[0]->txHash)->toBe('0xchunk1')
+        ->and(BlockchainScanState::where('network', 'usdt_bep20')->value('last_scanned_block'))->toBe(774);
+});
+
+test('evm logs provider rethrows a first chunk failure without touching scan state', function () {
+    BlockchainScanState::query()->create(['network' => 'usdt_bep20', 'last_scanned_block' => 688]);
+
+    $address = '0x'.str_pad('1', 40, '0', STR_PAD_LEFT);
+
+    Http::fake(fn (Request $request) => $request->data()['method'] === 'eth_blockNumber'
+        ? Http::response(['jsonrpc' => '2.0', 'result' => dechex(1024), 'id' => 2])
+        : Http::response(['jsonrpc' => '2.0', 'error' => ['code' => 35, 'message' => 'range too large'], 'id' => 1]));
+
+    $provider = new EvmLogsProvider(
+        network: 'usdt_bep20',
+        contract: '0x55d398326f99059ff775485246999027b3197955',
+        rpcUrl: 'https://bsc-rpc.test',
+        tokenDecimals: 18,
+        blockRange: 100,
+    );
+
+    expect(fn () => $provider->fetchTransactions([$address]))->toThrow(InvalidArgumentException::class)
+        ->and(BlockchainScanState::where('network', 'usdt_bep20')->value('last_scanned_block'))->toBe(688);
+});
+
 test('bnb top-up is sized to the buffered need minus the recipient balance', function () {
     [$owner, $customer] = bscOwner();
     $address = bscDepositAddress($customer->id, 'usdt_bep20');

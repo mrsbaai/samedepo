@@ -11,8 +11,8 @@ use function Pest\Laravel\artisan;
 use function Pest\Laravel\mock;
 
 test('it logs processing lifecycle and runs every processing service', function () {
-    Log::shouldReceive('info')->once()->with('Deposit processing started.')->ordered();
-    Log::shouldReceive('info')->once()->with('Deposit processing completed.')->ordered();
+    Log::shouldReceive('debug')->once()->with('Deposit processing started.')->ordered();
+    Log::shouldReceive('debug')->once()->with('Deposit processing completed.')->ordered();
     mock(DepositScanner::class)->shouldReceive('scan')->once();
     $creditor = mock(DepositCreditor::class);
     $creditor->shouldReceive('credit')->once()->ordered();

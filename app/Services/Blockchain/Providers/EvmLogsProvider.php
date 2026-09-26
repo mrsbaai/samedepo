@@ -10,11 +10,10 @@ use App\Services\Blockchain\ValueObjects\BlockchainTransaction;
 use App\Support\Network;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
+use Throwable;
 
 class EvmLogsProvider implements BlockchainProvider
 {
-    private const BLOCK_RANGE = 10000;
-
     private const RECIPIENT_BATCH_SIZE = 100;
 
     private const TRANSFER_EVENT_SIGNATURE = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
@@ -27,6 +26,8 @@ class EvmLogsProvider implements BlockchainProvider
         private readonly ?string $projectSecret = null,
         private readonly string $infuraNetwork = 'mainnet',
         private readonly int $tokenDecimals = 6,
+        private readonly int $blockRange = 10000,
+        private readonly int $maxChunksPerScan = 50,
     ) {}
 
     public function fetchTransactions(array $addresses): array
@@ -40,59 +41,76 @@ class EvmLogsProvider implements BlockchainProvider
         $confirmationsRequired = max(0, Network::confirmations($this->network));
         $overlap = max(0, $confirmationsRequired - 1);
         $fromBlock = $state?->last_scanned_block === null
-            ? max(0, $currentBlock - self::BLOCK_RANGE + 1)
+            ? max(0, $currentBlock - $this->blockRange + 1)
             : max(0, $state->last_scanned_block + 1 - $overlap);
 
         if ($fromBlock > $currentBlock) {
             return [];
         }
 
-        $chunkEnd = min($currentBlock, $fromBlock + self::BLOCK_RANGE - 1);
         $topicsToAddresses = [];
 
         foreach ($addresses as $address) {
             $topicsToAddresses[$this->addressTopic($address)] = $address;
         }
 
+        $recipientBatches = array_chunk(array_keys($topicsToAddresses), self::RECIPIENT_BATCH_SIZE);
         $transactions = [];
+        $chunkStart = $fromBlock;
 
-        foreach (array_chunk(array_keys($topicsToAddresses), self::RECIPIENT_BATCH_SIZE) as $recipientTopics) {
-            $response = $this->rpc([
-                'jsonrpc' => '2.0',
-                'method' => 'eth_getLogs',
-                'params' => [[
-                    'address' => strtolower($this->contract),
-                    'fromBlock' => '0x'.dechex($fromBlock),
-                    'toBlock' => '0x'.dechex($chunkEnd),
-                    'topics' => [self::TRANSFER_EVENT_SIGNATURE, null, $recipientTopics],
-                ]],
-                'id' => 1,
-            ]);
+        for ($chunk = 0; $chunk < $this->maxChunksPerScan && $chunkStart <= $currentBlock; $chunk++) {
+            $chunkEnd = min($currentBlock, $chunkStart + $this->blockRange - 1);
 
-            foreach ($response['result'] ?? [] as $log) {
-                $recipientTopic = strtolower((string) ($log['topics'][2] ?? ''));
-                $address = $topicsToAddresses[$recipientTopic] ?? null;
+            try {
+                foreach ($recipientBatches as $recipientTopics) {
+                    $response = $this->rpc([
+                        'jsonrpc' => '2.0',
+                        'method' => 'eth_getLogs',
+                        'params' => [[
+                            'address' => strtolower($this->contract),
+                            'fromBlock' => '0x'.dechex($chunkStart),
+                            'toBlock' => '0x'.dechex($chunkEnd),
+                            'topics' => [self::TRANSFER_EVENT_SIGNATURE, null, $recipientTopics],
+                        ]],
+                        'id' => 1,
+                    ]);
 
-                if ($address === null) {
-                    continue;
+                    foreach ($response['result'] ?? [] as $log) {
+                        $recipientTopic = strtolower((string) ($log['topics'][2] ?? ''));
+                        $address = $topicsToAddresses[$recipientTopic] ?? null;
+
+                        if ($address === null) {
+                            continue;
+                        }
+
+                        $logBlock = hexdec($log['blockNumber'] ?? '0x0');
+                        $transactions[] = new BlockchainTransaction(
+                            network: $this->network,
+                            txHash: (string) ($log['transactionHash'] ?? ''),
+                            toAddress: $address,
+                            amount: bcdiv($this->hexToDec($log['data'] ?? '0x0'), bcpow('10', (string) $this->tokenDecimals, 0), 8),
+                            confirmations: max(0, $currentBlock - $logBlock + 1),
+                            tokenContract: $this->contract,
+                        );
+                    }
+                }
+            } catch (Throwable $exception) {
+                // Progress is only persisted for fully fetched chunks, so a
+                // failure here keeps the scan state at the last good chunk.
+                if ($chunk === 0) {
+                    throw $exception;
                 }
 
-                $logBlock = hexdec($log['blockNumber'] ?? '0x0');
-                $transactions[] = new BlockchainTransaction(
-                    network: $this->network,
-                    txHash: (string) ($log['transactionHash'] ?? ''),
-                    toAddress: $address,
-                    amount: bcdiv($this->hexToDec($log['data'] ?? '0x0'), bcpow('10', (string) $this->tokenDecimals, 0), 8),
-                    confirmations: max(0, $currentBlock - $logBlock + 1),
-                    tokenContract: $this->contract,
-                );
+                break;
             }
-        }
 
-        BlockchainScanState::query()->updateOrCreate(
-            ['network' => $this->network],
-            ['last_scanned_block' => $chunkEnd],
-        );
+            BlockchainScanState::query()->updateOrCreate(
+                ['network' => $this->network],
+                ['last_scanned_block' => $chunkEnd],
+            );
+
+            $chunkStart = $chunkEnd + 1;
+        }
 
         return $transactions;
     }

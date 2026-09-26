@@ -266,11 +266,11 @@ test('the etherscan throttle is shared across provider instances', function () {
     $bnb->fetchTransactions([$address]);
 
     // The bnb instance's first request must wait on the ethereum instance's
-    // timestamp: exactly one sleep, sized to whatever is left of the 200ms
+    // timestamp: exactly one sleep, sized to whatever is left of the 400ms
     // interval after real elapsed time between the calls.
     expect($sleeps)->toHaveCount(1)
         ->and($sleeps[0])->toBeGreaterThan(0)
-        ->and($sleeps[0])->toBeLessThanOrEqual(200_000);
+        ->and($sleeps[0])->toBeLessThanOrEqual(400_000);
 });
 
 test('bnb sweep takes the fee out of the amount on the native branch', function () {
