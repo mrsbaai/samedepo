@@ -1,6 +1,6 @@
 @props(['row'])
 
-<details class="mt-1 max-w-xs text-left">
+<details class="mt-1 w-64 max-w-full whitespace-normal text-left">
     <summary class="cursor-pointer text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline">
         {{ $row['status'] === 'below_minimum' ? 'What to tell your customer' : 'What happened' }}
     </summary>
