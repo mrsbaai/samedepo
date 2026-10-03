@@ -2,4 +2,5 @@
 
 @if ($websiteId)
     <script defer src="https://lilstat.com/lilstat.js" data-website-id="{{ $websiteId }}"></script>
+    <script defer src="https://lilstat.com/recorder.js" data-website-id="{{ $websiteId }}"></script>
 @endif

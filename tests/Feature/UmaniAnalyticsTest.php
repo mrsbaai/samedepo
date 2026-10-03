@@ -6,6 +6,7 @@ it('renders the umani tracking script when a website id is configured', function
     $html = view('components.umani-analytics')->render();
 
     expect($html)->toContain('lilstat.com/lilstat.js')
+        ->and($html)->toContain('lilstat.com/recorder.js')
         ->and($html)->toContain('test-website-id');
 });
 
@@ -14,5 +15,6 @@ it('does not render the umani tracking script when no website id is configured',
 
     $html = view('components.umani-analytics')->render();
 
-    expect($html)->not->toContain('lilstat.com/lilstat.js');
+    expect($html)->not->toContain('lilstat.com/lilstat.js')
+        ->and($html)->not->toContain('lilstat.com/recorder.js');
 });

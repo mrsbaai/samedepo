@@ -28,7 +28,7 @@
     "src": "node_modules/cryptocurrency-icons/svg/color/usdt.svg"
   },
   "resources/css/app.css": {
-    "file": "assets/app-4Vt1MU1X.css",
+    "file": "assets/app-BAQ8J762.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -39,12 +39,20 @@
     "isEntry": true
   },
   "resources/js/hero-background.jsx": {
-    "file": "assets/hero-background-BtWHx5uP.js",
+    "file": "assets/hero-background-eIema7Lg.js",
     "name": "hero-background",
     "src": "resources/js/hero-background.jsx",
     "isEntry": true,
     "css": [
       "assets/hero-background-3qRyQhhn.css"
+    ],
+    "assets": [
+      "assets/btc-DIog7A4K.svg",
+      "assets/usdt-C72ZycfX.svg",
+      "assets/ltc-DsuV0rQY.svg",
+      "assets/eth-BufXdG9K.svg",
+      "assets/usdc-CJ_qyDuP.svg",
+      "assets/bnb-C7_MdwOn.svg"
     ]
   }
 }
