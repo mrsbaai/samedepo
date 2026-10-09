@@ -189,18 +189,18 @@
                     <dl class="mt-4 space-y-1.5 text-sm">
                         <div class="flex items-center justify-between">
                             <dt><flux:text variant="subtle" size="sm">Network fee (up to)</flux:text></dt>
-                            <dd class="font-ledger tabular-nums">−{{ $this->formattedAmount($e['network_fee']) }} {{ $this->networkMeta['symbol'] }}</dd>
+                            <dd class="font-ledger tabular-nums text-zinc-500 dark:text-zinc-400">−{{ $this->formattedAmount($e['network_fee']) }} {{ $this->networkMeta['symbol'] }}</dd>
                         </div>
                         @if (bccomp($e['consolidation_outstanding']['amount'], '0', 8) > 0)
                             <div class="flex items-center justify-between">
                                 <dt><flux:text variant="subtle" size="sm">Consolidation already incurred</flux:text></dt>
-                                <dd class="font-ledger tabular-nums">−{{ $this->formattedAmount($e['consolidation_outstanding']['amount']) }} {{ $this->networkMeta['symbol'] }}</dd>
+                                <dd class="font-ledger tabular-nums text-zinc-500 dark:text-zinc-400">−{{ $this->formattedAmount($e['consolidation_outstanding']['amount']) }} {{ $this->networkMeta['symbol'] }}</dd>
                             </div>
                         @endif
                         @if ($e['consolidation_pending'] !== null && bccomp($e['consolidation_pending']['amount'], '0', 8) > 0)
                             <div class="flex items-center justify-between">
                                 <dt><flux:text variant="subtle" size="sm">Consolidation to fund this withdrawal</flux:text></dt>
-                                <dd class="font-ledger tabular-nums">−{{ $this->formattedAmount($e['consolidation_pending']['amount']) }} {{ $this->networkMeta['symbol'] }}</dd>
+                                <dd class="font-ledger tabular-nums text-zinc-500 dark:text-zinc-400">−{{ $this->formattedAmount($e['consolidation_pending']['amount']) }} {{ $this->networkMeta['symbol'] }}</dd>
                             </div>
                         @endif
                         <div class="flex items-center justify-between font-medium">
