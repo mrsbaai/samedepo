@@ -173,6 +173,7 @@ test('a pending withdrawal can be cancelled', function () {
         'user_id' => $owner->id,
         'network' => 'usdt_trc20',
         'status' => 'pending',
+        'mode' => 'approval',
         'gross_amount' => 500,
         'destination_address' => 'TN2xQz5vGbR9eqAFfbGZvFvgkhLGc4f2sA',
     ]);
@@ -205,6 +206,7 @@ test('request is hidden while a withdrawal is pending', function () {
         'user_id' => $owner->id,
         'network' => 'usdt_trc20',
         'status' => 'pending',
+        'mode' => 'approval',
         'gross_amount' => 500,
     ]);
 
@@ -212,6 +214,62 @@ test('request is hidden while a withdrawal is pending', function () {
         ->test(Withdraw::class, ['network' => 'usdt-trc20'])
         ->assertSee('Pending withdrawal', false)
         ->assertDontSee('Request Withdrawal', false);
+});
+
+test('an instant pending withdrawal shows the sending card', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    WithdrawalAddress::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'address' => 'TN2xQz5vGbR9eqAFfbGZvFvgkhLGc4f2sA',
+    ]);
+    Balance::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'amount' => 0,
+    ]);
+    Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'status' => 'pending',
+        'mode' => 'instant',
+        'gross_amount' => 500,
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test(Withdraw::class, ['network' => 'usdt-trc20'])
+        ->assertSee('Sending withdrawal', false)
+        ->assertSee('will be sent shortly', false)
+        ->assertDontSee('Pending withdrawal', false);
+});
+
+test('an approval pending withdrawal shows the pending card', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    WithdrawalAddress::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'address' => 'TN2xQz5vGbR9eqAFfbGZvFvgkhLGc4f2sA',
+    ]);
+    Balance::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'amount' => 0,
+    ]);
+    Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'status' => 'pending',
+        'mode' => 'approval',
+        'gross_amount' => 500,
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test(Withdraw::class, ['network' => 'usdt-trc20'])
+        ->assertSee('Pending withdrawal', false)
+        ->assertDontSee('Sending withdrawal', false)
+        ->assertDontSee('will be sent shortly', false);
 });
 
 test('guests are redirected to signin', function () {

@@ -57,6 +57,7 @@ class AdminDashboard extends Component
         $withdrawal = Withdrawal::query()
             ->withoutGlobalScope('owner')
             ->where('status', 'pending')
+            ->where('mode', '!=', 'instant')
             ->find($id);
 
         if ($withdrawal === null) {
@@ -75,6 +76,7 @@ class AdminDashboard extends Component
         $withdrawal = Withdrawal::query()
             ->withoutGlobalScope('owner')
             ->where('status', 'pending')
+            ->where('mode', '!=', 'instant')
             ->find($id);
 
         if ($withdrawal === null) {
@@ -213,6 +215,7 @@ class AdminDashboard extends Component
             ->withoutGlobalScope('owner')
             ->with('user')
             ->where('status', 'pending')
+            ->where('mode', '!=', 'instant')
             ->orderBy('created_at', 'asc')
             ->get();
         $pendingUsd = $pendingWithdrawals->sum(fn (Withdrawal $w) => (float) $w->gross_amount * ($conversions[$w->network] ?? 0));

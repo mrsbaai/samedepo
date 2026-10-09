@@ -70,8 +70,8 @@
                                 <flux:text size="sm" variant="subtle">${{ $this->usdValue((float) $withdrawal->gross_amount, $withdrawal->network) }}</flux:text>
                             </flux:table.cell>
                             <flux:table.cell>
-                                @if ($withdrawal->status === 'approved')
-                                    <flux:badge size="sm" color="blue">Approved — sending</flux:badge>
+                                @if ($withdrawal->isSending())
+                                    <flux:badge size="sm" color="blue">Sending</flux:badge>
                                     @if ($withdrawal->lastErrorLabel())
                                         <flux:text size="sm" variant="subtle" class="mt-1">{{ $withdrawal->lastErrorLabel() }}</flux:text>
                                     @endif
@@ -80,7 +80,7 @@
                                 @endif
                             </flux:table.cell>
                             <flux:table.cell class="py-0">
-                                @if ($withdrawal->status === 'pending')
+                                @if ($withdrawal->needsApproval())
                                     <flux:button variant="ghost" size="sm" icon="chevron-right" href="{{ route('admin.withdrawals.show', $withdrawal) }}" wire:navigate />
                                 @endif
                             </flux:table.cell>

@@ -22,6 +22,7 @@ test('the admin review shows the same live buffered fee the owner sees', functio
         'network' => 'usdt_trc20',
         'gross_amount' => '100.00000000',
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
     UsdValuation::factory()->create(['network' => 'usdt_trc20', 'conversion_value' => '1.00']);
     UsdValuation::factory()->create(['network' => 'native_trx', 'conversion_value' => '0.33']);
@@ -47,6 +48,7 @@ test('the admin review says so when the fee estimate is unavailable', function (
         'network' => 'usdt_erc20',
         'gross_amount' => '72.23000000',
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     $broadcaster = Mockery::mock(BlockchainBroadcaster::class);
@@ -68,6 +70,7 @@ test('an admin can view a pending withdrawal review', function () {
         'network' => 'bitcoin',
         'gross_amount' => 0.4821,
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     $this->actingAs($admin)
@@ -88,6 +91,7 @@ test('an admin can approve a pending withdrawal', function () {
         'network' => 'bitcoin',
         'gross_amount' => 0.4821,
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     Livewire::actingAs($admin)
@@ -111,6 +115,7 @@ test('an admin can deny a pending withdrawal and return the balance', function (
         'network' => 'bitcoin',
         'gross_amount' => 0.4821,
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     Livewire::actingAs($admin)
@@ -158,11 +163,28 @@ test('already decided withdrawal shows not found', function () {
         ->assertSee('Withdrawal not found');
 });
 
+test('an instant pending withdrawal shows not found in the review', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $withdrawal = Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'status' => 'pending',
+        'mode' => 'instant',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.withdrawals.show', $withdrawal))
+        ->assertOk()
+        ->assertSee('Withdrawal not found');
+});
+
 test('owners cannot access withdrawal review', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     $withdrawal = Withdrawal::factory()->create([
         'user_id' => $owner->id,
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     $this->actingAs($owner)
@@ -175,6 +197,7 @@ test('guests are redirected to signin', function () {
     $withdrawal = Withdrawal::factory()->create([
         'user_id' => $owner->id,
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     $this->get(route('admin.withdrawals.show', $withdrawal))->assertRedirect(route('signin'));
@@ -186,6 +209,7 @@ test('error state renders a callout and retry resets to normal', function () {
     $withdrawal = Withdrawal::factory()->create([
         'user_id' => $owner->id,
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     Livewire::actingAs($admin)

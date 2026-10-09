@@ -77,6 +77,7 @@ function adminDashboardProfitFixture(
             'network' => $network,
             'gross_amount' => $pendingWithdrawal,
             'status' => 'pending',
+            'mode' => 'approval',
         ]);
     }
 
@@ -424,6 +425,7 @@ test('pending withdrawals are shown on the admin overview with accept and declin
         'network' => 'usdt_trc20',
         'gross_amount' => '12.50000000',
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     $this->actingAs($admin)
@@ -446,6 +448,7 @@ test('a pending withdrawal can be accepted from the admin overview', function ()
         'network' => 'usdt_trc20',
         'gross_amount' => '5.00000000',
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     Livewire::actingAs($admin)
@@ -472,6 +475,7 @@ test('a pending withdrawal can be declined from the admin overview and returns t
         'network' => 'usdt_trc20',
         'gross_amount' => '5.00000000',
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     Livewire::actingAs($admin)
@@ -483,6 +487,32 @@ test('a pending withdrawal can be declined from the admin overview and returns t
     expect($withdrawal->status)->toBe('denied');
     expect($withdrawal->decided_by)->toBe($admin->id);
     expect((string) $balance->fresh()->amount)->toBe('15.00000000');
+});
+
+test('an instant pending withdrawal is excluded from the pending count and cannot be approved', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner', 'email' => 'instant@example.com']);
+    UsdValuation::create(['network' => 'usdt_trc20', 'conversion_value' => 1]);
+    $withdrawal = Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '12.50000000',
+        'status' => 'pending',
+        'mode' => 'instant',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertDontSee('instant@example.com');
+
+    Livewire::actingAs($admin)
+        ->test(AdminDashboard::class)
+        ->call('approve', $withdrawal->id)
+        ->call('deny', $withdrawal->id)
+        ->assertHasNoErrors();
+
+    expect($withdrawal->fresh()->status)->toBe('pending');
 });
 
 test('accept and decline only affect still-pending withdrawals', function () {

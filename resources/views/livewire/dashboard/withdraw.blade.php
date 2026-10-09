@@ -36,8 +36,8 @@
             @if ($this->pendingWithdrawal)
                 <flux:card class="space-y-3 p-4">
                     <div class="flex items-center justify-between">
-                        <flux:text size="sm" class="font-medium">{{ $this->pendingWithdrawal->status === 'approved' ? 'Approved — sending' : 'Pending withdrawal' }}</flux:text>
-                        <flux:badge size="sm" color="{{ $this->pendingWithdrawal->status === 'approved' ? 'blue' : 'amber' }}">{{ $this->pendingWithdrawal->status === 'approved' ? 'Approved' : 'Pending' }}</flux:badge>
+                        <flux:text size="sm" class="font-medium">{{ $this->pendingWithdrawal->isSending() ? 'Sending withdrawal' : 'Pending withdrawal' }}</flux:text>
+                        <flux:badge size="sm" color="{{ $this->pendingWithdrawal->isSending() ? 'blue' : 'amber' }}">{{ $this->pendingWithdrawal->isSending() ? 'Sending' : 'Pending' }}</flux:badge>
                     </div>
                     <div class="flex items-center justify-between">
                         <flux:text variant="subtle" size="sm">Amount</flux:text>
@@ -72,8 +72,11 @@
                             <flux:text variant="subtle" size="sm">Approved</flux:text>
                             <flux:text size="sm">{{ $this->pendingWithdrawal->decided_at?->diffForHumans() }}</flux:text>
                         </div>
+                    @endif
+                    @if ($this->pendingWithdrawal->isSending())
                         <flux:text size="sm" variant="subtle">Your funds are queued for withdrawal and will be sent shortly.</flux:text>
-                    @else
+                    @endif
+                    @if ($this->pendingWithdrawal->status === 'pending')
                         <flux:button variant="ghost" size="sm" wire:click="confirmCancel" class="w-full">Cancel Withdrawal</flux:button>
                     @endif
                 </flux:card>

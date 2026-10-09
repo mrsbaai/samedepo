@@ -12,6 +12,7 @@ test('an admin can view the pending withdrawal queue', function () {
         'network' => 'bitcoin',
         'gross_amount' => 0.4821,
         'status' => 'pending',
+        'mode' => 'approval',
     ]);
 
     $this->actingAs($admin)
@@ -31,12 +32,14 @@ test('queue lists pending withdrawals oldest first', function () {
         'user_id' => $owner->id,
         'network' => 'bitcoin',
         'status' => 'pending',
+        'mode' => 'approval',
         'created_at' => now()->subDay(),
     ]);
     $newest = Withdrawal::factory()->create([
         'user_id' => $owner->id,
         'network' => 'usdt_trc20',
         'status' => 'pending',
+        'mode' => 'approval',
         'created_at' => now(),
     ]);
 
@@ -47,6 +50,60 @@ test('queue lists pending withdrawals oldest first', function () {
     $bitcoinPos = strpos($content, 'Bitcoin');
     $usdtPos = strpos($content, 'USDT (TRC20)');
     expect($bitcoinPos)->toBeLessThan($usdtPos);
+});
+
+test('an instant pending withdrawal shows as sending with no review link', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $withdrawal = Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'status' => 'pending',
+        'mode' => 'instant',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.withdrawals'))
+        ->assertOk()
+        ->assertSee('Sending')
+        ->assertDontSee(route('admin.withdrawals.show', $withdrawal));
+});
+
+test('an approval pending withdrawal shows as pending with a review link', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $withdrawal = Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'status' => 'pending',
+        'mode' => 'approval',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.withdrawals'))
+        ->assertOk()
+        ->assertSee('Pending')
+        ->assertDontSee('Sending')
+        ->assertSee(route('admin.withdrawals.show', $withdrawal));
+});
+
+test('an approved withdrawal shows as sending in the queue', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $withdrawal = Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'status' => 'approved',
+        'mode' => 'approval',
+        'decided_at' => now(),
+        'decided_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.withdrawals'))
+        ->assertOk()
+        ->assertSee('Sending')
+        ->assertDontSee(route('admin.withdrawals.show', $withdrawal));
 });
 
 test('empty state is shown when no pending withdrawals', function () {

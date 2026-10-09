@@ -22,6 +22,7 @@ test('the withdrawals table lists every status with its amounts and copyable tx 
         'user_id' => $owner->id,
         'network' => 'usdt_trc20',
         'status' => 'pending',
+        'mode' => 'approval',
         'gross_amount' => '100.00000000',
     ]);
     Withdrawal::factory()->create([
@@ -53,6 +54,38 @@ test('the withdrawals table lists every status with its amounts and copyable tx 
         ->assertSee('a1b2c3d4e5f6a7b8c9d0', false);
 });
 
+test('withdrawals being sent are labelled sending', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+
+    Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'status' => 'approved',
+        'mode' => 'approval',
+        'gross_amount' => '10.00000000',
+    ]);
+    Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'status' => 'pending',
+        'mode' => 'instant',
+        'gross_amount' => '1.00000000',
+    ]);
+    Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'litecoin',
+        'status' => 'pending',
+        'mode' => 'approval',
+        'gross_amount' => '2.00000000',
+    ]);
+
+    $response = $this->actingAs($owner)->get(route('withdrawals'))->assertOk();
+
+    $content = $response->getContent();
+    expect(substr_count($content, 'Sending'))->toBe(2);
+    expect($content)->toContain('Pending');
+});
+
 test('a pending withdrawal can be cancelled and the balance is restored', function () {
     $owner = User::factory()->create(['role' => 'owner']);
     Balance::factory()->create(['user_id' => $owner->id, 'network' => 'usdt_trc20', 'amount' => 0]);
@@ -60,6 +93,7 @@ test('a pending withdrawal can be cancelled and the balance is restored', functi
         'user_id' => $owner->id,
         'network' => 'usdt_trc20',
         'status' => 'pending',
+        'mode' => 'approval',
         'gross_amount' => '250.00000000',
     ]);
 
@@ -83,6 +117,7 @@ test('cancelling restores the balance on top of deposits received after the requ
         'user_id' => $owner->id,
         'network' => 'usdt_trc20',
         'status' => 'pending',
+        'mode' => 'approval',
         'gross_amount' => '250.00000000',
     ]);
 

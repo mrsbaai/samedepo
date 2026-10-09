@@ -31,7 +31,7 @@ class WithdrawalQueue extends Component
             ->withoutGlobalScope('owner')
             ->with('user')
             ->whereIn('status', ['pending', 'approved'])
-            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+            ->orderByRaw("CASE WHEN status = 'pending' AND mode != 'instant' THEN 0 ELSE 1 END")
             ->orderBy('created_at', 'asc');
     }
 

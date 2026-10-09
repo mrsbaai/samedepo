@@ -43,6 +43,7 @@ class WithdrawalReview extends Component
             ->withoutGlobalScope('owner')
             ->with('user')
             ->where('status', 'pending')
+            ->where('mode', '!=', 'instant')
             ->find($withdrawalId);
 
         if ($withdrawal === null) {
@@ -129,7 +130,7 @@ class WithdrawalReview extends Component
 
     public function approve(): void
     {
-        if ($this->withdrawalRecord === null || $this->withdrawalRecord->status !== 'pending') {
+        if ($this->withdrawalRecord === null || ! $this->withdrawalRecord->needsApproval()) {
             $this->showApproveModal = false;
 
             return;
@@ -152,7 +153,7 @@ class WithdrawalReview extends Component
 
     public function deny(): void
     {
-        if ($this->withdrawalRecord === null || $this->withdrawalRecord->status !== 'pending') {
+        if ($this->withdrawalRecord === null || ! $this->withdrawalRecord->needsApproval()) {
             $this->showDenyModal = false;
 
             return;

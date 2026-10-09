@@ -61,6 +61,16 @@ class Withdrawal extends Model
         ];
     }
 
+    public function isSending(): bool
+    {
+        return $this->status === 'approved' || ($this->mode === 'instant' && $this->status === 'pending');
+    }
+
+    public function needsApproval(): bool
+    {
+        return $this->status === 'pending' && $this->mode !== 'instant';
+    }
+
     public function lastErrorLabel(): ?string
     {
         if ($this->last_error === null) {
