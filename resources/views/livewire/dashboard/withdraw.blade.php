@@ -205,7 +205,7 @@
                         @endif
                         <div class="flex items-center justify-between font-medium">
                             <dt><flux:text size="sm">You'll receive</flux:text></dt>
-                            <dd class="font-ledger tabular-nums">{{ $this->formattedAmount($e['receive']) }} {{ $this->networkMeta['symbol'] }}</dd>
+                            <dd class="font-ledger tabular-nums text-zinc-800 dark:text-white">{{ $this->formattedAmount($e['receive']) }} {{ $this->networkMeta['symbol'] }}</dd>
                         </div>
                     </dl>
                 @else
