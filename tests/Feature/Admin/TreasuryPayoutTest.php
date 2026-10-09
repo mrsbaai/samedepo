@@ -368,6 +368,36 @@ test('poll restores available funds when the payout receipt fails', function () 
         ->and($wallet->refresh()->available_funds)->toBe('100.00000000');
 });
 
+test('a rent-mode payout blocked by a low tronsave float stays pending with the reason', function () {
+    [$payout, $wallet] = payoutFixture(amount: '100.00000000', available: '200.00000000');
+    GasPolicy::where('network', 'native_trx')->update([
+        'energy_mode' => 'rent',
+        'rent_max_price_sun' => 90,
+        'rent_duration_sec' => 3600,
+    ]);
+    $wallet->update(['rental_balance' => '2.00000000']);
+    Http::fake([
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 15000000, 'availableResource' => 100000]]),
+        'https://api.tronsave.io/v2/*' => Http::response(['error' => true, 'message' => 'unexpected'], 500),
+    ]);
+    $broadcaster = new PayoutBroadcasterFake;
+    $broadcaster->transferEnergy = 64285;
+    $broadcaster->tronResource = [
+        'energy_limit' => 0,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 600,
+        'free_bandwidth_used' => 0,
+    ];
+
+    expect((new TreasuryPayoutService($broadcaster))->send($payout))->toBeFalse();
+    expect($payout->refresh()->status)->toBe('pending')
+        ->and($payout->error_message)->toStartWith('energy_float_low')
+        ->and($broadcaster->broadcastCalls)->toBe(0);
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
+});
+
 test('send clears a stale error message on success', function () {
     [$payout] = payoutFixture();
     $payout->update(['error_message' => 'Renting network energy — retry in a minute.']);

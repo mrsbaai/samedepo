@@ -19,6 +19,7 @@ use App\Security\Models\SecurityBlock;
 use App\Security\Models\ThreatEvent;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Support\Network;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 
 function adminDashboardProfitFixture(
@@ -536,4 +537,88 @@ test('accept and decline only affect still-pending withdrawals', function () {
     $withdrawal->refresh();
     expect($withdrawal->status)->toBe('approved');
     expect($withdrawal->decided_by)->toBe($admin->id);
+});
+
+test('blocked withdrawals, sweeps, and payouts render in the needs attention panel with top-up callouts', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    $owner = User::factory()->create(['role' => 'owner', 'email' => 'blocked@example.com']);
+
+    TreasuryWallet::factory()->create([
+        'network' => 'usdt_trc20',
+        'derivation_index' => 0,
+        'address' => 'TTreasuryAddr',
+        'available_funds' => '1000.00000000',
+        'native_balance' => '50.00000000',
+        'rental_balance' => '2.00000000',
+        'refreshed_at' => now(),
+    ]);
+    TreasuryWallet::factory()->create([
+        'network' => 'usdt_erc20',
+        'derivation_index' => 1,
+        'address' => '0xTreasuryAddr',
+        'available_funds' => '1000.00000000',
+        'native_balance' => '0.00010000',
+        'refreshed_at' => now(),
+    ]);
+    GasPolicy::factory()->create([
+        'network' => 'native_trx',
+        'reserve_threshold' => '1.00000000',
+        'energy_mode' => 'rent',
+        'rent_float_alert_trx' => '20.00000000',
+    ]);
+    GasPolicy::factory()->create([
+        'network' => 'native_eth',
+        'reserve_threshold' => '0.00500000',
+        'top_up_amount' => '0.00100000',
+    ]);
+
+    Withdrawal::factory()->create([
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '25.00000000',
+        'status' => 'pending',
+        'mode' => 'instant',
+        'last_error' => 'energy_float_low: need 15 TRX, float 2 TRX',
+    ]);
+    TreasurySweep::create([
+        'network' => 'usdt_trc20',
+        'treasury_wallet_id' => TreasuryWallet::where('network', 'usdt_trc20')->value('id'),
+        'amount' => '10.00000000',
+        'status' => 'pending',
+        'tx_hash' => null,
+        'error_message' => 'energy_float_low: need 10 TRX, float 2 TRX',
+    ]);
+    TreasuryPayout::create([
+        'network' => 'usdt_erc20',
+        'destination_address' => '0xProfit',
+        'amount' => '30.00000000',
+        'status' => 'pending',
+        'error_message' => 'gas_unavailable',
+        'created_by' => $admin->id,
+    ]);
+
+    Http::fake([
+        'https://api.tronsave.io/v2/user-info' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => '2000000', 'depositAddress' => 'TDep']]),
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('Needs attention')
+        ->assertSee('blocked@example.com')
+        ->assertSee('Waiting for TronSave float top-up')
+        ->assertSee('Send at least 23 TRX')
+        ->assertSee('TDep')
+        ->assertSee('Send at least 0.0059 ETH')
+        ->assertSee('0xTreasuryAddr')
+        ->assertSee('Attention');
+});
+
+test('the needs attention panel is hidden when nothing is blocked', function () {
+    [$admin] = adminDashboardProfitFixture();
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertDontSee('Needs attention');
 });

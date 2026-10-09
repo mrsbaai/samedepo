@@ -881,7 +881,7 @@ test('a bandwidth shortfall on the treasury receiver needs no top-up', function 
 
     $withdrawal = Withdrawal::factory()->make(['network' => 'usdt_trc20', 'destination_address' => 'TDest']);
 
-    expect($service->ensureGasForWithdrawal($withdrawal, '5.00000000'))->toBeTrue()
+    expect($service->ensureGasForWithdrawal($withdrawal, '5.00000000', ['fee' => '5.00000000', 'energy' => 64285]))->toBeTrue()
         ->and(GasTopup::count())->toBe(0)
         ->and($broadcaster->topupCalls)->toHaveCount(0)
         ->and(EnergyRental::count())->toBe(0);

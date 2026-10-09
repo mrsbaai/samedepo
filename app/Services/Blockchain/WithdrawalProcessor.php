@@ -107,7 +107,8 @@ class WithdrawalProcessor
 
         $isToken = Network::isToken($withdrawal->network);
         if ($isToken && ! $this->gasTreasury->ensureGasForWithdrawal($withdrawal, $estimatedFeeNative)) {
-            $this->block($withdrawal, $this->gasTreasury->hasPendingRental($withdrawal) ? 'energy_rental_pending' : 'gas_unavailable');
+            $this->block($withdrawal, $this->gasTreasury->lastBlockReason()
+                ?? ($this->gasTreasury->hasPendingRental($withdrawal) ? 'energy_rental_pending' : 'gas_unavailable'));
 
             return;
         }

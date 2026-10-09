@@ -301,9 +301,10 @@ test('pollRentals fills the order and records the expense', function () {
     expect(GasExpense::count())->toBe(1);
 });
 
-test('an unfilled order fails after ten minutes and the next tick burns', function () {
+test('an unfilled order fails after ten minutes and the next tick re-orders', function () {
     [$service, $broadcaster, $sweep] = rentalFixture(['fakes' => [
         'https://api.tronsave.io/v2/order/*' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'order-123', 'fulfilledPercent' => 40]]),
+        'https://api.tronsave.io/v2/buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['orderId' => 'order-456']]),
     ]]);
     $rental = EnergyRental::create([
         'network' => 'usdt_trc20',
@@ -325,67 +326,93 @@ test('an unfilled order fails after ten minutes and the next tick burns', functi
     expect($rental->refresh()->status)->toBe('failed')
         ->and($rental->error_message)->not->toBeNull();
 
-    $service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep);
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
 
-    expect(GasTopup::count())->toBe(1)
-        ->and($broadcaster->topupCalls)->toHaveCount(1);
+    expect(GasTopup::count())->toBe(0)
+        ->and($broadcaster->topupCalls)->toHaveCount(0)
+        ->and(EnergyRental::where('status', 'ordered')->sole()->order_id)->toBe('order-456');
 });
 
-test('a price above the cap falls back to burn', function () {
+test('a price above the cap blocks instead of burning', function () {
     Log::spy();
     [$service, $broadcaster, $sweep] = rentalFixture(['fakes' => [
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 95, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 100000]]),
     ]]);
 
-    $service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep);
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
 
     expect(EnergyRental::count())->toBe(0)
-        ->and(GasTopup::count())->toBe(1)
-        ->and($broadcaster->topupCalls)->toHaveCount(1);
+        ->and(GasTopup::count())->toBe(0)
+        ->and($broadcaster->topupCalls)->toHaveCount(0)
+        ->and($service->lastBlockReason())->toBe('energy_rent_unavailable: price_cap');
     Log::shouldHaveReceived('warning')
-        ->with('energy.rent_fallback', Mockery::on(fn ($context) => $context['reason'] === 'price_cap'));
+        ->with('energy.rent_blocked', Mockery::on(fn ($context) => $context['reason'] === 'price_cap'));
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
 });
 
-test('insufficient market energy falls back to burn', function () {
+test('insufficient market energy blocks instead of burning', function () {
     Log::spy();
-    [$service, , $sweep] = rentalFixture(['fakes' => [
+    [$service, $broadcaster, $sweep] = rentalFixture(['fakes' => [
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 1000]]),
     ]]);
 
-    $service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep);
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
 
     expect(EnergyRental::count())->toBe(0)
-        ->and(GasTopup::count())->toBe(1);
+        ->and(GasTopup::count())->toBe(0)
+        ->and($broadcaster->topupCalls)->toHaveCount(0)
+        ->and($service->lastBlockReason())->toBe('energy_rent_unavailable: market_short');
     Log::shouldHaveReceived('warning')
-        ->with('energy.rent_fallback', Mockery::on(fn ($context) => $context['reason'] === 'market_short'));
+        ->with('energy.rent_blocked', Mockery::on(fn ($context) => $context['reason'] === 'market_short'));
 });
 
-test('an unavailable estimate falls back to burn', function () {
+test('an unavailable estimate blocks instead of burning', function () {
     Log::spy();
-    [$service, , $sweep] = rentalFixture(['fakes' => [
+    [$service, $broadcaster, $sweep] = rentalFixture(['fakes' => [
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response('down', 500),
     ]]);
 
-    $service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep);
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
 
     expect(EnergyRental::count())->toBe(0)
-        ->and(GasTopup::count())->toBe(1);
+        ->and(GasTopup::count())->toBe(0)
+        ->and($broadcaster->topupCalls)->toHaveCount(0)
+        ->and($service->lastBlockReason())->toBe('energy_rent_unavailable: estimate_unavailable');
     Log::shouldHaveReceived('warning')
-        ->with('energy.rent_fallback', Mockery::on(fn ($context) => $context['reason'] === 'estimate_unavailable'));
+        ->with('energy.rent_blocked', Mockery::on(fn ($context) => $context['reason'] === 'estimate_unavailable'));
 });
 
-test('a rental that costs as much as burning falls back', function () {
-    Log::spy();
-    [$service, , $sweep] = rentalFixture(['fakes' => [
+test('a rental that costs more than burning is still ordered', function () {
+    // The never-burn policy drops the price-vs-burn comparison: as long as the
+    // price is under the admin cap, rent mode rents.
+    [$service, $broadcaster, $sweep] = rentalFixture(['fakes' => [
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 8000000, 'availableResource' => 100000]]),
     ]]);
 
-    $service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep);
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
+
+    expect(EnergyRental::sole()->status)->toBe('ordered')
+        ->and(GasTopup::count())->toBe(0)
+        ->and($broadcaster->topupCalls)->toHaveCount(0);
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
+});
+
+test('a low TronSave float blocks before buy is called', function () {
+    Log::spy();
+    [$service, $broadcaster, $sweep] = rentalFixture(['fakes' => [
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 15000000, 'availableResource' => 100000]]),
+    ]]);
+    TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '2.00000000']);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
 
     expect(EnergyRental::count())->toBe(0)
-        ->and(GasTopup::count())->toBe(1);
+        ->and(GasTopup::count())->toBe(0)
+        ->and($broadcaster->topupCalls)->toHaveCount(0)
+        ->and($service->lastBlockReason())->toStartWith('energy_float_low');
     Log::shouldHaveReceived('warning')
-        ->with('energy.rent_fallback', Mockery::on(fn ($context) => $context['reason'] === 'not_cheaper_than_burn'));
+        ->with('energy.rent_blocked', Mockery::on(fn ($context) => $context['reason'] === 'energy_float_low'));
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
 });
 
 test('a failed order does not block rentals for a null purposable', function () {

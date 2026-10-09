@@ -30,7 +30,7 @@ class EnergyFloatLow extends Notification implements ShouldQueue
             ->subject("Low energy rental float: {$this->network}")
             ->greeting('Hello,')
             ->line("The TronSave internal-account balance is {$this->balance} TRX, below the configured float alert threshold of {$this->threshold} TRX.")
-            ->line('Energy rentals will fall back to burning TRX until the float is refilled — send TRX to the TronSave deposit address shown on the treasury page.')
+            ->line('TRON transfers are paused until the float is refilled — send TRX to the TronSave deposit address shown on the treasury page. They resume automatically.')
             ->action('Review Treasury', route('admin.treasury'));
     }
 }

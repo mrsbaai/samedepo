@@ -68,6 +68,58 @@
         @endif
     </section>
 
+    @if ($blocked['items']->isNotEmpty())
+        <section>
+            <div class="flex items-center gap-2">
+                <flux:heading size="lg">Needs attention</flux:heading>
+                <flux:badge size="sm" color="amber">{{ number_format($blocked['items']->count()) }}</flux:badge>
+            </div>
+
+            <div class="mt-4 space-y-3">
+                @foreach ($blocked['actions'] as $action)
+                    <flux:callout variant="warning" icon="exclamation-triangle" heading="Send at least {{ $action['amount'] }} {{ $action['symbol'] }} to {{ $action['target'] }}">
+                        <flux:callout.text>
+                            @if ($action['address'])
+                                <code class="text-xs font-ledger">{{ $action['address'] }}</code>
+                                <x-hash-actions :value="$action['address']" label="address" />
+                            @else
+                                The top-up address is unavailable right now — check the treasury page.
+                            @endif
+                        </flux:callout.text>
+                    </flux:callout>
+                @endforeach
+            </div>
+
+            <flux:table container:class="mt-4">
+                <flux:table.columns>
+                    <flux:table.column>Type</flux:table.column>
+                    <flux:table.column>Owner / Ref</flux:table.column>
+                    <flux:table.column class="max-sm:hidden">Network</flux:table.column>
+                    <flux:table.column align="end">Amount</flux:table.column>
+                    <flux:table.column>Reason</flux:table.column>
+                    <flux:table.column class="max-md:hidden">Since</flux:table.column>
+                </flux:table.columns>
+                <flux:table.rows>
+                    @foreach ($blocked['items'] as $item)
+                        @php
+                            $meta = $networkMeta[$item['network']] ?? ['label' => $item['network'], 'symbol' => '', 'decimals' => 8];
+                        @endphp
+                        <flux:table.row wire:key="blocked-{{ $item['type'] }}-{{ $item['id'] }}">
+                            <flux:table.cell><flux:badge size="sm" color="zinc">{{ $item['type'] }}</flux:badge></flux:table.cell>
+                            <flux:table.cell variant="strong" class="max-w-48 truncate">{{ $item['ref'] }}</flux:table.cell>
+                            <flux:table.cell class="max-sm:hidden whitespace-nowrap">{{ $meta['label'] }}</flux:table.cell>
+                            <flux:table.cell align="end" class="whitespace-nowrap font-mono">
+                                {{ $this->formattedAmount($item['amount'], $meta['decimals']) }} {{ $meta['symbol'] }}
+                            </flux:table.cell>
+                            <flux:table.cell><flux:badge size="sm" color="amber">{{ $item['reasonLabel'] }}</flux:badge></flux:table.cell>
+                            <flux:table.cell class="max-md:hidden whitespace-nowrap">{{ \App\Support\Dates::humanFlat($item['since']) }}</flux:table.cell>
+                        </flux:table.row>
+                    @endforeach
+                </flux:table.rows>
+            </flux:table>
+        </section>
+    @endif
+
     <section wire:poll.visible.10s="refreshTreasuryData">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">

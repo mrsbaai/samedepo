@@ -30,6 +30,13 @@ class GasTreasuryService
 
     private TronSaveClient $tronSave;
 
+    private ?string $lastBlockReason = null;
+
+    public function lastBlockReason(): ?string
+    {
+        return $this->lastBlockReason;
+    }
+
     public function __construct(private readonly BlockchainBroadcaster $broadcaster, ?TronSaveClient $tronSave = null)
     {
         $this->tronSave = $tronSave ?? new TronSaveClient;
@@ -51,6 +58,8 @@ class GasTreasuryService
      */
     public function ensureGasForSweep(string $network, int $recipientIndex, string $recipientAddress, ?TreasurySweep $sweep = null, int $transfers = 1): bool
     {
+        $this->lastBlockReason = null;
+
         $policy = $this->policy($network);
 
         if ($policy->manual_paused) {
@@ -103,7 +112,9 @@ class GasTreasuryService
             if ($rented === false) {
                 return false; // order in flight — the sweep retries next tick
             }
-            // null → fall through to the existing burn/top-up path unchanged
+
+            // null → rent mode never burns; the sweep waits with lastBlockReason()
+            return false;
         }
 
         $inFlight = GasTopup::query()
@@ -152,6 +163,8 @@ class GasTreasuryService
 
     public function ensureGasForWithdrawal(Withdrawal $withdrawal, ?string $estimatedFeeNative = null, ?array $transferResources = null): bool
     {
+        $this->lastBlockReason = null;
+
         $policy = $this->policy($withdrawal->network);
 
         if ($policy->manual_paused) {
@@ -194,7 +207,9 @@ class GasTreasuryService
             if ($rented === false) {
                 return false; // rental ordered — send() blocks with energy_rental_pending
             }
-            // null → burn fallback: continue to the reserve check below
+
+            // null → rent mode never burns; send() blocks with lastBlockReason()
+            return false;
         }
 
         if (bccomp($balance, (string) $policy->reserve_threshold, 8) >= 0) {
@@ -238,7 +253,7 @@ class GasTreasuryService
 
     /**
      * true = provisioned, false = wait (order in flight / bandwidth top-up pending),
-     * null = fall back to burn.
+     * null = blocked in rent mode — see lastBlockReason(); rent mode never burns.
      *
      * @param  array|null  $transferResources  signer /fee payload: fee, energy, energy_price_sun
      */
@@ -250,6 +265,8 @@ class GasTreasuryService
         ?Model $purposable,
         ?array $transferResources = null,
     ): ?bool {
+        $this->lastBlockReason = null;
+
         $policy = $this->policy($network);
         $wallet = TreasuryWallet::query()->where('network', $network)->first();
 
@@ -314,50 +331,48 @@ class GasTreasuryService
             ->exists();
 
         if ($ordered) {
+            $this->lastBlockReason = 'energy_rental_pending';
+
             return false;
         }
 
-        // A previously unfilled order for this same job — do not re-order; burn.
-        // Scoped to a specific purposable: without one, a failed order would
-        // block renting for that address forever.
-        $failedForJob = $purposable !== null && EnergyRental::query()
-            ->where('network', $network)
-            ->where('receiver_address', $receiverAddress)
-            ->where('status', 'failed')
-            ->where('purposable_type', $purposable->getMorphClass())
-            ->where('purposable_id', $purposable->getKey())
-            ->exists();
+        // (3) Price / market guards. estimateTrx is in SUN despite the name.
+        $estimate = $this->tronSave->estimate($receiverAddress, $neededEnergy, (int) $policy->rent_duration_sec);
 
-        if ($failedForJob) {
-            Log::warning('energy.rent_fallback', [
+        $blocked = match (true) {
+            $estimate === null => 'estimate_unavailable',
+            (int) ($estimate['availableResource'] ?? 0) < $neededEnergy => 'market_short',
+            (int) ($estimate['unitPrice'] ?? PHP_INT_MAX) > (int) $policy->rent_max_price_sun => 'price_cap',
+            default => null,
+        };
+
+        if ($blocked !== null) {
+            $this->lastBlockReason = 'energy_rent_unavailable: '.$blocked;
+            Log::warning('energy.rent_blocked', [
                 'network' => $network,
                 'receiver' => $receiverAddress,
                 'purpose' => $purpose,
-                'reason' => 'previous_order_unfilled',
+                'reason' => $blocked,
+                'unit_price_sun' => $estimate['unitPrice'] ?? null,
             ]);
 
             return null;
         }
 
-        // (3) Price / market guards. estimateTrx is in SUN despite the name.
-        $estimate = $this->tronSave->estimate($receiverAddress, $neededEnergy, (int) $policy->rent_duration_sec);
-        $burnCostSun = $neededEnergy * (int) ($transferResources['energy_price_sun'] ?? 100);
+        // (3b) Never spend float the account doesn't have — the admin tops up
+        // the TronSave deposit address and the next tick re-orders.
+        $estimateTrx = isset($estimate['estimateTrx']) ? bcdiv((string) $estimate['estimateTrx'], '1000000', 8) : null;
+        $rentalBalance = $wallet->rental_balance !== null ? (string) $wallet->rental_balance : null;
 
-        $fallback = match (true) {
-            $estimate === null => 'estimate_unavailable',
-            (int) ($estimate['availableResource'] ?? 0) < $neededEnergy => 'market_short',
-            (int) ($estimate['unitPrice'] ?? PHP_INT_MAX) > (int) $policy->rent_max_price_sun => 'price_cap',
-            (int) ($estimate['estimateTrx'] ?? PHP_INT_MAX) >= $burnCostSun => 'not_cheaper_than_burn',
-            default => null,
-        };
-
-        if ($fallback !== null) {
-            Log::warning('energy.rent_fallback', [
+        if ($estimateTrx !== null && $rentalBalance !== null && bccomp($rentalBalance, $estimateTrx, 8) < 0) {
+            $this->lastBlockReason = "energy_float_low: need {$estimateTrx} TRX, float {$rentalBalance} TRX";
+            Log::warning('energy.rent_blocked', [
                 'network' => $network,
                 'receiver' => $receiverAddress,
                 'purpose' => $purpose,
-                'reason' => $fallback,
-                'unit_price_sun' => $estimate['unitPrice'] ?? null,
+                'reason' => 'energy_float_low',
+                'estimate_trx' => $estimateTrx,
+                'rental_balance' => $rentalBalance,
             ]);
 
             return null;
@@ -367,7 +382,8 @@ class GasTreasuryService
         $orderId = $this->tronSave->buy($receiverAddress, $neededEnergy, (int) $policy->rent_duration_sec, (int) $policy->rent_max_price_sun);
 
         if ($orderId === null) {
-            Log::warning('energy.rent_fallback', [
+            $this->lastBlockReason = 'energy_rent_unavailable: buy_failed';
+            Log::warning('energy.rent_blocked', [
                 'network' => $network,
                 'receiver' => $receiverAddress,
                 'purpose' => $purpose,

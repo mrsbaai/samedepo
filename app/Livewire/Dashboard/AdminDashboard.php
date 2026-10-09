@@ -17,6 +17,7 @@ use App\Models\UsdValuation;
 use App\Models\Withdrawal;
 use App\Security\Models\SecurityBlock;
 use App\Security\Models\ThreatEvent;
+use App\Services\Blockchain\Energy\TronSaveClient;
 use App\Services\Blockchain\GasTreasuryService;
 use App\Services\Blockchain\TreasuryProfitCalculator;
 use App\Support\DepositRow;
@@ -24,6 +25,7 @@ use App\Support\Network;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -33,10 +35,13 @@ class AdminDashboard extends Component
 {
     public function render(): mixed
     {
+        $blocked = $this->blockedQueue();
+
         return view('livewire.dashboard.admin-dashboard', [
             'tickets' => $this->tickets(),
             'pendingWithdrawals' => $this->pendingWithdrawals(),
-            'treasury' => $this->treasury(),
+            'blocked' => $blocked,
+            'treasury' => $this->treasury($blocked['items']->isNotEmpty()),
             'networkMeta' => DepositRow::networks(),
             'securitySummary' => $this->securitySummary(),
         ]);
@@ -134,7 +139,7 @@ class AdminDashboard extends Component
     }
 
     /** @return array<string, mixed> */
-    private function treasury(): array
+    private function treasury(bool $blocked = false): array
     {
         $summary = app(TreasuryProfitCalculator::class)->summary();
         $addresses = [];
@@ -187,7 +192,7 @@ class AdminDashboard extends Component
 
         $status = match (true) {
             $summary['has_deficit'] => 'deficit',
-            $stale || in_array('low', $gas, true) || $missingAddress || $failures24h > 0 => 'attention',
+            $blocked || $stale || in_array('low', $gas, true) || $missingAddress || $failures24h > 0 => 'attention',
             default => 'healthy',
         };
 
@@ -205,6 +210,157 @@ class AdminDashboard extends Component
             'stale' => $stale,
             'oldestRefresh' => $oldestRefresh,
         ];
+    }
+
+    /**
+     * Everything waiting on operator action: in-flight withdrawals, sweeps,
+     * and payouts carrying a recorded block reason, plus per-network top-up
+     * callouts telling the admin exactly where to send funds.
+     *
+     * @return array{items: Collection<int, array<string, mixed>>, actions: array<int, array<string, mixed>>}
+     */
+    private function blockedQueue(): array
+    {
+        $items = collect();
+
+        Withdrawal::query()
+            ->withoutGlobalScope('owner')
+            ->with('user')
+            ->whereNotNull('last_error')
+            ->where(fn ($query) => $query->where('status', 'approved')
+                ->orWhere(fn ($sub) => $sub->where('status', 'pending')->where('mode', 'instant')))
+            ->orderBy('updated_at')
+            ->get()
+            ->each(fn (Withdrawal $w) => $items->push([
+                'type' => 'Withdrawal',
+                'id' => $w->id,
+                'ref' => $w->user?->email ?? 'Unknown owner',
+                'network' => $w->network,
+                'amount' => (float) $w->gross_amount,
+                'reason' => (string) $w->last_error,
+                'reasonLabel' => $w->lastErrorLabel() ?? '',
+                'since' => $w->updated_at,
+            ]));
+
+        TreasurySweep::query()
+            ->whereNull('tx_hash')
+            ->whereNotNull('error_message')
+            ->whereNotIn('status', ['confirmed', 'failed'])
+            ->orderBy('updated_at')
+            ->get()
+            ->each(fn (TreasurySweep $s) => $items->push([
+                'type' => 'Sweep',
+                'id' => $s->id,
+                'ref' => '#'.$s->id,
+                'network' => $s->network,
+                'amount' => (float) $s->amount,
+                'reason' => (string) $s->error_message,
+                'reasonLabel' => $this->blockReasonLabel($s->error_message),
+                'since' => $s->updated_at,
+            ]));
+
+        TreasuryPayout::query()
+            ->where('status', 'pending')
+            ->whereNotNull('error_message')
+            ->orderBy('updated_at')
+            ->get()
+            ->each(fn (TreasuryPayout $p) => $items->push([
+                'type' => 'Payout',
+                'id' => $p->id,
+                'ref' => '#'.$p->id,
+                'network' => $p->network,
+                'amount' => (float) $p->amount,
+                'reason' => (string) $p->error_message,
+                'reasonLabel' => $this->blockReasonLabel($p->error_message),
+                'since' => $p->updated_at,
+            ]));
+
+        return ['items' => $items, 'actions' => $this->blockedActions($items)];
+    }
+
+    private function blockReasonLabel(?string $reason): string
+    {
+        if ($reason === null) {
+            return '';
+        }
+
+        $code = explode(':', $reason, 2)[0];
+
+        return Withdrawal::ERROR_LABELS[$code] ?? 'Needs operator attention';
+    }
+
+    /**
+     * Per-network top-up callouts derived from the blocked reasons: TRX to the
+     * TronSave float on TRON rent-mode networks, native gas to the treasury
+     * wallet on EVM/burn-mode networks.
+     *
+     * @return array<int, array{amount: string, symbol: string, address: ?string, target: string}>
+     */
+    private function blockedActions(Collection $items): array
+    {
+        $actions = [];
+
+        foreach ($items->pluck('network')->unique() as $network) {
+            if (! Network::isToken($network)) {
+                continue;
+            }
+
+            $wallet = TreasuryWallet::query()->where('network', $network)->first();
+            $policy = GasPolicy::query()->where('network', Network::nativeKey($network))->first();
+
+            if ($wallet === null || $policy === null) {
+                continue;
+            }
+
+            if (Network::family($network) === 'tron' && $policy->energy_mode === 'rent') {
+                $networkItems = $items->where('network', $network);
+                $floatLow = $networkItems->contains(fn ($item) => str_starts_with((string) $item['reason'], 'energy_float_low'))
+                    || ($wallet->rental_balance !== null && bccomp((string) $wallet->rental_balance, (string) $policy->rent_float_alert_trx, 8) < 0);
+
+                if ($floatLow) {
+                    $needed = '0';
+                    foreach ($networkItems as $item) {
+                        if (preg_match('/need ([\d.]+) TRX/', (string) $item['reason'], $matches)) {
+                            $needed = bcadd($needed, $matches[1], 8);
+                        }
+                    }
+
+                    $target = bccomp($needed, (string) $policy->rent_float_alert_trx, 8) > 0
+                        ? $needed
+                        : (string) $policy->rent_float_alert_trx;
+                    $shortfall = bcsub($target, (string) ($wallet->rental_balance ?? '0'), 8);
+                    $amount = (string) (int) ceil(max(0, (float) $shortfall));
+
+                    $info = Cache::remember('tronsave-user-info', 300, fn () => app(TronSaveClient::class)->userInfo());
+
+                    $actions[] = [
+                        'amount' => $amount,
+                        'symbol' => 'TRX',
+                        'address' => $info['depositAddress'] ?? null,
+                        'target' => 'the TronSave deposit address',
+                    ];
+                }
+
+                continue;
+            }
+
+            $needed = bcsub(
+                bcadd((string) $policy->reserve_threshold, (string) $policy->top_up_amount, 8),
+                (string) ($wallet->native_balance ?? '0'),
+                8,
+            );
+
+            if (bccomp($needed, '0', 8) > 0) {
+                $actions[] = [
+                    'amount' => number_format(ceil(((float) $needed) * 10000) / 10000, 4),
+                    'symbol' => Network::nativeSymbol($network),
+                    'address' => (string) $wallet->address,
+                    'target' => 'the treasury address',
+                ];
+            }
+        }
+
+        return $actions;
     }
 
     /** @return array<string, mixed> */

@@ -371,6 +371,14 @@ class TreasurySweepService
             );
 
             if (! $ready) {
+                // Rent-mode blocks carry a reason — record it for the admin
+                // queue without consuming backoff attempts.
+                $reason = $this->gasTreasury->lastBlockReason();
+
+                if ($reason !== null) {
+                    $sweep->update(['error_message' => mb_substr($reason, 0, 255)]);
+                }
+
                 return;
             }
         }

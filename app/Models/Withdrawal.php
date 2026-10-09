@@ -20,6 +20,8 @@ class Withdrawal extends Model
         'insufficient_gas' => 'Waiting for treasury gas',
         'energy_rental_pending' => 'Renting network energy…',
         'broadcast_failed' => 'Last send attempt failed; retrying',
+        'energy_float_low' => 'Waiting for TronSave float top-up',
+        'energy_rent_unavailable' => 'Energy rental unavailable; retrying',
     ];
 
     use BelongsToOwner;
@@ -79,7 +81,7 @@ class Withdrawal extends Model
 
         $code = explode(':', $this->last_error, 2)[0];
 
-        return self::ERROR_LABELS[$code] ?? 'Retrying automatically';
+        return self::ERROR_LABELS[$code] ?? 'Needs operator attention';
     }
 
     public function user(): BelongsTo

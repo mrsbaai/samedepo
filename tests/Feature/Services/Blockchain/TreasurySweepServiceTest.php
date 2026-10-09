@@ -19,6 +19,7 @@ use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\ConsolidationBiller;
 use App\Services\Blockchain\FeeConverter;
 use App\Services\Blockchain\TreasurySweepService;
+use Illuminate\Support\Facades\Http;
 
 class FakeBlockchainBroadcaster implements BlockchainBroadcaster
 {
@@ -35,6 +36,10 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
     public ?string $treasuryBalance = null;
 
     public ?string $tokenBalance = '1000000.00000000';
+
+    public ?array $tronResource = null;
+
+    public ?int $transferEnergy = null;
 
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
@@ -67,11 +72,13 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
 
     public function getTronResource(int $index): ?array
     {
-        return [
+        return $this->tronResource ?? [
             'energy_limit' => 100000,
             'energy_used' => 0,
             'bandwidth_limit' => 100000,
             'bandwidth_used' => 0,
+            'free_bandwidth_limit' => 600,
+            'free_bandwidth_used' => 0,
         ];
     }
 
@@ -91,7 +98,7 @@ class FakeBlockchainBroadcaster implements BlockchainBroadcaster
 
     public function estimateTransferResources(string $network, bool $tokenTransfer, ?string $destination = null, ?int $sourceIndex = null): ?array
     {
-        return $this->fee === null ? null : ['fee' => $this->fee, 'energy' => null];
+        return $this->fee === null ? null : ['fee' => $this->fee, 'energy' => $this->transferEnergy];
     }
 
     public function broadcastTopUp(string $network, int $sourceIndex, int $destinationIndex, string $amount, string $fee): ?string
@@ -494,6 +501,66 @@ test('a platform-paid sweep is polled in flight and never piggybacks siblings', 
     expect($platform->fresh()->status)->toBe('confirmed')
         ->and($forfeited->fresh()->swept_at)->not->toBeNull()
         ->and(TreasurySweep::query()->whereNotNull('piggybacked_on_sweep_id')->count())->toBe(0);
+});
+
+test('a rent-mode trc20 sweep blocked by a low tronsave float records the reason without backoff', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'usdt_trc20',
+        'derivation_index' => 5,
+        'address' => 'TDepLow',
+    ]);
+    TreasuryWallet::factory()->create([
+        'network' => 'usdt_trc20',
+        'derivation_index' => 0,
+        'available_funds' => 0,
+        'rental_balance' => '2.00000000',
+    ]);
+    GasPolicy::factory()->create([
+        'network' => 'native_trx',
+        'reserve_threshold' => '1.00000000',
+        'energy_mode' => 'rent',
+        'rent_max_price_sun' => 90,
+        'rent_duration_sec' => 3600,
+    ]);
+
+    Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'gross_amount' => '10.00000000',
+        'status' => 'credited',
+        'credited_at' => now(),
+    ]);
+
+    Http::fake([
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 15000000, 'availableResource' => 100000]]),
+        'https://api.tronsave.io/v2/*' => Http::response(['error' => true, 'message' => 'unexpected'], 500),
+    ]);
+
+    $broadcaster = new FakeBlockchainBroadcaster;
+    $broadcaster->recipientBalance = '0.00000001';
+    $broadcaster->tronResource = [
+        'energy_limit' => 0,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 600,
+        'free_bandwidth_used' => 0,
+    ];
+    $broadcaster->transferEnergy = 64285;
+
+    (new TreasurySweepService($broadcaster))->sweep();
+
+    $sweep = TreasurySweep::query()->where('deposit_address_id', $address->id)->sole();
+    expect($sweep->status)->toBe('pending')
+        ->and($sweep->tx_hash)->toBeNull()
+        ->and($sweep->error_message)->toStartWith('energy_float_low')
+        ->and($sweep->attempts)->toBe(0)
+        ->and($sweep->last_attempted_at)->toBeNull();
 });
 
 test('a forfeited native sweep at or below the fee floor is skipped', function () {

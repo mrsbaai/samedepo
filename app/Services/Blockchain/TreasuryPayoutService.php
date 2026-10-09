@@ -162,7 +162,12 @@ class TreasuryPayoutService
 
                 return false; // payout stays 'pending'; the admin clicks send again once the order fills
             }
-            // null → burn path (preview's reserve check already guarded it)
+
+            if ($rented === null) {
+                $payout->update(['error_message' => $this->gasTreasury->lastBlockReason() ?? 'energy_rent_unavailable']);
+
+                return false; // rent mode never burns — payout stays 'pending' until the block clears
+            }
         }
 
         $estimatedFeeNative = $preview['fee_native'];

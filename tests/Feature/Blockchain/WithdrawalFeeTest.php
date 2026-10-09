@@ -534,6 +534,7 @@ test('the withdrawal fee uses the rental price in rent mode', function () {
     Http::fake(tronSaveWithdrawalFakes());
     [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000');
     [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $broadcaster->transferEnergy = 64285;
     $broadcaster->tronResource = [
         'energy_limit' => 80000,
         'energy_used' => 0,
@@ -683,4 +684,100 @@ test('reconciliation uses the rental cost not the receipt fee', function () {
     // 4.1601 actual vs 6.0 held -> refund 1.8399 TRX = 0.607167 USDT, not a 5.9999 refund.
     expect((string) GasExpense::where('expensable_type', Withdrawal::class)->value('amount'))->toBe('0.00010000')
         ->and((string) LedgerEntry::where('reason', 'network_fee_adjustment')->value('amount'))->toBe('0.60716700');
+});
+
+test('a low tronsave float blocks the withdrawal before buy is called', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    rentPolicy();
+    Http::fake(tronSaveWithdrawalFakes([
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 15000000, 'availableResource' => 100000]]),
+    ]));
+    [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '2.00000000']);
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $broadcaster->tronResource = noEnergy();
+    $broadcaster->transferEnergy = 64285;
+
+    $processor->process();
+
+    $withdrawal->refresh();
+    expect($withdrawal->status)->toBe('pending')
+        ->and($withdrawal->tx_hash)->toBeNull()
+        ->and($withdrawal->last_error)->toStartWith('energy_float_low')
+        ->and($withdrawal->lastErrorLabel())->toBe('Waiting for TronSave float top-up');
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
+});
+
+test('a failed tronsave buy blocks the withdrawal instead of burning', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    rentPolicy();
+    Http::fake(tronSaveWithdrawalFakes([
+        'https://api.tronsave.io/v2/buy-resource' => Http::response(['error' => true, 'message' => 'Insufficient balance'], 422),
+    ]));
+    [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $broadcaster->tronResource = noEnergy();
+    $broadcaster->transferEnergy = 64285;
+
+    $processor->process();
+
+    $withdrawal->refresh();
+    expect($withdrawal->status)->toBe('pending')
+        ->and($withdrawal->tx_hash)->toBeNull()
+        ->and($withdrawal->last_error)->toStartWith('energy_rent_unavailable');
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
+});
+
+test('an uncapped price or unavailable estimate blocks the withdrawal instead of burning', function (Closure $estimateFake, string $reason) {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    rentPolicy();
+    Http::fake(tronSaveWithdrawalFakes([
+        'https://api.tronsave.io/v2/estimate-buy-resource' => $estimateFake(),
+    ]));
+    [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $broadcaster->tronResource = noEnergy();
+    $broadcaster->transferEnergy = 64285;
+
+    $processor->process();
+
+    $withdrawal->refresh();
+    expect($withdrawal->status)->toBe('pending')
+        ->and($withdrawal->tx_hash)->toBeNull()
+        ->and($withdrawal->last_error)->toBe("energy_rent_unavailable: {$reason}");
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
+})->with([
+    'price above cap' => [fn () => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 95, 'durationSec' => 3600, 'estimateTrx' => 4160000, 'availableResource' => 100000]]), 'price_cap'],
+    'estimate unavailable' => [fn () => Http::response('down', 500), 'estimate_unavailable'],
+]);
+
+test('a float-blocked withdrawal sends once the float is topped up and the order fills', function () {
+    seedTokenValuations('usdt_trc20', '0.33', '1.00');
+    rentPolicy();
+    Http::fake(tronSaveWithdrawalFakes([
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 15000000, 'availableResource' => 100000]]),
+    ]));
+    [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000');
+    TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '2.00000000']);
+    [$processor, $broadcaster] = feeTestProcessor(fee: '5.00000000');
+    $broadcaster->tronResource = noEnergy();
+    $broadcaster->transferEnergy = 64285;
+
+    $processor->process();
+    expect($withdrawal->refresh()->last_error)->toStartWith('energy_float_low');
+
+    // Float refilled: next tick orders the rental.
+    TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '50.00000000']);
+    $processor->process();
+    expect($withdrawal->refresh()->last_error)->toBe('energy_rental_pending')
+        ->and(EnergyRental::sole()->status)->toBe('ordered');
+
+    // Order fills and the delegation lands: next tick sends.
+    (new GasTreasuryService($broadcaster))->pollRentals();
+    expect(EnergyRental::sole()->status)->toBe('filled');
+    $broadcaster->tronResource['energy_limit'] = 80000;
+
+    $processor->process();
+    expect($withdrawal->refresh()->status)->toBe('sent')
+        ->and($withdrawal->last_error)->toBeNull();
 });
