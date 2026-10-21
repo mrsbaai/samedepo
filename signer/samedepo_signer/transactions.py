@@ -1,14 +1,12 @@
 """Transaction signing and broadcasting. This is where private keys are used."""
 from __future__ import annotations
 
-import hashlib
 import threading
 from collections import defaultdict
 from decimal import Decimal
 from typing import Optional
 
 import requests
-from ecdsa import SigningKey, SECP256k1, util
 from tronpy import Tron
 from tronpy.exceptions import AddressNotFound
 from tronpy.keys import PrivateKey
@@ -21,6 +19,7 @@ from samedepo_signer.config import Config
 from samedepo_signer.fees import ERC20_GAS_LIMIT
 from samedepo_signer import fees
 from samedepo_signer import keys
+from samedepo_signer import utxo
 
 GAS_HEADROOM = Decimal("1.2")
 
@@ -45,53 +44,33 @@ def _to_sats(btc: str) -> int:
     return int(Decimal(btc) * Decimal(10 ** 8))
 
 
-def _utxo_transfer(network: str, source_index: int, destination: str, amount: str, fee: str) -> Optional[str]:
-    if not Config.blockcypher_token:
-        return None
-
-    coin = config.network(network)["blockcypher_coin"]
-    to_send = _to_sats(amount) - _to_sats(fee)
-    if to_send <= 0:
-        raise ValueError("Amount must be greater than fee")
-
-    fee_sats = _to_sats(fee)
+def _utxo_transfer(
+    network: str, source_index: int, destination: str, amount: str, fee: str, fee_from_amount: bool = False
+) -> Optional[str]:
+    """Build and sign a P2WPKH send locally, broadcast through the Esplora API."""
+    entry = config.network(network)
+    base = entry["esplora_url"]
     source = keys.derive_address(network, source_index)
+    private_key = keys.derive_private_key(network, source_index)
+    source_script = utxo.script_pubkey(network, source)
+    if source_script != b"\x00\x14" + utxo.hash160(utxo.public_key(private_key)):
+        raise RuntimeError("Derived key does not match the source address")
+    destination_script = utxo.script_pubkey(network, destination)
 
-    new_url = f"https://api.blockcypher.com/v1/{coin}/{Config.blockcypher_network}/txs/new"
-    payload = {
-        "inputs": [{"addresses": [source]}],
-        "outputs": [{"addresses": [destination], "value": to_send}],
-        "fees": fee_sats,
-    }
-    r = requests.post(new_url, json=payload, params={"token": Config.blockcypher_token}, timeout=30)
-    if not r.ok:
-        return None
-
-    skeleton = r.json()
-    tosign = skeleton.get("tosign") or []
-    if not tosign:
-        return None
-
-    source_private = keys.derive_private_key(network, source_index)
-    public_key = keys.derive_public_key(network, source_index)
-    sk = SigningKey.from_string(source_private, curve=SECP256k1, hashfunc=hashlib.sha256)
-
-    signatures = []
-    pubkeys = []
-    for digest in tosign:
-        sig = sk.sign_digest(bytes.fromhex(digest), sigencode=util.sigencode_der)
-        signatures.append(sig.hex() + "01")
-        pubkeys.append(public_key)
-
-    skeleton["signatures"] = signatures
-    skeleton["pubkeys"] = pubkeys
-
-    send_url = f"https://api.blockcypher.com/v1/{coin}/{Config.blockcypher_network}/txs/send"
-    s = requests.post(send_url, json=skeleton, params={"token": Config.blockcypher_token}, timeout=30)
-    if not s.ok:
-        return None
-
-    return s.json().get("tx", {}).get("hash")
+    with _send_lock(entry["chain"], source):
+        r = requests.get(f"{base}/address/{source}/utxo", timeout=15)
+        if not r.ok:
+            return None
+        coins = [{"txid": c["txid"], "vout": int(c["vout"]), "value": int(c["value"])} for c in r.json()]
+        inputs, outputs = utxo.plan(
+            coins, destination_script, source_script,
+            _to_sats(amount), _to_sats(fee), utxo.MIN_RATE[network], fee_from_amount,
+        )
+        raw, txid = utxo.sign_p2wpkh(inputs, outputs, private_key)
+        s = requests.post(f"{base}/tx", data=raw, timeout=30)
+        if not s.ok:
+            raise ValueError(f"broadcast rejected: {s.text[:300]}")
+        return s.text.strip() or txid
 
 
 def _to_wei(fee_eth: str, gas: int) -> int:
@@ -357,7 +336,7 @@ def broadcast_sweep(network: str, source_index: int, destination_index: int, amo
     entry = config.network(network)
     if entry["family"] == "utxo":
         destination = keys.derive_address(network, destination_index)
-        return _utxo_transfer(network, source_index, destination, amount, fee)
+        return _utxo_transfer(network, source_index, destination, amount, fee, fee_from_amount=True)
     if entry["family"] == "evm":
         if config.is_token(network):
             return _evm_token_sweep(network, source_index, destination_index, amount, fee)

@@ -241,37 +241,30 @@ def test_fee_response_includes_native_symbol():
     assert config.native_symbol("usdt_erc20") == "ETH"
 
 
-def test_bitcoin_native_balance_via_blockcypher():
+def test_litecoin_native_balance_via_esplora():
     resp = MagicMock()
     resp.ok = True
     resp.status_code = 200
-    resp.json.return_value = {"balance": 100_000, "final_balance": 150_000}
-    with patch.object(transactions.requests, "get", return_value=resp) as get, \
-         patch.object(transactions.keys, "derive_address", return_value="bc1qxyz"):
-        assert transactions.get_native_balance("bitcoin", 0) == "0.00150000"
-    assert "/v1/btc/main/addrs/bc1qxyz/balance" in get.call_args[0][0]
-
-
-def test_litecoin_native_balance_via_blockcypher():
-    resp = MagicMock()
-    resp.ok = True
-    resp.status_code = 200
-    resp.json.return_value = {"final_balance": 500_000}
+    resp.json.return_value = {"chain_stats": {"funded_txo_sum": 500_000, "spent_txo_sum": 0}}
     with patch.object(transactions.requests, "get", return_value=resp) as get, \
          patch.object(transactions.keys, "derive_address", return_value="ltc1qxyz"):
         assert transactions.get_native_balance("litecoin", 0) == "0.00500000"
-    assert "/v1/ltc/main/addrs/ltc1qxyz/balance" in get.call_args[0][0]
+    assert get.call_args[0][0] == "https://litecoinspace.org/api/address/ltc1qxyz"
 
 
-def test_utxo_transfer_uses_blockcypher_coin():
-    new_resp = MagicMock(ok=True, status_code=200)
-    new_resp.json.return_value = {"tosign": ["ab" * 32]}
-    send_resp = MagicMock(ok=True, status_code=200)
-    send_resp.json.return_value = {"tx": {"hash": "cafe"}}
-    with patch.object(transactions.requests, "post", side_effect=[new_resp, send_resp]) as post, \
-         patch.object(transactions.keys, "derive_address", return_value="ltc1qsrc"), \
-         patch.object(transactions.keys, "derive_private_key", return_value=b"k" * 32), \
-         patch.object(transactions.keys, "derive_public_key", return_value="02" + "11" * 32):
-        assert transactions._utxo_transfer("litecoin", 0, "ltc1qdst", "1.0", "0.0001") == "cafe"
-    assert "/v1/ltc/main/txs/new" in post.call_args_list[0][0][0]
-    assert "/v1/ltc/main/txs/send" in post.call_args_list[1][0][0]
+def test_litecoin_utxo_transfer_broadcasts_to_litecoinspace():
+    from bip_utils import P2WPKHAddrEncoder
+    from samedepo_signer import utxo
+
+    key = bytes.fromhex("22" * 32)
+    source = P2WPKHAddrEncoder.EncodeKey(utxo.public_key(key), hrp="ltc")
+    coins = MagicMock(ok=True, status_code=200)
+    coins.json.return_value = [{"txid": "ab" * 32, "vout": 1, "value": 200_000_000}]
+    sent = MagicMock(ok=True, status_code=200, text="cafe")
+    with patch.object(transactions.requests, "get", return_value=coins) as get, \
+         patch.object(transactions.requests, "post", return_value=sent) as post, \
+         patch.object(transactions.keys, "derive_address", return_value=source), \
+         patch.object(transactions.keys, "derive_private_key", return_value=key):
+        assert transactions._utxo_transfer("litecoin", 0, source, "1.0", "0.0001") == "cafe"
+    assert get.call_args[0][0] == f"https://litecoinspace.org/api/address/{source}/utxo"
+    assert post.call_args[0][0] == "https://litecoinspace.org/api/tx"
