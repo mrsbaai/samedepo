@@ -30,6 +30,8 @@ class SweepRetryBroadcasterFake implements BlockchainBroadcaster
 
     public int $broadcasts = 0;
 
+    public bool $seen = true;
+
     public function broadcastSweep(TreasurySweep $sweep): ?string
     {
         $this->broadcasts++;
@@ -64,7 +66,7 @@ class SweepRetryBroadcasterFake implements BlockchainBroadcaster
 
     public function getTransactionReceipt(string $network, string $txHash): ?array
     {
-        return ['status' => $txHash === 'topup-tx' ? 'pending' : $this->receiptStatus, 'fee' => '0.00100000', 'confirmations' => 3];
+        return ['status' => $txHash === 'topup-tx' ? 'pending' : $this->receiptStatus, 'fee' => '0.00100000', 'confirmations' => 3, 'seen' => $this->seen];
     }
 
     public function estimateFee(string $network, bool $tokenTransfer = true): ?string
@@ -164,6 +166,68 @@ test('a sweep for tokens the address does not hold fails before gas top-up', fun
         ->and($sweep->attempts)->toBe(1)
         ->and($sweep->error_message)->toStartWith('on_chain_balance_short')
         ->and(GasTopup::count())->toBe(0);
+});
+
+function droppedBitcoinSweep(): TreasurySweep
+{
+    TreasuryWallet::factory()->create(['network' => 'bitcoin', 'derivation_index' => 0, 'available_funds' => '0.00000000']);
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'bitcoin',
+        'derivation_index' => 7,
+        'address' => 'bc1qdeposit',
+    ]);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'bitcoin',
+        'gross_amount' => '0.00025288',
+        'status' => 'credited',
+        'credited_at' => now(),
+        'swept_at' => null,
+    ]);
+
+    return TreasurySweep::create([
+        'deposit_address_id' => $address->id,
+        'deposit_ids' => [$deposit->id],
+        'network' => 'bitcoin',
+        'amount' => '0.00025288',
+        'tx_hash' => 'lost-tx',
+        'status' => 'pending',
+    ]);
+}
+
+test('a bitcoin sweep the network never saw fails after six hours so it can be rebuilt', function () {
+    $sweep = droppedBitcoinSweep();
+    $broadcaster = new SweepRetryBroadcasterFake;
+    $broadcaster->seen = false;
+    $broadcaster->recipientBalance = '0.00025288';
+    $service = new TreasurySweepService($broadcaster);
+
+    $this->travel(5)->hours();
+    $service->sweep();
+    expect($sweep->fresh()->status)->toBe('pending');
+
+    $this->travel(2)->hours();
+    $service->sweep();
+    expect($sweep->fresh()->status)->toBe('failed')
+        ->and($sweep->fresh()->error_message)->toStartWith('dropped')
+        ->and($sweep->fresh()->attempts)->toBe(1);
+});
+
+test('an unseen bitcoin sweep stays pending when the deposit address no longer holds the coins', function () {
+    $sweep = droppedBitcoinSweep();
+    $broadcaster = new SweepRetryBroadcasterFake;
+    $broadcaster->seen = false;
+    $broadcaster->recipientBalance = '0.00000000';
+
+    $this->travel(7)->hours();
+    (new TreasurySweepService($broadcaster))->sweep();
+
+    expect($sweep->fresh()->status)->toBe('pending');
 });
 
 test('a null token balance skips the sweep without broadcasting or provisioning gas', function () {

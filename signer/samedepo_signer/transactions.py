@@ -372,17 +372,18 @@ def get_native_balance(network: str, index: int) -> Optional[str]:
     entry = config.network(network)
 
     if entry["family"] == "utxo":
-        if not Config.blockcypher_token:
-            return None
         address = keys.derive_address(network, index)
-        url = f"https://api.blockcypher.com/v1/{entry['blockcypher_coin']}/{Config.blockcypher_network}/addrs/{address}/balance"
         try:
-            response = requests.get(url, params={"token": Config.blockcypher_token}, timeout=15)
+            response = requests.get(f"{entry['esplora_url']}/address/{address}", timeout=15)
         except Exception:
             return None
         if not response.ok:
             return None
-        sats = int(response.json().get("final_balance", response.json().get("balance", 0)))
+        data = response.json()
+        sats = sum(
+            int(data.get(stats, {}).get("funded_txo_sum", 0)) - int(data.get(stats, {}).get("spent_txo_sum", 0))
+            for stats in ("chain_stats", "mempool_stats")
+        )
         return f"{Decimal(sats) / Decimal(10 ** 8):.8f}"
 
     if entry["family"] == "evm":
@@ -513,21 +514,29 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
         return {"status": status, "fee": fee, "confirmations": 20 if status == "confirmed" else 0}
 
     if entry["family"] == "utxo":
-        if not Config.blockcypher_token:
-            return None
-        url = f"https://api.blockcypher.com/v1/{entry['blockcypher_coin']}/{Config.blockcypher_network}/txs/{tx_hash}"
+        base = entry["esplora_url"]
         try:
-            response = requests.get(url, params={"token": Config.blockcypher_token}, timeout=15)
+            response = requests.get(f"{base}/tx/{tx_hash}", timeout=15)
         except Exception:
             return None
         if response.status_code == 404:
-            return {"status": "pending", "fee": None, "confirmations": 0}
+            # Unknown to the network: broadcast dropped (or not yet propagated).
+            return {"status": "pending", "fee": None, "confirmations": 0, "seen": False}
         if not response.ok:
             return None
         data = response.json()
-        confirmations = int(data.get("confirmations", 0))
-        fee = f"{Decimal(data.get('fees', 0)) / Decimal(10 ** 8):.8f}"
-        return {"status": "confirmed" if confirmations >= 1 else "pending", "fee": fee, "confirmations": confirmations}
+        fee = f"{Decimal(data.get('fee', 0)) / Decimal(10 ** 8):.8f}"
+        status = data.get("status") or {}
+        if not status.get("confirmed"):
+            return {"status": "pending", "fee": fee, "confirmations": 0}
+        confirmations = 1
+        try:
+            tip = requests.get(f"{base}/blocks/tip/height", timeout=15)
+            if tip.ok:
+                confirmations = max(1, int(tip.text) - int(status.get("block_height", 0)) + 1)
+        except Exception:
+            pass
+        return {"status": "confirmed", "fee": fee, "confirmations": confirmations}
 
     return None
 

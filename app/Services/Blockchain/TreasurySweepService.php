@@ -463,6 +463,22 @@ class TreasurySweepService
         return $siblings;
     }
 
+    /**
+     * A UTXO sweep the network has never seen for hours, whose coins are still
+     * on the deposit address, was dropped — fail it so a fresh sweep is built.
+     */
+    private function isDropped(TreasurySweep $sweep, array $receipt): bool
+    {
+        if (($receipt['seen'] ?? true) !== false || $sweep->updated_at->gt(now()->subHours(6))) {
+            return false;
+        }
+
+        $address = $sweep->depositAddress ?? $sweep->deposit?->depositAddress;
+        $held = $address === null ? null : $this->broadcaster->getNativeBalance($sweep->network, (int) $address->derivation_index);
+
+        return $held !== null && bccomp($held, (string) $sweep->amount, 8) >= 0;
+    }
+
     private function inBackoff(TreasurySweep $sweep): bool
     {
         if ($sweep->attempts === 0 || $sweep->last_attempted_at === null) {
@@ -499,6 +515,17 @@ class TreasurySweepService
         $receipt = $this->broadcaster->getTransactionReceipt($sweep->network, $sweep->tx_hash);
 
         if ($receipt === null) {
+            return;
+        }
+
+        if ($this->isDropped($sweep, $receipt)) {
+            $sweep->update([
+                'status' => 'failed',
+                'error_message' => 'dropped: transaction never reached the network',
+                'attempts' => $sweep->attempts + 1,
+                'last_attempted_at' => now(),
+            ]);
+
             return;
         }
 
