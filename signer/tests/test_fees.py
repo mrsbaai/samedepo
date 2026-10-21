@@ -80,6 +80,24 @@ def test_trc20_native_new_account():
     assert _run_tron(client, token_transfer=False, destination="TXsUrzCgNz21jm55zL9LDKxnPJEk7kaVna")["fee"] == "1.27000000"
 
 
+def _fees(half_hour):
+    resp = MagicMock()
+    resp.json.return_value = {"halfHourFee": half_hour}
+    resp.raise_for_status.return_value = None
+    return resp
+
+
+def test_btc_fee_uses_mempool_half_hour_rate():
+    with patch("samedepo_signer.fees.requests.get", return_value=_fees(10)) as get:
+        assert fees._btc() == "0.00001410"
+    assert get.call_args.args[0] == "https://mempool.space/api/v1/fees/recommended"
+
+
+def test_btc_fee_floors_at_two_sat_per_vbyte():
+    with patch("samedepo_signer.fees.requests.get", return_value=_fees(1)):
+        assert fees._btc() == "0.00000282"
+
+
 def test_bitcoin_and_erc20_unchanged():
     with patch.object(fees, "_btc", return_value="0.00001000"):
         assert fees.estimate("bitcoin") == {"fee": "0.00001000"}

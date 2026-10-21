@@ -30,20 +30,21 @@ _fee_cache: dict[tuple, tuple[float, dict]] = {}
 _energy_price_cache: Optional[tuple[float, int]] = None
 
 
+BTC_MIN_SAT_PER_VB = Decimal(2)
+
+
 def _btc() -> Optional[str]:
-    if not Config.blockcypher_token:
-        return None
-    url = f"https://api.blockcypher.com/v1/btc/{Config.blockcypher_network}?token={Config.blockcypher_token}"
+    url = f"{config.NETWORKS['bitcoin']['esplora_url']}/v1/fees/recommended"
     try:
         r = requests.get(url, timeout=15)
         r.raise_for_status()
-        data = r.json()
-        sat_per_kb = data.get("low_fee_per_kb", data.get("half_hour_fee", 0))
-        if not sat_per_kb:
+        sat_per_vb = Decimal(str(r.json().get("halfHourFee") or 0))
+        if sat_per_vb <= 0:
             return None
-        # Assume a 140-byte P2WPKH transaction.
-        fee_btc = Decimal(sat_per_kb) * Decimal(140) / Decimal(1000) / Decimal(10 ** 8)
-        return f"{fee_btc:.8f}"
+        # Assume a 141-vbyte P2WPKH transaction; the floor keeps sweeps above
+        # min-relay so they are never silently dropped.
+        fee = max(sat_per_vb, BTC_MIN_SAT_PER_VB) * Decimal(141) / Decimal(10 ** 8)
+        return f"{fee:.8f}"
     except Exception:
         return None
 
