@@ -6,6 +6,7 @@ use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\Providers\EsploraProvider;
 use App\Services\Blockchain\Providers\EtherscanNativeProvider;
 use App\Services\Blockchain\Providers\EvmLogsProvider;
+use App\Services\Blockchain\Providers\EvmNativeBisectProvider;
 use App\Services\Blockchain\Providers\FallbackBlockchainProvider;
 use App\Services\Blockchain\Providers\NodeRealNativeProvider;
 use App\Services\Blockchain\Providers\TronGridProvider;
@@ -37,11 +38,17 @@ test('networks with a configured fallback are wrapped in the fallback provider',
     'usdc_bep20' => ['usdc_bep20', EvmLogsProvider::class, EvmLogsProvider::class],
 ]);
 
-test('bnb uses the nodereal native provider without a fallback', function () {
+test('bnb uses nodereal with the json-rpc bisect fallback once an archive rpc is configured', function () {
+    config(['networks.networks.bnb.fallback_provider.rpc' => null]);
+    expect(makeNetworkProvider('bnb'))->toBeInstanceOf(NodeRealNativeProvider::class);
+
+    config(['networks.networks.bnb.fallback_provider.rpc' => 'https://bsc.archive.test']);
     $provider = makeNetworkProvider('bnb');
 
-    expect($provider)->toBeInstanceOf(NodeRealNativeProvider::class)
-        ->and($provider->network())->toBe('bnb');
+    expect($provider)->toBeInstanceOf(FallbackBlockchainProvider::class)
+        ->and($provider->network())->toBe('bnb')
+        ->and($provider->primary())->toBeInstanceOf(NodeRealNativeProvider::class)
+        ->and($provider->fallback())->toBeInstanceOf(EvmNativeBisectProvider::class);
 });
 
 test('a fallback without a usable url leaves the primary unwrapped', function () {

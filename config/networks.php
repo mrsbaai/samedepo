@@ -303,6 +303,13 @@ return [
                 'driver' => 'nodereal_native',
                 'rpc' => env('NODEREAL_BSC_RPC_URL'),
             ],
+            // Plain JSON-RPC fallback: `rpc` must serve historical balances
+            // (archive), `gate_rpc` only needs latest state.
+            'fallback_provider' => [
+                'driver' => 'evm_native_bisect',
+                'rpc' => env('BSC_RPC_URL'),
+                'gate_rpc' => env('BSC_FALLBACK_RPC_URL', 'https://bsc-rpc.publicnode.com'),
+            ],
             'coingecko_id' => 'binancecoin',
             'explorer_tx' => 'https://bscscan.com/tx/{hash}',
             'address_group' => 'evm',

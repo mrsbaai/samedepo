@@ -23,6 +23,7 @@ use App\Services\Blockchain\Providers\Contracts\BlockchainProvider;
 use App\Services\Blockchain\Providers\EsploraProvider;
 use App\Services\Blockchain\Providers\EtherscanNativeProvider;
 use App\Services\Blockchain\Providers\EvmLogsProvider;
+use App\Services\Blockchain\Providers\EvmNativeBisectProvider;
 use App\Services\Blockchain\Providers\FallbackBlockchainProvider;
 use App\Services\Blockchain\Providers\NodeRealNativeProvider;
 use App\Services\Blockchain\Providers\NullBlockchainProvider;
@@ -132,6 +133,11 @@ class AppServiceProvider extends ServiceProvider
             'nodereal_native' => new NodeRealNativeProvider(
                 network: $network,
                 rpcUrl: $options['rpc'] ?? null,
+            ),
+            'evm_native_bisect' => new EvmNativeBisectProvider(
+                network: $network,
+                rpcUrl: $options['rpc'] ?? null,
+                gateRpcUrl: $options['gate_rpc'] ?? null,
             ),
             default => new NullBlockchainProvider($network),
         };
