@@ -33,6 +33,10 @@ class EvmNativeBisectProvider implements BlockchainProvider
 
     private const MIN_REQUEST_INTERVAL_US = 100_000;
 
+    private const MAX_ATTEMPTS = 4;
+
+    private const RETRY_DELAY_US = 1_000_000;
+
     private static float $lastCallAt = 0.0;
 
     private readonly Closure $sleeper;
@@ -202,24 +206,34 @@ class EvmNativeBisectProvider implements BlockchainProvider
         );
     }
 
+    /**
+     * Free-plan RPCs fail transiently ("request timeout", "temporary internal
+     * error"), so each call gets a few spaced attempts before the scan fails.
+     */
     private function rpc(string $url, string $method, array $params): mixed
     {
-        $elapsedUs = (int) ((microtime(true) - self::$lastCallAt) * 1_000_000);
+        for ($attempt = 1; ; $attempt++) {
+            $elapsedUs = (int) ((microtime(true) - self::$lastCallAt) * 1_000_000);
 
-        if (self::$lastCallAt > 0.0 && $elapsedUs < self::MIN_REQUEST_INTERVAL_US) {
-            ($this->sleeper)(self::MIN_REQUEST_INTERVAL_US - $elapsedUs);
+            if (self::$lastCallAt > 0.0 && $elapsedUs < self::MIN_REQUEST_INTERVAL_US) {
+                ($this->sleeper)(self::MIN_REQUEST_INTERVAL_US - $elapsedUs);
+            }
+
+            self::$lastCallAt = microtime(true);
+
+            $response = Http::timeout(30)->post($url, ['jsonrpc' => '2.0', 'method' => $method, 'params' => $params, 'id' => 1]);
+            $data = $response->json();
+
+            if ($response->successful() && is_array($data) && ! isset($data['error'])) {
+                return $data['result'] ?? null;
+            }
+
+            if ($attempt >= self::MAX_ATTEMPTS) {
+                throw new RuntimeException("{$method} failed: ".mb_substr($response->body(), 0, 300));
+            }
+
+            ($this->sleeper)(self::RETRY_DELAY_US * $attempt);
         }
-
-        self::$lastCallAt = microtime(true);
-
-        $response = Http::timeout(30)->post($url, ['jsonrpc' => '2.0', 'method' => $method, 'params' => $params, 'id' => 1]);
-        $data = $response->json();
-
-        if (! $response->successful() || ! is_array($data) || isset($data['error'])) {
-            throw new RuntimeException("{$method} failed: ".mb_substr($response->body(), 0, 300));
-        }
-
-        return $data['result'] ?? null;
     }
 
     private function hex(int $value): string

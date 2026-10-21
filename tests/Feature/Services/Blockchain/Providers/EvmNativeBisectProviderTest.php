@@ -31,6 +31,12 @@ function bisectFake(array &$state): void
         $state['calls'][] = ['url' => $request->url(), 'method' => $data['method'], 'params' => $params];
         $block = fn (string $hex) => (int) hexdec(substr($hex, 2));
 
+        if (($state['fail_next'] ?? 0) > 0 && $request->url() === BISECT_ARCHIVE) {
+            $state['fail_next']--;
+
+            return Http::response(['id' => 1, 'jsonrpc' => '2.0', 'error' => ['code' => 30, 'message' => 'Request timeout on the free plan']]);
+        }
+
         if (($state['nodereal_down'] ?? false) && str_contains($request->url(), 'nodereal')) {
             return Http::response(['jsonrpc' => '2.0', 'id' => null, 'error' => ['code' => -32005, 'message' => 'monthly quota']], 429);
         }
@@ -160,6 +166,25 @@ test('pending deposits keep gaining confirmations from their receipt', function 
         ->and($transactions[0]->txHash)->toBe('0xpending')
         ->and($transactions[0]->amount)->toBe('0.50000000')
         ->and($transactions[0]->confirmations)->toBe(16);
+});
+
+test('transient rpc errors are retried before the scan fails', function () {
+    BlockchainScanState::query()->create(['network' => 'bnb', 'last_scanned_block' => 900]);
+    $state = [
+        'tip' => '0x3eb',
+        'steps' => [BISECT_ADDR => [990 => ONE_BNB]],
+        'blocks' => [990 => [bisectTx()]],
+        'receipts' => ['0xdep' => ['status' => '0x1', 'blockNumber' => '0x3de']],
+        'fail_next' => 3,
+    ];
+    bisectFake($state);
+
+    expect(bisectProvider()->fetchTransactions([BISECT_ADDR]))->toHaveCount(1);
+
+    $state['fail_next'] = 4;
+    Cache::flush();
+    BlockchainScanState::where('network', 'bnb')->update(['last_scanned_block' => 900]);
+    expect(fn () => bisectProvider()->fetchTransactions([BISECT_ADDR]))->toThrow(RuntimeException::class, 'Request timeout');
 });
 
 test('a gap beyond the maximum range is skipped and logged', function () {
