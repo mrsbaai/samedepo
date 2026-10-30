@@ -364,6 +364,18 @@ class GasTreasuryService
         $estimateTrx = isset($estimate['estimateTrx']) ? bcdiv((string) $estimate['estimateTrx'], '1000000', 8) : null;
         $rentalBalance = $wallet->rental_balance !== null ? (string) $wallet->rental_balance : null;
 
+        // The cached float only refreshes while an admin page is open, so a
+        // top-up would otherwise go unnoticed by the scheduler: when the cache
+        // says "too low", re-read the live balance before blocking.
+        if ($estimateTrx !== null && $rentalBalance !== null && bccomp($rentalBalance, $estimateTrx, 8) < 0) {
+            $info = $this->tronSave->userInfo();
+
+            if ($info !== null) {
+                $rentalBalance = bcdiv((string) ($info['balance'] ?? '0'), '1000000', 8);
+                $wallet->update(['rental_balance' => $rentalBalance]);
+            }
+        }
+
         if ($estimateTrx !== null && $rentalBalance !== null && bccomp($rentalBalance, $estimateTrx, 8) < 0) {
             $this->lastBlockReason = "energy_float_low: need {$estimateTrx} TRX, float {$rentalBalance} TRX";
             Log::warning('energy.rent_blocked', [

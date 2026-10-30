@@ -691,6 +691,7 @@ test('a low tronsave float blocks the withdrawal before buy is called', function
     rentPolicy();
     Http::fake(tronSaveWithdrawalFakes([
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 15000000, 'availableResource' => 100000]]),
+        'https://api.tronsave.io/v2/user-info' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => '2000000', 'representAddress' => 'TRep', 'depositAddress' => 'TDep']]),
     ]));
     [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000');
     TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '2.00000000']);
@@ -754,8 +755,12 @@ test('an uncapped price or unavailable estimate blocks the withdrawal instead of
 test('a float-blocked withdrawal sends once the float is topped up and the order fills', function () {
     seedTokenValuations('usdt_trc20', '0.33', '1.00');
     rentPolicy();
+    $liveBalance = '2000000';
     Http::fake(tronSaveWithdrawalFakes([
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 15000000, 'availableResource' => 100000]]),
+        'https://api.tronsave.io/v2/user-info' => function () use (&$liveBalance) {
+            return Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => $liveBalance, 'representAddress' => 'TRep', 'depositAddress' => 'TDep']]);
+        },
     ]));
     [$withdrawal] = feeTestWithdrawal('usdt_trc20', '100.00000000');
     TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '2.00000000']);
@@ -766,8 +771,8 @@ test('a float-blocked withdrawal sends once the float is topped up and the order
     $processor->process();
     expect($withdrawal->refresh()->last_error)->toStartWith('energy_float_low');
 
-    // Float refilled: next tick orders the rental.
-    TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '50.00000000']);
+    // Float refilled on TronSave (cache still stale): next tick re-reads it live and orders the rental.
+    $liveBalance = '50000000';
     $processor->process();
     expect($withdrawal->refresh()->last_error)->toBe('energy_rental_pending')
         ->and(EnergyRental::sole()->status)->toBe('ordered');

@@ -401,6 +401,7 @@ test('a low TronSave float blocks before buy is called', function () {
     Log::spy();
     [$service, $broadcaster, $sweep] = rentalFixture(['fakes' => [
         'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 15000000, 'availableResource' => 100000]]),
+        'https://api.tronsave.io/v2/user-info' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['id' => 'acc', 'balance' => '2000000', 'representAddress' => 'TRep', 'depositAddress' => 'TDep']]),
     ]]);
     TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '2.00000000']);
 
@@ -413,6 +414,20 @@ test('a low TronSave float blocks before buy is called', function () {
     Log::shouldHaveReceived('warning')
         ->with('energy.rent_blocked', Mockery::on(fn ($context) => $context['reason'] === 'energy_float_low'));
     Http::assertNotSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
+});
+
+test('a stale low float is re-read live and a topped-up account rents', function () {
+    // The cached rental_balance only refreshes from admin pages; the live
+    // TronSave balance (50 TRX in the default fake) must win on the scheduler.
+    [$service, $broadcaster, $sweep] = rentalFixture();
+    TreasuryWallet::query()->where('network', 'usdt_trc20')->update(['rental_balance' => '2.00000000']);
+
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeFalse();
+
+    expect(EnergyRental::sole()->status)->toBe('ordered')
+        ->and($service->lastBlockReason())->toBeNull()
+        ->and((string) TreasuryWallet::query()->where('network', 'usdt_trc20')->value('rental_balance'))->toBe('50.00000000');
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v2/buy-resource'));
 });
 
 test('a failed order does not block rentals for a null purposable', function () {
