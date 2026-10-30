@@ -316,6 +316,14 @@ class GasTreasuryService
                     return true;
                 }
 
+                // TRX never becomes bandwidth points: once the address holds
+                // enough to burn for bandwidth, another top-up changes nothing.
+                $receiverBalance = $this->broadcaster->getNativeBalance($network, $receiverIndex);
+
+                if ($receiverBalance !== null && bccomp($receiverBalance, '0.40000000', 8) >= 0) {
+                    return true;
+                }
+
                 $this->sendTopup($network, $wallet, $receiverAddress, $receiverIndex, '0.40000000', '0.30000000', $this->sweepLink($purposable));
 
                 return false;

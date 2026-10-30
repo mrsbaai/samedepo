@@ -465,6 +465,22 @@ test('burn mode keeps phase one behaviour', function () {
     Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.tronsave.io'));
 });
 
+test('a bandwidth shortfall with enough TRX to burn for bandwidth proceeds without another top-up', function () {
+    [$service, $broadcaster, $sweep] = rentalFixture(['tronResource' => [
+        'energy_limit' => 80000,
+        'energy_used' => 0,
+        'bandwidth_limit' => 0,
+        'bandwidth_used' => 0,
+        'free_bandwidth_limit' => 600,
+        'free_bandwidth_used' => 340,
+    ]]);
+    $broadcaster->recipientBalance = '1.70000400';
+
+    expect($service->ensureGasForSweep('usdt_trc20', 3, 'TDeposit3', $sweep))->toBeTrue()
+        ->and($broadcaster->topupCalls)->toHaveCount(0)
+        ->and(GasTopup::count())->toBe(0);
+});
+
 test('a bandwidth shortfall provisions only a small top-up', function () {
     [$service, $broadcaster, $sweep] = rentalFixture(['tronResource' => [
         'energy_limit' => 80000,
