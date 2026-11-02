@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from samedepo_signer import transactions
@@ -66,6 +67,19 @@ def test_gas_price_keeps_headroom_over_the_live_network_price():
     w3.eth.gas_price = 200_000_000_000
     _run(w3)
     assert transfer.build_transaction.call_args[0][0]["gasPrice"] == 250_000_000_000
+
+
+def test_eth_topup_keeps_headroom_over_the_live_network_price():
+    w3, _ = _fake_w3()
+    w3.eth.gas_price = 116_000_000
+    w3.to_wei.side_effect = lambda v, unit: int(Decimal(v) * 10 ** 18)
+    with patch.object(transactions, "_w3", return_value=w3), \
+         patch.object(transactions.keys, "derive_address", return_value="0x" + "11" * 20), \
+         patch.object(transactions.keys, "derive_private_key", return_value=b"k" * 32), \
+         patch.object(transactions.Web3, "to_checksum_address", side_effect=lambda a: a):
+        transactions._eth_native_transfer(0, "0x" + "22" * 20, "0.0003", "0.00000126")
+    tx = w3.eth.account.sign_transaction.call_args[0][0]
+    assert tx["gasPrice"] == 145_000_000  # quote was 0.06 gwei; base fee rose to 0.116
 
 
 def test_nonce_falls_back_to_latest_when_pending_errors():

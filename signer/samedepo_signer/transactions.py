@@ -206,7 +206,7 @@ def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, f
             "to": Web3.to_checksum_address(destination),
             "value": w3.to_wei(amount_eth, "ether"),
             "gas": 21000,
-            "gasPrice": _to_wei(fee_eth, 21000),
+            "gasPrice": max(_to_wei(fee_eth, 21000), w3.eth.gas_price * 5 // 4),
             "nonce": nonce,
             "chainId": entry["chain_id"],
         }
