@@ -56,3 +56,10 @@ def test_nonce_comes_from_pending_block():
     w3, _ = _fake_w3(estimate=60000)
     _run(w3)
     w3.eth.get_transaction_count.assert_called_with("0x" + "11" * 20, "pending")
+
+
+def test_nonce_falls_back_to_latest_when_pending_errors():
+    w3, transfer = _fake_w3(estimate=60000)
+    w3.eth.get_transaction_count.side_effect = lambda a, tag: (_ for _ in ()).throw(ValueError({"code": -32603, "message": "Internal error"})) if tag == "pending" else 16
+    assert _run(w3) == "0xabc"
+    assert transfer.build_transaction.call_args[0][0]["nonce"] == 16

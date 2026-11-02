@@ -104,6 +104,16 @@ def _w3(network: str) -> Optional[Web3]:
     return w3
 
 
+def _nonce(w3: Web3, source: str) -> int:
+    # Infura intermittently answers the "pending" tag with -32603 Internal
+    # error. Sends are serialised by _send_lock, so "latest" is safe; a
+    # collision with an unconfirmed tx is rejected by the node and retried.
+    try:
+        return w3.eth.get_transaction_count(source, "pending")
+    except ValueError:
+        return w3.eth.get_transaction_count(source, "latest")
+
+
 def _estimate_erc20_gas(transfer_fn, source: str) -> int:
     try:
         estimate = transfer_fn.estimate_gas({"from": source})
@@ -128,7 +138,7 @@ def _evm_token_transfer(network: str, source_index: int, destination: str, amoun
         transfer = contract.functions.transfer(Web3.to_checksum_address(destination), value)
         gas = _estimate_erc20_gas(transfer, source)
         gas_price = _to_wei(fee_native, gas)
-        nonce = w3.eth.get_transaction_count(source, "pending")
+        nonce = _nonce(w3, source)
         tx = transfer.build_transaction({
             "from": source,
             "nonce": nonce,
@@ -166,7 +176,7 @@ def _evm_native_transfer(network: str, source_index: int, destination: str, amou
             raise ValueError(f"Invalid deduct mode: {deduct}")
         if value <= 0:
             raise ValueError("Amount must be greater than fee")
-        nonce = w3.eth.get_transaction_count(source, "pending")
+        nonce = _nonce(w3, source)
         tx = {
             "to": Web3.to_checksum_address(destination),
             "value": value,
@@ -189,7 +199,7 @@ def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, f
     source_private = keys.derive_private_key(network, source_index)
 
     with _send_lock(entry["chain"], source):
-        nonce = w3.eth.get_transaction_count(source, "pending")
+        nonce = _nonce(w3, source)
         tx = {
             "to": Web3.to_checksum_address(destination),
             "value": w3.to_wei(amount_eth, "ether"),
