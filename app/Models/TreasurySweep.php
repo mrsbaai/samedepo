@@ -28,6 +28,8 @@ class TreasurySweep extends Model
         'recovered_withdrawal_id',
         'piggybacked_on_sweep_id',
         'platform_paid',
+        'replaced_tx_hashes',
+        'last_broadcast_at',
     ];
 
     protected function casts(): array
@@ -40,6 +42,8 @@ class TreasurySweep extends Model
             'last_attempted_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'fee_recovered_at' => 'datetime',
+            'replaced_tx_hashes' => 'array',
+            'last_broadcast_at' => 'datetime',
         ];
     }
 

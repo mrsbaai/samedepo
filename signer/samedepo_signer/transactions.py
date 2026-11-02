@@ -1,15 +1,17 @@
 """Transaction signing and broadcasting. This is where private keys are used."""
 from __future__ import annotations
 
+import contextvars
 import threading
 from collections import defaultdict
 from decimal import Decimal
 from typing import Optional
 
 import requests
+from eth_account import Account
 from tronpy import Tron
 from tronpy.exceptions import AddressNotFound
-from tronpy.keys import PrivateKey
+from tronpy.keys import PrivateKey, Signature, to_hex_address
 from tronpy.providers.http import HTTPProvider
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
@@ -22,6 +24,180 @@ from samedepo_signer import keys
 from samedepo_signer import utxo
 
 GAS_HEADROOM = Decimal("1.2")
+
+# Set by the API for a "dry_run" request: the tx is built and signed exactly as
+# live, but every send point routes through the *_submit helpers below, which
+# validate against the network instead of broadcasting.
+_DRY_RUN: contextvars.ContextVar[bool] = contextvars.ContextVar("dry_run", default=False)
+_DRY_RUN_CHECKS: contextvars.ContextVar[Optional[list]] = contextvars.ContextVar("dry_run_checks", default=None)
+
+
+def _check(name: str, ok: bool, detail: str) -> None:
+    checks = _DRY_RUN_CHECKS.get()
+    if checks is not None:
+        checks.append({"name": name, "ok": bool(ok), "detail": str(detail)})
+
+
+def _evm_dry_run_checks(w3: Web3, raw: bytes, tx: dict, source: str) -> None:
+    try:
+        recovered = Account.recover_transaction(raw)
+        _check("sender", Web3.to_checksum_address(recovered) == Web3.to_checksum_address(source), recovered)
+    except Exception as exc:
+        _check("sender", False, f"recover failed: {exc}")
+
+    call = {
+        "from": source,
+        "to": tx.get("to"),
+        "data": tx.get("data") or "0x",
+        "value": tx.get("value", 0),
+        "gas": tx.get("gas"),
+        "gasPrice": tx.get("gasPrice"),
+    }
+    try:
+        result = w3.eth.call(call, "latest")
+        # Token transfers: empty return (non-compliant ERC20) and decoded True
+        # are both fine; decoded False means the transfer would fail.
+        ok = len(result) == 0 or int.from_bytes(bytes(result[-32:]), "big") != 0
+        _check("eth_call", ok, f"returned {result.hex()[:66] if hasattr(result, 'hex') else result}")
+    except Exception as exc:
+        _check("eth_call", False, f"reverted: {exc}")
+
+    try:
+        balance = int(w3.eth.get_balance(source))
+        required = int(tx.get("value", 0)) + int(tx.get("gas", 0)) * int(tx.get("gasPrice", 0))
+        _check(
+            "balance",
+            balance >= required,
+            f"required {Decimal(required) / Decimal(10 ** 18):.8f} available {Decimal(balance) / Decimal(10 ** 18):.8f}",
+        )
+    except Exception as exc:
+        _check("balance", False, str(exc))
+
+    try:
+        block = w3.eth.get_block("latest")
+        base_fee = block.get("baseFeePerGas") if hasattr(block, "get") else getattr(block, "baseFeePerGas", None)
+        if base_fee is None:
+            _check("base_fee", True, "chain has no base fee")
+        else:
+            gas_price = int(tx.get("gasPrice", 0))
+            _check("base_fee", gas_price >= int(base_fee), f"gasPrice {gas_price} baseFee {base_fee}")
+    except Exception as exc:
+        _check("base_fee", True, f"unavailable: {exc}")
+
+    try:
+        latest = w3.eth.get_transaction_count(source, "latest")
+        nonce = tx.get("nonce")
+        _check("nonce", nonce == latest, f"nonce {nonce} latest {latest}")
+        try:
+            pending = w3.eth.get_transaction_count(source, "pending")
+            _check(
+                "pending_tx_ahead",
+                pending <= latest,
+                "none" if pending <= latest else f"pending {pending} > latest {latest}",
+            )
+        except Exception:
+            _check("pending_tx_ahead", True, "pending unavailable")
+    except Exception as exc:
+        _check("nonce", False, str(exc))
+
+
+def _evm_submit(w3: Web3, signed, tx: dict, source: str) -> str:
+    if not _DRY_RUN.get():
+        return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
+    _evm_dry_run_checks(w3, signed.rawTransaction, tx, source)
+    return w3.keccak(signed.rawTransaction).hex()
+
+
+def _utxo_submit(base: str, raw: str, txid: str) -> str:
+    if not _DRY_RUN.get():
+        s = requests.post(f"{base}/tx", data=raw, timeout=30)
+        if not s.ok:
+            raise ValueError(f"broadcast rejected: {s.text[:300]}")
+        return s.text.strip() or txid
+    try:
+        r = requests.post(f"{base}/txs/test", json=[raw], timeout=30)
+    except Exception as exc:
+        _check("testmempoolaccept", False, str(exc))
+        return txid
+    if r.status_code != 200:
+        _check("testmempoolaccept", False, f"HTTP {r.status_code}: {r.text[:200]}")
+        return txid
+    try:
+        item = (r.json() or [{}])[0]
+    except Exception:
+        item = {}
+    allowed = bool(item.get("allowed"))
+    _check(
+        "testmempoolaccept",
+        allowed,
+        f"allowed={allowed} reject-reason={item.get('reject-reason')} vsize={item.get('vsize')} fees={item.get('fees')}",
+    )
+    return txid
+
+
+def _tron_dry_run_checks(client: Tron, signed_tx, source: str, kind: str, ctx: dict) -> None:
+    try:
+        signature = Signature(bytes.fromhex(signed_tx.to_json()["signature"][0]))
+        recovered = signature.recover_public_key_from_msg_hash(bytes.fromhex(signed_tx.txid)).to_base58check_address()
+        _check("sender", recovered == source, recovered)
+    except Exception as exc:
+        _check("sender", False, f"recover failed: {exc}")
+
+    energy_used = None
+    if kind == "trc20":
+        parameter = to_hex_address(ctx["destination"])[-40:].rjust(64, "0") + f"{ctx['amount_sun']:064x}"
+        try:
+            resp = client.provider.make_request("wallet/triggerconstantcontract", {
+                "visible": True,
+                "owner_address": source,
+                "contract_address": Config.trongrid_usdt_contract,
+                "function_selector": "transfer(address,uint256)",
+                "parameter": parameter,
+            })
+            energy_used = resp.get("energy_used")
+            constant = resp.get("constant_result") or [""]
+            decoded = int(constant[0], 16) if constant[0] else 0
+            ok = bool(resp.get("result", {}).get("result")) and decoded == 1
+            _check("constant_call", ok, f"result={resp.get('result', {}).get('result')} constant={decoded} energy_used={energy_used}")
+        except Exception as exc:
+            _check("constant_call", False, str(exc))
+
+    try:
+        account = client.get_account(source)
+        balance_sun = int((account or {}).get("balance", 0))
+    except Exception:
+        balance_sun = 0
+
+    if kind == "trx":
+        required = ctx["amount_sun"] + ctx["fee_sun"]
+        _check(
+            "balance",
+            balance_sun >= required,
+            f"required {Decimal(required) / Decimal(10 ** 6):.8f} available {Decimal(balance_sun) / Decimal(10 ** 6):.8f}",
+        )
+    else:
+        try:
+            resource = client.get_account_resource(source)
+        except AddressNotFound:
+            resource = {}
+        except Exception:
+            resource = {}
+        free_bandwidth = int(resource.get("freeNetLimit", 0)) - int(resource.get("freeNetUsed", 0))
+        energy_available = int(resource.get("EnergyLimit", 0)) - int(resource.get("EnergyUsed", 0))
+        short = balance_sun < 400_000 and free_bandwidth < 345
+        _check(
+            "bandwidth",
+            not short,
+            f"balance {Decimal(balance_sun) / Decimal(10 ** 6):.8f} TRX, free bandwidth {free_bandwidth}, "
+            f"energy available {energy_available}, energy used {energy_used}",
+        )
+
+
+def _tron_submit(client: Tron, signed_tx, source: str, kind: str, **ctx):
+    if not _DRY_RUN.get():
+        return signed_tx.broadcast()
+    _tron_dry_run_checks(client, signed_tx, source, kind, ctx)
+    return {"txid": signed_tx.txid}
 
 
 class InsufficientGas(Exception):
@@ -67,10 +243,7 @@ def _utxo_transfer(
             _to_sats(amount), _to_sats(fee), utxo.MIN_RATE[network], fee_from_amount,
         )
         raw, txid = utxo.sign_p2wpkh(inputs, outputs, private_key)
-        s = requests.post(f"{base}/tx", data=raw, timeout=30)
-        if not s.ok:
-            raise ValueError(f"broadcast rejected: {s.text[:300]}")
-        return s.text.strip() or txid
+        return _utxo_submit(base, raw, txid)
 
 
 def _to_wei(fee_eth: str, gas: int) -> int:
@@ -149,7 +322,7 @@ def _evm_token_transfer(network: str, source_index: int, destination: str, amoun
             "chainId": entry["chain_id"],
         })
         signed = w3.eth.account.sign_transaction(tx, source_private)
-        return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
+        return _evm_submit(w3, signed, tx, source)
 
 
 def _erc20_transfer(source_index: int, destination: str, amount: str, fee_eth: str, network: str = "usdt_erc20") -> Optional[str]:
@@ -168,7 +341,8 @@ def _evm_native_transfer(network: str, source_index: int, destination: str, amou
     source_private = keys.derive_private_key(network, source_index)
 
     with _send_lock(entry["chain"], source):
-        gas_price = w3.eth.gas_price
+        # Same 25% headroom as token sends: an exact-price tx strands on a base-fee rise.
+        gas_price = w3.eth.gas_price * 5 // 4
         value = w3.to_wei(amount, "ether")
         if deduct == "fee":
             value -= w3.to_wei(fee, "ether")
@@ -188,7 +362,7 @@ def _evm_native_transfer(network: str, source_index: int, destination: str, amou
             "chainId": entry["chain_id"],
         }
         signed = w3.eth.account.sign_transaction(tx, source_private)
-        return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
+        return _evm_submit(w3, signed, tx, source)
 
 
 def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, fee_eth: str, network: str = "usdt_erc20") -> Optional[str]:
@@ -211,7 +385,7 @@ def _eth_native_transfer(source_index: int, destination: str, amount_eth: str, f
             "chainId": entry["chain_id"],
         }
         signed = w3.eth.account.sign_transaction(tx, source_private)
-        return w3.eth.send_raw_transaction(signed.rawTransaction).hex()
+        return _evm_submit(w3, signed, tx, source)
 
 
 def _trx_client() -> Tron:
@@ -231,8 +405,9 @@ def _trx_transfer(source_index: int, destination: str, amount_trx: str, fee_trx:
     fee_sun = _sun(fee_trx)
 
     with _send_lock("tron", source):
-        tx = client.trx.transfer(source, destination, amount_sun).fee_limit(fee_sun).build().sign(source_private).broadcast()
-        return tx.get("txid") or tx.txid
+        tx = client.trx.transfer(source, destination, amount_sun).fee_limit(fee_sun).build().sign(source_private)
+        result = _tron_submit(client, tx, source, "trx", amount_sun=amount_sun, fee_sun=fee_sun)
+        return result.get("txid") or result.txid
 
 
 def _trc20_transfer(source_index: int, destination: str, amount: str, fee_trx: str) -> Optional[str]:
@@ -247,7 +422,7 @@ def _trc20_transfer(source_index: int, destination: str, amount: str, fee_trx: s
     with _send_lock("tron", source):
         tx = contract.functions.transfer(destination, value).with_owner(source).fee_limit(fee_sun).build()
         signed_tx = tx.sign(source_private)
-        result = signed_tx.broadcast()
+        result = _tron_submit(client, signed_tx, source, "trc20", destination=destination, amount_sun=value)
         return result.get("txid") or result.get("transaction", {}).get("txID")
 
 
@@ -458,6 +633,18 @@ def get_tron_resource(index: int) -> Optional[dict]:
         return None
 
 
+def _evm_pending_receipt(w3: Web3, tx_hash: str) -> Optional[dict]:
+    """Pending receipt plus `seen`: does the network know this tx at all?"""
+    try:
+        w3.eth.get_transaction(tx_hash)
+        seen = True
+    except TransactionNotFound:
+        seen = False
+    except Exception:
+        return None
+    return {"status": "pending", "fee": None, "confirmations": 0, "seen": seen}
+
+
 def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
     entry = config.network(network)
 
@@ -468,11 +655,11 @@ def get_receipt(network: str, tx_hash: str) -> Optional[dict]:
         try:
             receipt = w3.eth.get_transaction_receipt(tx_hash)
         except TransactionNotFound:
-            return {"status": "pending", "fee": None, "confirmations": 0}
+            return _evm_pending_receipt(w3, tx_hash)
         except Exception:
             return None
         if receipt is None:
-            return {"status": "pending", "fee": None, "confirmations": 0}
+            return _evm_pending_receipt(w3, tx_hash)
         gas_price = receipt.effectiveGasPrice if receipt.effectiveGasPrice is not None else receipt.gasPrice
         fee_wei = receipt.gasUsed * gas_price
         fee = f"{Decimal(fee_wei) / Decimal(10 ** 18):.8f}"
@@ -540,6 +727,65 @@ def broadcast_topup(network: str, source_index: int, destination_index: int, amo
     if entry["family"] == "tron":
         return _trx_transfer(source_index, keys.derive_address("usdt_trc20", destination_index), amount, fee)
     return None
+
+
+def speed_up(network: str, index: int, tx_hash: str) -> Optional[dict]:
+    """Re-sign a stuck legacy EVM tx at ~125% of the max(old, network) gas price."""
+    entry = config.network(network)
+    if entry["family"] != "evm":
+        raise ValueError("speed-up is only supported on EVM networks")
+    w3 = _w3(network)
+    if w3 is None:
+        return None
+    source = Web3.to_checksum_address(keys.derive_address(network, index))
+    with _send_lock(entry["chain"], source):
+        try:
+            tx = w3.eth.get_transaction(tx_hash)
+        except TransactionNotFound:
+            return {"status": "not_found"}
+        if tx.get("blockNumber") is not None:
+            return {"status": "mined"}
+        if tx.get("from") != source:
+            raise ValueError("tx not from index")
+        if tx.get("maxFeePerGas") is not None or tx.get("gasPrice") is None:
+            return {"status": "not_replaceable", "reason": "type"}
+        latest = w3.eth.get_transaction_count(source, "latest")
+        if latest > tx["nonce"]:
+            return {"status": "mined"}
+        old_price = int(tx["gasPrice"])
+        new_price = max(old_price * 5 // 4 + 1, w3.eth.gas_price * 5 // 4)
+        cap = config.max_gas_price_wei(entry["chain"])
+        if new_price > cap:
+            new_price = cap
+            if cap <= int(old_price * 11 / 10):
+                return {"status": "not_replaceable", "reason": "price_cap"}
+        required = int(tx["value"]) + int(tx["gas"]) * new_price
+        balance = int(w3.eth.get_balance(source))
+        if balance < required:
+            return {
+                "status": "insufficient_gas",
+                "required": f"{Decimal(required) / Decimal(10 ** 18):.8f}",
+                "available": f"{Decimal(balance) / Decimal(10 ** 18):.8f}",
+            }
+        new_tx = {
+            "to": tx["to"],
+            "value": tx["value"],
+            "data": tx.get("input") or tx.get("data") or "0x",
+            "gas": tx["gas"],
+            "gasPrice": new_price,
+            "nonce": tx["nonce"],
+            "chainId": entry["chain_id"],
+        }
+        signed = w3.eth.account.sign_transaction(new_tx, keys.derive_private_key(network, index))
+        new_hash = _evm_submit(w3, signed, new_tx, source)
+        if not new_hash.startswith("0x"):
+            new_hash = "0x" + new_hash
+        return {
+            "status": "replaced",
+            "tx_hash": new_hash,
+            "gas_price_gwei": str(Decimal(new_price) / Decimal(10 ** 9)),
+            "old_gas_price_gwei": str(Decimal(old_price) / Decimal(10 ** 9)),
+        }
 
 
 ERC20_ABI = [

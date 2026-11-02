@@ -45,6 +45,8 @@ class Withdrawal extends Model
         'decided_at',
         'decided_by',
         'sent_at',
+        'replaced_tx_hashes',
+        'last_broadcast_at',
     ];
 
     protected function casts(): array
@@ -60,6 +62,8 @@ class Withdrawal extends Model
             'sent_at' => 'datetime',
             'attempts' => 'integer',
             'reconcile_attempts' => 'integer',
+            'replaced_tx_hashes' => 'array',
+            'last_broadcast_at' => 'datetime',
         ];
     }
 

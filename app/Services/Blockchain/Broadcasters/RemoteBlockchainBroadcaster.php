@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 
-class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTransferFee, ReportsLastError
+class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTransferFee, ReportsLastError, SimulatesTransactions, SpeedsUpTransactions
 {
     private const RETRYABLE_PATHS = ['/balance', '/receipt', '/fee', '/tron-resource'];
 
@@ -255,9 +255,45 @@ class RemoteBlockchainBroadcaster implements BlockchainBroadcaster, EstimatesTra
         return null;
     }
 
+    public function dryRun(string $action, array $payload): array
+    {
+        $response = $this->post('/'.$action, $payload + ['dry_run' => true]);
+
+        if (! $response?->successful()) {
+            return [
+                'ok' => false,
+                'tx_hash' => null,
+                'checks' => [],
+                'error' => $this->lastError(),
+            ];
+        }
+
+        return [
+            'ok' => (bool) $response->json('data.ok'),
+            'tx_hash' => $response->json('data.tx_hash'),
+            'checks' => $response->json('data.checks') ?? [],
+            'error' => null,
+        ];
+    }
+
+    public function speedUp(string $network, int $index, string $txHash): ?array
+    {
+        $response = $this->post('/speedup', [
+            'network' => $network,
+            'index' => $index,
+            'tx_hash' => $txHash,
+        ]);
+
+        if ($response?->successful()) {
+            return $response->json('data');
+        }
+
+        return null;
+    }
+
     // TRC20 token sends: fee doubles as fee_limit, which caps usable energy
     // (delegated energy included). Never let the charged/rental price be the cap.
-    private function sendFeeLimit(string $network, string $fee): string
+    public function sendFeeLimit(string $network, string $fee): string
     {
         if (Network::family($network) !== 'tron') {
             return $fee;

@@ -38,6 +38,10 @@ class Config:
     manual_approval = os.environ.get("SIGNER_MANUAL_APPROVAL", "true").lower() in ("1", "true", "yes")
     daily_limit = float(os.environ.get("SIGNER_DAILY_LIMIT", "1000"))
     per_tx_limit = float(os.environ.get("SIGNER_PER_TX_LIMIT", "500"))
+    max_gas_price_gwei = {
+        "ethereum": int(os.environ.get("SIGNER_MAX_GAS_PRICE_GWEI_ETHEREUM", "20")),
+        "bsc": int(os.environ.get("SIGNER_MAX_GAS_PRICE_GWEI_BSC", "10")),
+    }
 
 
 class _Coins:
@@ -164,6 +168,10 @@ def coin(key: str):
 
 def rpc_url(key: str) -> str:
     return network(key)["rpc"]()
+
+
+def max_gas_price_wei(chain: str) -> int:
+    return Config.max_gas_price_gwei.get(chain, 10) * 10 ** 9
 
 
 def wallet_key_path() -> Path:

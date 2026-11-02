@@ -23,6 +23,8 @@ class TreasuryPayout extends Model
         'created_by',
         'sent_at',
         'confirmed_at',
+        'replaced_tx_hashes',
+        'last_broadcast_at',
     ];
 
     protected function casts(): array
@@ -32,6 +34,8 @@ class TreasuryPayout extends Model
             'network_fee' => 'decimal:8',
             'sent_at' => 'datetime',
             'confirmed_at' => 'datetime',
+            'replaced_tx_hashes' => 'array',
+            'last_broadcast_at' => 'datetime',
         ];
     }
 

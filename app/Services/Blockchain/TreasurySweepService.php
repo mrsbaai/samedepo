@@ -391,7 +391,7 @@ class TreasurySweepService
             return;
         }
 
-        $sweep->update(['tx_hash' => $txHash, 'error_message' => null]);
+        $sweep->update(['tx_hash' => $txHash, 'error_message' => null, 'last_broadcast_at' => now()]);
 
         // The shared gas top-up is already in flight — sweep each sibling token
         // on the same address now instead of waiting for its own threshold.

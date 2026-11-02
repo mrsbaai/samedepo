@@ -144,7 +144,8 @@ def test_native_eth_sweep_sends_amount_minus_gas():
         assert transactions._evm_native_transfer("ethereum", 0, "0x" + "22" * 20, "0.01", "0", deduct="gas") == "0xdead"
     built = w3.eth.account.sign_transaction.call_args[0][0]
     assert built["gas"] == 21000
-    expected_value = int(Decimal("0.01") * 10 ** 18) - 21000 * 1_000_000_000
+    assert built["gasPrice"] == 1_250_000_000  # 25% headroom over the network price
+    expected_value = int(Decimal("0.01") * 10 ** 18) - 21000 * 1_250_000_000
     assert built["value"] == expected_value
 
 

@@ -30,6 +30,8 @@ class GasTopup extends Model
         'confirmed_at',
         'fee_recovered_at',
         'is_open',
+        'replaced_tx_hashes',
+        'last_broadcast_at',
     ];
 
     protected function casts(): array
@@ -41,6 +43,8 @@ class GasTopup extends Model
             'broadcasted_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'fee_recovered_at' => 'datetime',
+            'replaced_tx_hashes' => 'array',
+            'last_broadcast_at' => 'datetime',
         ];
     }
 

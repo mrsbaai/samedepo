@@ -23,16 +23,32 @@ def _json_response(data: dict) -> tuple:
     return jsonify({"data": data, "signature": auth.sign_response(payload)})
 
 
-def _broadcast(fn, *args):
+def _broadcast(fn, *args, dry_run: bool = False):
+    checks: list[dict] = []
+    if dry_run:
+        transactions._DRY_RUN.set(True)
+        transactions._DRY_RUN_CHECKS.set(checks)
     try:
-        tx_hash = fn(*args)
-    except InsufficientGas as exc:
-        return jsonify({"error": "insufficient_gas", "required": exc.required, "available": exc.available}), 422
-    except Exception as exc:
-        log.exception("broadcast failed")
-        return jsonify({"error": "broadcast_failed", "message": str(exc)[:500]}), 503
+        try:
+            tx_hash = fn(*args)
+        except InsufficientGas as exc:
+            return jsonify({"error": "insufficient_gas", "required": exc.required, "available": exc.available}), 422
+        except Exception as exc:
+            log.exception("broadcast failed")
+            return jsonify({"error": "broadcast_failed", "message": str(exc)[:500]}), 503
+    finally:
+        if dry_run:
+            transactions._DRY_RUN.set(False)
+            transactions._DRY_RUN_CHECKS.set(None)
     if tx_hash is None:
         return jsonify({"error": "broadcast_failed", "message": "Provider returned no transaction hash"}), 503
+    if dry_run:
+        return _json_response({
+            "dry_run": True,
+            "ok": all(check["ok"] for check in checks),
+            "tx_hash": tx_hash,
+            "checks": checks,
+        })
     return _json_response({"tx_hash": tx_hash})
 
 
@@ -148,7 +164,8 @@ def withdraw():
     amount = Decimal(body["amount"])
     if amount > Decimal(Config.per_tx_limit):
         abort(400, "Amount exceeds per-transaction limit")
-    if Config.manual_approval:
+    dry_run = bool(body.get("dry_run"))
+    if Config.manual_approval and not dry_run:
         # ponytail: simple manual-approval queue stored in memory; use a persistent queue if volume grows.
         abort(202, "Withdrawal queued for manual approval")
     return _broadcast(
@@ -158,13 +175,15 @@ def withdraw():
         body["destination"],
         body["amount"],
         body["fee"],
+        dry_run=dry_run,
     )
 
 
 @app.route("/sweep", methods=["POST"])
 def sweep():
     body = _require_body(["network", "source_index", "destination_index", "amount", "fee"])
-    if Config.manual_approval:
+    dry_run = bool(body.get("dry_run"))
+    if Config.manual_approval and not dry_run:
         abort(202, "Sweep queued for manual approval")
     return _broadcast(
         transactions.broadcast_sweep,
@@ -173,6 +192,7 @@ def sweep():
         int(body["destination_index"]),
         body["amount"],
         body["fee"],
+        dry_run=dry_run,
     )
 
 
@@ -214,7 +234,8 @@ def topup():
     destination_index = _validate_index(body["destination_index"], "destination_index")
     _validate_amount(body["amount"], "amount")
     _validate_amount(body["fee"], "fee")
-    if Config.manual_approval:
+    dry_run = bool(body.get("dry_run"))
+    if Config.manual_approval and not dry_run:
         abort(202, "Top-up queued for manual approval")
     return _broadcast(
         transactions.broadcast_topup,
@@ -223,7 +244,28 @@ def topup():
         destination_index,
         body["amount"],
         body["fee"],
+        dry_run=dry_run,
     )
+
+
+@app.route("/speedup", methods=["POST"])
+def speedup():
+    body = _require_body(["network", "index", "tx_hash"])
+    _validate_network(body["network"])
+    if config.family(body["network"]) != "evm":
+        abort(400, "Speed-up is only supported on EVM networks")
+    index = _validate_index(body["index"])
+    _validate_tx_hash(body["network"], body["tx_hash"])
+    try:
+        result = transactions.speed_up(body["network"], index, body["tx_hash"])
+    except ValueError as exc:
+        abort(400, str(exc))
+    except Exception as exc:
+        log.exception("speedup failed")
+        return jsonify({"error": "broadcast_failed", "message": str(exc)[:500]}), 503
+    if result is None:
+        return jsonify({"error": "broadcast_failed", "message": "Provider unavailable"}), 503
+    return _json_response(result)
 
 
 @app.route("/approve", methods=["POST"])

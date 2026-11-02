@@ -129,6 +129,7 @@ class WithdrawalProcessor
             'last_error' => null,
             'tx_hash' => $txHash,
             'sent_at' => now(),
+            'last_broadcast_at' => now(),
             'usd_value' => $usdRate === null ? null : bcmul($amountSent, (string) $usdRate, 2),
         ]);
 

@@ -197,6 +197,7 @@ class TreasuryPayoutService
                 'network_fee' => $estimatedFeeNative,
                 'error_message' => null,
                 'sent_at' => now(),
+                'last_broadcast_at' => now(),
             ]);
         });
 

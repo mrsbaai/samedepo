@@ -630,7 +630,7 @@ class GasTreasuryService
                         return false;
                     }
 
-                    $topup->update(['tx_hash' => $txHash, 'broadcasted_at' => now()]);
+                    $topup->update(['tx_hash' => $txHash, 'broadcasted_at' => now(), 'last_broadcast_at' => now()]);
 
                     $receipt = $this->broadcaster->getTransactionReceipt($network, $txHash);
                     if ($receipt !== null && $receipt['status'] === 'failed') {
@@ -792,6 +792,7 @@ class GasTreasuryService
         $topup->update([
             'tx_hash' => $txHash,
             'broadcasted_at' => now(),
+            'last_broadcast_at' => now(),
         ]);
 
         $receipt = $this->broadcaster->getTransactionReceipt($network, $txHash);
@@ -870,7 +871,14 @@ class GasTreasuryService
         }
 
         $receipt = $this->broadcaster->getTransactionReceipt($topup->network, $topup->tx_hash);
-        $unseen = $receipt === null || (($receipt['status'] ?? 'pending') === 'pending' && (int) ($receipt['confirmations'] ?? 0) === 0);
+        // A pending tx the network has actually seen sits in the mempool — it
+        // gets sped up, not dropped. `seen` false (or absent on UTXO/TRON
+        // receipts) keeps the old drop behaviour.
+        $unseen = $receipt === null || (
+            ($receipt['status'] ?? 'pending') === 'pending'
+            && (int) ($receipt['confirmations'] ?? 0) === 0
+            && ($receipt['seen'] ?? false) === false
+        );
 
         if ($unseen) {
             $this->markTopupFailed($topup, 'Dropped: no on-chain receipt after '.self::TOPUP_STALE_MINUTES.' minutes');
