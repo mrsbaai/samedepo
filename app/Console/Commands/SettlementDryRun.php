@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Deposit;
+use App\Models\DepositAddress;
 use App\Models\TreasuryWallet;
 use App\Services\Blockchain\Broadcasters\BlockchainBroadcaster;
 use App\Services\Blockchain\Broadcasters\EstimatesTransferFee;
@@ -85,12 +86,20 @@ class SettlementDryRun extends Command
             ? $broadcaster->getTokenBalance($network, $index)
             : $broadcaster->getNativeBalance($network, $index);
 
-        if ($balance === null || bccomp($balance, '0', 8) <= 0) {
+        if ($balance === null) {
+            return $this->row($network, 'WITHDRAWAL', 'FAIL', 'balance unavailable');
+        }
+
+        $emptyTokenTreasury = $isToken && bccomp($balance, '0', 8) === 0;
+
+        if (bccomp($balance, '0', 8) <= 0 && ! $emptyTokenTreasury) {
             return $this->row($network, 'WITHDRAWAL', 'SKIP', 'treasury empty');
         }
 
         // Half the balance: a 10% slice of a near-empty UTXO treasury is dust.
-        $amount = bcmul($balance, '0.5', 8);
+        // A zero token balance still exercises signing, fee quote, nonce, and
+        // treasury gas — only the transfer simulation can legitimately fail.
+        $amount = $emptyTokenTreasury ? '1.00000000' : bcmul($balance, '0.5', 8);
         $fee = $broadcaster->estimateTransferResources($network, $isToken, (string) $wallet->address, $index)['fee'] ?? null;
 
         if ($fee === null) {
@@ -108,19 +117,28 @@ class SettlementDryRun extends Command
             $sendAmount = bcadd($amount, $fee, 8);
         }
 
-        return $this->resultRow($network, 'WITHDRAWAL', $broadcaster->dryRun('withdraw', [
+        $result = $broadcaster->dryRun('withdraw', [
             'network' => $network,
             'index' => $index,
             'destination' => (string) $wallet->address,
             'amount' => $sendAmount,
             'fee' => $fee,
-        ]));
+        ]);
+
+        if ($emptyTokenTreasury && ! $result['ok']
+            && collect($result['checks'])->where('ok', false)->isNotEmpty()
+            && collect($result['checks'])->where('ok', false)->pluck('name')->every(fn ($name) => in_array($name, ['eth_call', 'constant_call'], true))) {
+            return $this->row($network, 'WITHDRAWAL', 'PARTIAL',
+                'token balance 0 — signing, fee quote, nonce and treasury gas verified; transfer simulation needs funds');
+        }
+
+        return $this->resultRow($network, 'WITHDRAWAL', $result);
     }
 
     private function checkSweep(SimulatesTransactions&EstimatesTransferFee $broadcaster, string $network, ?array $candidate): array
     {
         if ($candidate === null) {
-            return $this->row($network, 'SWEEP', 'SKIP', 'no funded deposit address');
+            return $this->row($network, 'SWEEP', 'SKIP', 'nothing to sweep');
         }
 
         $wallet = TreasuryWallet::query()->where('network', $network)->first();
@@ -168,8 +186,10 @@ class SettlementDryRun extends Command
             return $this->row($network, 'TOPUP', 'SKIP', 'no treasury wallet');
         }
 
+        $candidate ??= $this->anyDepositAddress($network);
+
         if ($candidate === null) {
-            return $this->row($network, 'TOPUP', 'SKIP', 'no deposit address to top up');
+            return $this->row($network, 'TOPUP', 'SKIP', 'no deposit addresses');
         }
 
         $fee = $broadcaster->estimateTransferFee($network, false, $candidate['address'], (int) $wallet->derivation_index);
@@ -243,6 +263,27 @@ class SettlementDryRun extends Command
         }
 
         return ['index' => (int) $address->derivation_index, 'address' => (string) $address->address, 'balance' => $balance];
+    }
+
+    /**
+     * Most recent deposit address on a network — a top-up target even when
+     * nothing currently holds funds.
+     *
+     * @return array{index: int, address: string, balance: string}|null
+     */
+    private function anyDepositAddress(string $network): ?array
+    {
+        $address = DepositAddress::query()
+            ->withoutGlobalScope('owner')
+            ->where('network', $network)
+            ->latest('id')
+            ->first();
+
+        if ($address === null) {
+            return null;
+        }
+
+        return ['index' => (int) $address->derivation_index, 'address' => (string) $address->address, 'balance' => '0.00000000'];
     }
 
     private function sendFeeLimit(BlockchainBroadcaster $broadcaster, string $network, string $fee): string

@@ -157,8 +157,12 @@ def _tron_dry_run_checks(client: Tron, signed_tx, source: str, kind: str, ctx: d
             energy_used = resp.get("energy_used")
             constant = resp.get("constant_result") or [""]
             decoded = int(constant[0], 16) if constant[0] else 0
-            ok = bool(resp.get("result", {}).get("result")) and decoded == 1
-            _check("constant_call", ok, f"result={resp.get('result', {}).get('result')} constant={decoded} energy_used={energy_used}")
+            result = resp.get("result", {})
+            rets = resp.get("transaction", {}).get("ret") or [{}]
+            # USDT returns false even on success — a clean simulation is
+            # result=true with no revert message and no FAILED contract ret.
+            ok = bool(result.get("result")) and "message" not in result and rets[0].get("ret") != "FAILED"
+            _check("constant_call", ok, f"result={result.get('result')} message={result.get('message')} constant={decoded} energy_used={energy_used}")
         except Exception as exc:
             _check("constant_call", False, str(exc))
 

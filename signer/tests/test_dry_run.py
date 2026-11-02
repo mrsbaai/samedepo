@@ -190,8 +190,9 @@ def _tron_client(kind="trc20"):
     }
     client.provider.make_request.return_value = {
         "result": {"result": True},
-        "constant_result": ["0" * 63 + "1"],
-        "energy_used": 64995,
+        "constant_result": ["0" * 64],
+        "energy_used": 64285,
+        "transaction": {"ret": [{}]},
     }
     return client
 
@@ -248,12 +249,13 @@ def test_trc20_dry_run_constant_call_and_never_broadcasts(dry_run):
     assert call.args[1]["function_selector"] == "transfer(address,uint256)"
 
 
-def test_trc20_dry_run_constant_call_false_fails(dry_run):
+def test_trc20_dry_run_constant_call_revert_fails(dry_run):
     client = _tron_client()
     client.provider.make_request.return_value = {
-        "result": {"result": True},
-        "constant_result": ["0" * 64],
-        "energy_used": 64995,
+        "result": {"result": True, "message": "REVERT opcode executed"},
+        "constant_result": [""],
+        "energy_used": 8624,
+        "transaction": {"ret": [{"ret": "FAILED"}]},
     }
     signed_tx = _signed_tx()
     client.get_contract.return_value.functions.transfer.return_value \

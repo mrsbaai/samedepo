@@ -138,6 +138,92 @@ test('an empty treasury skips instead of failing', function () {
     Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/withdraw'));
 });
 
+test('a zero token treasury reports PARTIAL when only the transfer simulation fails', function () {
+    bindRemoteSigner();
+    seedNetwork('usdt_erc20', 0);
+    fakeSigner(fn (Request $request, string $path) => $path === '/withdraw'
+        ? Http::response(['data' => [
+            'dry_run' => true,
+            'ok' => false,
+            'tx_hash' => '0xdry',
+            'checks' => [
+                ['name' => 'sender', 'ok' => true, 'detail' => 'ok'],
+                ['name' => 'eth_call', 'ok' => false, 'detail' => 'returned false'],
+                ['name' => 'balance', 'ok' => true, 'detail' => 'ok'],
+            ],
+        ]])
+        : Http::response(['data' => ['dry_run' => true, 'ok' => true, 'tx_hash' => '0xdry', 'checks' => []]]),
+        balance: '0.00000000');
+    fakeTronSave();
+
+    $this->artisan('app:settlement-dry-run', ['--network' => ['usdt_erc20']])
+        ->expectsOutputToContain('PARTIAL')
+        ->assertSuccessful();
+});
+
+test('a zero token treasury still FAILs on non-simulation check failures', function () {
+    bindRemoteSigner();
+    seedNetwork('usdt_erc20', 0);
+    fakeSigner(fn (Request $request, string $path) => $path === '/withdraw'
+        ? Http::response(['data' => [
+            'dry_run' => true,
+            'ok' => false,
+            'tx_hash' => '0xdry',
+            'checks' => [
+                ['name' => 'eth_call', 'ok' => false, 'detail' => 'returned false'],
+                ['name' => 'balance', 'ok' => false, 'detail' => 'required 0.001 available 0'],
+            ],
+        ]])
+        : Http::response(['data' => ['dry_run' => true, 'ok' => true, 'tx_hash' => '0xdry', 'checks' => []]]),
+        balance: '0.00000000');
+    fakeTronSave();
+
+    $this->artisan('app:settlement-dry-run', ['--network' => ['usdt_erc20']])
+        ->expectsOutputToContain('required 0.001 available 0')
+        ->assertFailed();
+});
+
+test('an unavailable balance is a FAIL not a SKIP', function () {
+    bindRemoteSigner();
+    seedNetwork('usdt_erc20', 0);
+    Http::fake(fn (Request $request) => parse_url($request->url(), PHP_URL_PATH) === '/balance'
+        ? Http::response('unavailable', 503)
+        : Http::response(['data' => ['fee' => '0.00100000', 'dry_run' => true, 'ok' => true, 'tx_hash' => '0xdry', 'checks' => []]]));
+    fakeTronSave();
+
+    $this->artisan('app:settlement-dry-run', ['--network' => ['usdt_erc20']])
+        ->expectsOutputToContain('balance unavailable')
+        ->assertFailed();
+});
+
+test('topup uses an unfunded deposit address when nothing holds funds', function () {
+    bindRemoteSigner();
+    TreasuryWallet::factory()->create([
+        'network' => 'usdt_erc20',
+        'derivation_index' => 0,
+        'address' => 'treasury-usdt_erc20',
+    ]);
+
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'usdt_erc20',
+        'derivation_index' => 42,
+        'address' => '0xunfunded',
+    ]);
+
+    fakeSigner(balance: '0.00000000');
+    fakeTronSave();
+
+    $this->artisan('app:settlement-dry-run', ['--network' => ['usdt_erc20']])
+        ->assertSuccessful();
+
+    Http::assertSent(fn (Request $request) => parse_url($request->url(), PHP_URL_PATH) === '/topup'
+        && $request['destination_index'] === 42
+        && ($request['dry_run'] ?? false) === true);
+});
+
 test('a token sweep short on gas passes with the provisioning note', function () {
     bindRemoteSigner();
     seedNetwork('usdt_erc20', 0);
