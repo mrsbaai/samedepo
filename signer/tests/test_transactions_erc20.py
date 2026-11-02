@@ -6,6 +6,7 @@ from samedepo_signer import transactions
 def _fake_w3(estimate=None, estimate_raises=False):
     w3 = MagicMock()
     w3.eth.chain_id = 1
+    w3.eth.gas_price = 1
     w3.eth.get_transaction_count.return_value = 7
     contract = MagicMock()
     contract.functions.decimals.return_value.call.return_value = 6
@@ -56,6 +57,15 @@ def test_nonce_comes_from_pending_block():
     w3, _ = _fake_w3(estimate=60000)
     _run(w3)
     w3.eth.get_transaction_count.assert_called_with("0x" + "11" * 20, "pending")
+
+
+def test_gas_price_keeps_headroom_over_the_live_network_price():
+    w3, transfer = _fake_w3(estimate=40000)
+    w3.eth.gas_price = 116_000_000  # base fee rose above the quoted 0.0885 gwei
+    _run(w3)  # quote 0.00001 ETH / 65000 gas = ~153.8 gwei, already above
+    w3.eth.gas_price = 200_000_000_000
+    _run(w3)
+    assert transfer.build_transaction.call_args[0][0]["gasPrice"] == 250_000_000_000
 
 
 def test_nonce_falls_back_to_latest_when_pending_errors():

@@ -137,7 +137,9 @@ def _evm_token_transfer(network: str, source_index: int, destination: str, amoun
     with _send_lock(entry["chain"], source):
         transfer = contract.functions.transfer(Web3.to_checksum_address(destination), value)
         gas = _estimate_erc20_gas(transfer, source)
-        gas_price = _to_wei(fee_native, gas)
+        # The quote is the network price at quote time with no margin; a legacy
+        # tx priced under a risen base fee is never mined. Keep 25% headroom.
+        gas_price = max(_to_wei(fee_native, gas), w3.eth.gas_price * 5 // 4)
         nonce = _nonce(w3, source)
         tx = transfer.build_transaction({
             "from": source,
