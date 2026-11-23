@@ -23,6 +23,7 @@ final class TransactionRows
         'credited' => 'Credited',
         'below_minimum' => 'Below minimum',
         'forfeited' => 'Expired',
+        'reversed' => 'Reversed',
         'approved' => 'Approved',
         'denied' => 'Denied',
         'cancelled' => 'Cancelled',
@@ -109,7 +110,7 @@ final class TransactionRows
                         'withdrawal' => fn ($query) => $query->withoutGlobalScope('owner'),
                         'deposit' => fn ($query) => $query->withoutGlobalScope('owner'),
                     ])
-                    ->whereIn('reason', ['network_fee_adjustment', 'consolidation_fee', 'gas_recovery_credit'])
+                    ->whereIn('reason', ['network_fee_adjustment', 'consolidation_fee', 'gas_recovery_credit', 'duplicate_credit_reversal', 'write_off'])
                     ->when($dbNetwork !== null, fn ($query) => $query->where('network', $dbNetwork))
                     ->when($like !== null, fn ($query) => $query->where(function ($q) use ($like) {
                         $q->whereHas('withdrawal', fn ($w) => $w->withoutGlobalScope('owner')->where('tx_hash', 'like', $like))
@@ -298,6 +299,8 @@ final class TransactionRows
             'network_fee_adjustment' => bccomp((string) $entry->amount, '0', 8) < 0 ? 'Gas overage' : 'Gas refund',
             'consolidation_fee' => 'Consolidation fee',
             'gas_recovery_credit' => 'Gas recovery credit',
+            'duplicate_credit_reversal' => 'Duplicate credit reversed',
+            'write_off' => 'Write-off',
             default => 'Adjustment',
         };
 

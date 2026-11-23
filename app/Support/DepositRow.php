@@ -53,6 +53,7 @@ final class DepositRow
         'credited' => 'green',
         'below_minimum' => 'amber',
         'forfeited' => 'zinc',
+        'reversed' => 'zinc',
         'approved' => 'green',
         'denied' => 'zinc',
         'cancelled' => 'zinc',
@@ -65,6 +66,7 @@ final class DepositRow
     public const STATUS_LABELS = [
         'below_minimum' => 'Below minimum',
         'forfeited' => 'Expired',
+        'reversed' => 'Reversed',
     ];
 
     public static function present(Deposit $deposit): array

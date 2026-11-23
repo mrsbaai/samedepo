@@ -7,6 +7,7 @@ namespace App\Services\Blockchain;
 use App\Models\Customer;
 use App\Models\DepositAddress;
 use App\Support\Network;
+use Illuminate\Support\Facades\Cache;
 
 class CustomerAddressProvisioner
 {
@@ -18,7 +19,12 @@ class CustomerAddressProvisioner
      */
     public function provision(Customer $customer): int
     {
-        $nextIndex = (DepositAddress::max('derivation_index') ?? 0) + 1;
+        return Cache::lock('deposit-address-index', 10)->block(10, fn () => $this->provisionLocked($customer));
+    }
+
+    private function provisionLocked(Customer $customer): int
+    {
+        $nextIndex = (DepositAddress::query()->withoutGlobalScopes()->max('derivation_index') ?? 0) + 1;
 
         $existing = $customer->depositAddresses()->get();
         $existingNetworks = $existing->pluck('network')->all();

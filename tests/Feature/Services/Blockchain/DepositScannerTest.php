@@ -369,3 +369,48 @@ test('it updates confirmations without resetting below_minimum or forfeited depo
     expect($deposit->status)->toBe($status)
         ->and($deposit->confirmation_count)->toBe(15);
 })->with(['below_minimum', 'forfeited']);
+
+test('a reversed deposit stays reversed and is never re-credited', function () {
+    $owner = User::factory()->create(['role' => 'owner']);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $address = DepositAddress::factory()->create([
+        'customer_id' => $customer->id,
+        'network' => 'usdt_trc20',
+        'address' => 'TReversedAddress12345',
+    ]);
+    $deposit = Deposit::factory()->create([
+        'deposit_address_id' => $address->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'network' => 'usdt_trc20',
+        'tx_hash' => 'tx-reversed',
+        'gross_amount' => '5.00000000',
+        'credited_amount' => '4.90000000',
+        'status' => 'reversed',
+        'confirmation_count' => 7,
+        'credited_at' => now(),
+    ]);
+
+    $scanner = createScanner('usdt_trc20', [
+        new BlockchainTransaction(
+            network: 'usdt_trc20',
+            txHash: 'tx-reversed',
+            toAddress: 'TReversedAddress12345',
+            amount: '5.00000000',
+            confirmations: 42,
+        ),
+    ]);
+
+    $scanner->scan();
+
+    $deposit->refresh();
+    expect($deposit->status)->toBe('reversed')
+        ->and($deposit->confirmation_count)->toBe(7);
+
+    app(\App\Services\Blockchain\DepositCreditor::class)->credit();
+
+    $deposit->refresh();
+    expect($deposit->status)->toBe('reversed');
+    expect(\App\Models\Balance::query()->where('user_id', $owner->id)->value('amount') ?? '0')
+        ->toBe('0');
+});

@@ -135,7 +135,7 @@ class DepositScanner
                     ]
                 );
 
-                if ($deposit->status !== 'credited') {
+                if (! in_array($deposit->status, ['credited', 'reversed'], true)) {
                     $updates = ['confirmation_count' => $transaction->confirmations];
 
                     if (! in_array($deposit->status, ['below_minimum', 'forfeited'], true)) {
