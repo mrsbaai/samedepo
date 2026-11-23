@@ -406,3 +406,60 @@ test('send clears a stale error message on success', function () {
     expect($payout->refresh()->status)->toBe('sent')
         ->and($payout->error_message)->toBeNull();
 });
+
+test('rent-mode preview counts only the bandwidth burn against the gas reserve', function () {
+    payoutFixture(nativeBalance: '10.83768100', available: '200.00000000');
+    GasPolicy::where('network', 'native_trx')->update([
+        'reserve_threshold' => '10.00000000',
+        'energy_mode' => 'rent',
+        'rent_max_price_sun' => 90,
+        'rent_duration_sec' => 3600,
+    ]);
+    Http::fake([
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 9637866, 'availableResource' => 100000]]),
+    ]);
+    $broadcaster = new PayoutBroadcasterFake;
+    $broadcaster->fee = '13.37350000';
+    $broadcaster->transferEnergy = 64285;
+
+    $preview = (new TreasuryPayoutService($broadcaster))->preview('usdt_trc20', '200.00000000');
+
+    expect($preview['level'])->toBeIn(['ok', 'warn'])
+        ->and($preview['fee_native'])->toBe('9.63786600');
+});
+
+test('rent-mode preview still blocks when the bandwidth burn would breach the reserve', function () {
+    payoutFixture(nativeBalance: '10.20000000', available: '200.00000000');
+    GasPolicy::where('network', 'native_trx')->update([
+        'reserve_threshold' => '10.00000000',
+        'energy_mode' => 'rent',
+        'rent_max_price_sun' => 90,
+        'rent_duration_sec' => 3600,
+    ]);
+    Http::fake([
+        'https://api.tronsave.io/v2/estimate-buy-resource' => Http::response(['error' => false, 'message' => 'Success', 'data' => ['unitPrice' => 64, 'durationSec' => 3600, 'estimateTrx' => 9637866, 'availableResource' => 100000]]),
+    ]);
+    $broadcaster = new PayoutBroadcasterFake;
+    $broadcaster->fee = '13.37350000';
+    $broadcaster->transferEnergy = 64285;
+
+    $preview = (new TreasuryPayoutService($broadcaster))->preview('usdt_trc20', '200.00000000');
+
+    expect($preview['level'])->toBe('block')
+        ->and($preview['message'])->toBe('Gas reserve too low for a payout right now.');
+});
+
+test('burn-mode preview still counts the full burn fee against the gas reserve', function () {
+    payoutFixture(nativeBalance: '10.83768100', available: '200.00000000');
+    GasPolicy::where('network', 'native_trx')->update([
+        'reserve_threshold' => '10.00000000',
+        'energy_mode' => 'burn',
+    ]);
+    $broadcaster = new PayoutBroadcasterFake;
+    $broadcaster->fee = '13.37350000';
+
+    $preview = (new TreasuryPayoutService($broadcaster))->preview('usdt_trc20', '200.00000000');
+
+    expect($preview['level'])->toBe('block')
+        ->and($preview['message'])->toBe('Gas reserve too low for a payout right now.');
+});

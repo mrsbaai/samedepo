@@ -220,3 +220,28 @@ test('gas policy rejects invalid limits', function () {
         ->call('savePolicy', 'native_trx')
         ->assertHasErrors('policies.native_trx.top_up_amount');
 });
+
+test('payout preview snaps a display-rounded amount down to the withdrawable', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'available_funds' => '145.58873561']);
+
+    Livewire::actingAs($admin)
+        ->test(TreasuryOverview::class)
+        ->set('payoutNetwork', 'usdt_trc20')
+        ->set('payoutAmount', '145.59')
+        ->call('previewPayout')
+        ->assertHasNoErrors()
+        ->assertSet('payoutAmount', '145.58873561');
+});
+
+test('payout preview still rejects an amount beyond display rounding', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_admin' => true]);
+    TreasuryWallet::factory()->create(['network' => 'usdt_trc20', 'available_funds' => '145.58873561']);
+
+    Livewire::actingAs($admin)
+        ->test(TreasuryOverview::class)
+        ->set('payoutNetwork', 'usdt_trc20')
+        ->set('payoutAmount', '145.60')
+        ->call('previewPayout')
+        ->assertHasErrors('payoutAmount');
+});

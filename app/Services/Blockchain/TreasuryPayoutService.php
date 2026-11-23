@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\DB;
 
 class TreasuryPayoutService
 {
+    // In rent mode the TronSave float pays the energy; the treasury only burns
+    // bandwidth: 345 bytes × 1000 sun, the same constant GasTreasuryService uses.
+    private const RENT_MODE_TREASURY_BURN_NATIVE = '0.34500000';
+
     private ?GasTreasuryService $gasTreasury = null;
 
     public function __construct(
@@ -85,7 +89,9 @@ class TreasuryPayoutService
             $wallet = TreasuryWallet::query()->where('network', $network)->first();
             $reserve = (string) (GasPolicy::query()->where('network', Network::nativeKey($network))->value('reserve_threshold') ?? '0');
 
-            if ($wallet?->native_balance === null || bccomp(bcsub((string) $wallet->native_balance, $result['fee_native'], 8), $reserve, 8) < 0) {
+            $treasuryGasSpend = $rentalFee !== null ? self::RENT_MODE_TREASURY_BURN_NATIVE : $result['fee_native'];
+
+            if ($wallet?->native_balance === null || bccomp(bcsub((string) $wallet->native_balance, $treasuryGasSpend, 8), $reserve, 8) < 0) {
                 return $this->blocked($result, 'Gas reserve too low for a payout right now.');
             }
         }

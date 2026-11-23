@@ -367,7 +367,16 @@ class TreasuryOverview extends Component
         $withdrawable = $this->profit['networks'][$this->payoutNetwork]['withdrawable'] ?? '0.00000000';
 
         if (bccomp((string) $this->payoutAmount, $withdrawable, 8) > 0) {
-            throw ValidationException::withMessages(['payoutAmount' => 'Amount exceeds withdrawable profit.']);
+            $decimals = $this->networkMeta($this->payoutNetwork)['decimals'];
+            $sameAtDisplayPrecision = number_format((float) $this->payoutAmount, $decimals, '.', '')
+                === number_format((float) $withdrawable, $decimals, '.', '');
+
+            if (! $sameAtDisplayPrecision) {
+                throw ValidationException::withMessages(['payoutAmount' => 'Amount exceeds withdrawable profit.']);
+            }
+
+            // The admin typed the displayed (rounded) amount — pay out the full withdrawable.
+            $this->payoutAmount = $this->formatWithdrawableInput($withdrawable);
         }
 
         $this->payoutPreview = app(TreasuryPayoutService::class)->preview(
