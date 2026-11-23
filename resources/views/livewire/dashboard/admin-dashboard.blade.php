@@ -159,13 +159,13 @@
             </div>
         </div>
 
-        <flux:table container:class="mt-6">
+        <flux:table container:class="mt-6 overflow-x-auto">
             <flux:table.columns>
                 <flux:table.column>Network</flux:table.column>
                 <flux:table.column align="end">Withdrawable</flux:table.column>
                 <flux:table.column align="end" class="max-md:hidden">Total profit</flux:table.column>
                 <flux:table.column align="end" class="max-md:hidden">Unswept</flux:table.column>
-                <flux:table.column class="max-lg:hidden">Gas</flux:table.column>
+                <flux:table.column>Gas</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @foreach ($treasury['networks'] as $network => $n)
@@ -189,8 +189,11 @@
                             {{ number_format((float) $n['unswept'], $meta['decimals']) }} {{ $meta['symbol'] }}
                             <flux:text size="sm" variant="subtle">${{ number_format((float) $n['unswept_usd'], 2) }}</flux:text>
                         </flux:table.cell>
-                        <flux:table.cell class="max-lg:hidden py-0">
+                        <flux:table.cell>
                             <flux:badge size="sm" :color="$gasColor">{{ $gasLabel }}</flux:badge>
+                            @if ($balance = $treasury['gasBalances'][$network] ?? null)
+                                <flux:text size="sm" variant="subtle" class="font-mono whitespace-nowrap">{{ number_format((float) $balance['amount'], 4) }} {{ $balance['symbol'] }}</flux:text>
+                            @endif
                         </flux:table.cell>
                     </flux:table.row>
                 @endforeach

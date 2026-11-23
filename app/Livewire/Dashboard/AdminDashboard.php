@@ -148,6 +148,7 @@ class AdminDashboard extends Component
         }
 
         $gas = [];
+        $gasBalances = [];
         foreach (Network::enabledKeys() as $network) {
             if (! Network::isToken($network)) {
                 $gas[$network] = 'not_applicable';
@@ -156,6 +157,12 @@ class AdminDashboard extends Component
             }
 
             $wallet = TreasuryWallet::query()->where('network', $network)->first();
+            if ($wallet?->native_balance !== null) {
+                $gasBalances[$network] = [
+                    'amount' => (string) $wallet->native_balance,
+                    'symbol' => Network::nativeSymbol($network),
+                ];
+            }
             $policy = GasPolicy::query()->where('network', Network::nativeKey($network))->first();
             $gas[$network] = match (true) {
                 $policy?->manual_paused === true => 'paused',
@@ -204,6 +211,7 @@ class AdminDashboard extends Component
             'unsweptUsd' => $unsweptUsd,
             'unsweptAddresses' => $unsweptAddresses,
             'gas' => $gas,
+            'gasBalances' => $gasBalances,
             'failures24h' => $failures24h,
             'bestNetwork' => $bestNetwork,
             'anyAddressMissing' => in_array(null, $addresses, true) || in_array('', $addresses, true),

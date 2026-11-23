@@ -622,3 +622,12 @@ test('the needs attention panel is hidden when nothing is blocked', function () 
         ->assertOk()
         ->assertDontSee('Needs attention');
 });
+
+test('treasury gas column shows the wallet native balance', function () {
+    [$admin] = adminDashboardProfitFixture(nativeBalance: '10.83768100');
+
+    $this->actingAs($admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('10.8377 TRX');
+});
